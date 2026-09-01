@@ -15,9 +15,8 @@ const AlertClick = sequelize.define(
       allowNull: true,
     },
     store_id: {
-        type: DataTypes.UUID,
-        allowNull: false,
-
+      type: DataTypes.UUID,
+      allowNull: false,
     },
     alert_id: {
       type: DataTypes.UUID,
@@ -27,9 +26,9 @@ const AlertClick = sequelize.define(
       type: DataTypes.UUID,
       allowNull: true,
     },
-    shoe_name: {
-      type: DataTypes.STRING,
-      allowNull: true,
+    product_name: { 
+      type: DataTypes.STRING, 
+      allowNull: true 
     },
     sku: {
       type: DataTypes.STRING,

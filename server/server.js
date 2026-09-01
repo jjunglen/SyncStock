@@ -9,7 +9,6 @@ const {
   flushPendingNotifications,
 } = require("./src/services/digest.service.js");
 require("./src/models/index.js");
-
 const authRoutes = require("./src/routes/auth.routes.js");
 const googleAuthRoutes = require("./src/routes/google.auth.routes.js");
 const storeRoutes = require("./src/routes/store.routes.js");
@@ -19,6 +18,8 @@ const notificationRoutes = require("./src/routes/notification.routes.js");
 const pushRoutes = require("./src/routes/push.routes.js");
 const userRoutes = require("./src/routes/user.routes.js");
 const webhookRoutes = require("./src/routes/webhook.routes.js");
+const redirectRoutes = require("./src/routes/redirect.routes.js");
+const twilioRoutes = require("./src/routes/twilio.routes.js");
 const { apiLimiter } = require("./src/middleware/rateLimit.middleware.js");
 
 const app = express();
@@ -80,6 +81,9 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/push", pushRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/webhooks/shopify", webhookRoutes);
+app.use("/api/redirect", redirectRoutes);
+app.use("/api/phone", twilioRoutes);
+// app.use("/api/stockx", require("./src/routes/stockx.routes.js")); // pending StockX API approval
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Syncstock API is running" });

@@ -1,20 +1,33 @@
 require("dotenv").config();
 const { Resend } = require("resend");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+} else {
+  console.warn(
+    "Resend not configured — RESEND_API_KEY missing, email sending will be disabled",
+  );
+}
 
 const sendAlertEmail = async ({ store, account, alert, inventory }) => {
+
+  if (!resend) {
+    console.warn("Skipping email - Resend not configured");
+    return 
+  }
+
   const fromEmail =
     store.notification_from_email || process.env.RESEND_FROM_EMAIL;
   const fromName = store.name;
-
   await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: account.email,
-    subject: `${inventory.shoe_name} is back in stock`,
+    subject: `${inventory.product_name} is back in stock`,
     html: `
       <p>Hi${account.full_name ? ` ${account.full_name}` : ""},</p>
-      <p>${inventory.shoe_name} (Size ${inventory.size}) is now available at ${fromName}.</p>
+      <p>${inventory.product_name} (Size ${inventory.size}) is now available at ${fromName}.</p>
       <p>Price: $${inventory.price}</p>
       <p><a href="${inventory.shopify_url}">View it here</a></p>
     `,
@@ -22,27 +35,36 @@ const sendAlertEmail = async ({ store, account, alert, inventory }) => {
 };
 
 const sendPriceDropEmail = async ({ store, account, alert, inventory }) => {
+  if (!resend) {
+    console.warn("Skipping email - Resend not configured");
+    return;
+  }
+
   const fromEmail =
     store.notification_from_email || process.env.RESEND_FROM_EMAIL;
   const fromName = store.name;
-
   await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: account.email,
-    subject: `${inventory.shoe_name} price drop`,
+    subject: `${inventory.product_name} price drop`,
     html: `
       <p>Hi${account.full_name ? ` ${account.full_name}` : ""},</p>
-      <p>${inventory.shoe_name} (Size ${inventory.size}) dropped to $${inventory.price} at ${fromName}.</p>
+      <p>${inventory.product_name} (Size ${inventory.size}) dropped to $${inventory.price} at ${fromName}.</p>
       <p><a href="${inventory.shopify_url}">View it here</a></p>
     `,
   });
 };
 
 const sendDigestEmail = async ({ store, account, items }) => {
+
+  if (!resend) {
+    console.warn("Skipping email - Resend not configured");
+    return;
+  }
+
   const fromEmail =
     store.notification_from_email || process.env.RESEND_FROM_EMAIL;
   const fromName = store.name;
-
   const itemsHtml = items
     .map(
       (item) => `
@@ -51,12 +73,12 @@ const sendDigestEmail = async ({ store, account, items }) => {
           item.image_url
             ? `
         <div style="background: #ffffff; border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center;">
-          <img src="${item.image_url}" alt="${item.shoe_name}" style="max-width: 220px; height: auto; object-fit: contain;" />
+          <img src="${item.image_url}" alt="${item.product_name}" style="max-width: 220px; height: auto; object-fit: contain;" />
         </div>
         `
             : ""
         }
-        <p style="margin: 0 0 4px; font-weight: bold; font-size: 16px;">${item.shoe_name}</p>
+        <p style="margin: 0 0 4px; font-weight: bold; font-size: 16px;">${item.product_name}</p>
         <p style="margin: 0 0 16px; color: #888; font-size: 14px;">Size ${item.size} — $${item.price}</p>
         <a href="${item.shopify_url}" style="display: inline-block; background: #378ADD; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">
           View →
@@ -65,7 +87,6 @@ const sendDigestEmail = async ({ store, account, items }) => {
     `,
     )
     .join("");
-
   await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: account.email,
@@ -88,10 +109,14 @@ const sendPasswordResetEmail = async ({
   resetUrl,
   googleOnly,
 }) => {
+  if (!resend) {
+    console.warn("Skipping email - Resend not configured");
+    return;
+  }
+
   const fromName = store?.name || "Syncstock";
   const fromEmail =
     store?.notification_from_email || process.env.RESEND_FROM_EMAIL;
-
   if (googleOnly) {
     await resend.emails.send({
       from: `${fromName} <${fromEmail}>`,
@@ -105,7 +130,6 @@ const sendPasswordResetEmail = async ({
     });
     return;
   }
-
   await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: account.email,
@@ -119,4 +143,9 @@ const sendPasswordResetEmail = async ({
   });
 };
 
-module.exports = { sendAlertEmail, sendPriceDropEmail, sendDigestEmail, sendPasswordResetEmail };
+module.exports = {
+  sendAlertEmail,
+  sendPriceDropEmail,
+  sendDigestEmail,
+  sendPasswordResetEmail,
+};

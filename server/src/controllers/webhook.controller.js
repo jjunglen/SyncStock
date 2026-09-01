@@ -1,10 +1,28 @@
-const { Inventory, Alert, User, Purchase } = require("../models/index.js");
+const {
+  Inventory,
+  Alert,
+  User,
+  Purchase,
+  AlertClick,
+} = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
 } = require("../services/alert.service.js");
 const { Op } = require("sequelize");
+
+const isItemMatch = (source, item) => {
+  const skuMatch =
+    source.sku &&
+    item.sku &&
+    source.sku.toLowerCase() === item.sku.toLowerCase();
+  if (skuMatch) return true;
+  if (!source.product_name) return false;
+  const sourceWords = source.product_name.toLowerCase().split(" ");
+  const itemName = (item.title || "").toLowerCase();
+  return sourceWords.every((word) => itemName.includes(word));
+};
 
 const handleProductCreate = async (req, res) => {
   try {
@@ -22,7 +40,8 @@ const handleProductCreate = async (req, res) => {
         store_id: store.id,
         shopify_product_id: String(data.id),
         shopify_variant_id: String(variant.id),
-        shoe_name: data.title,
+        category: "sneakers",
+        product_name: data.title,
         sku: variant.sku || null,
         size: size,
         condition: condition,
@@ -37,7 +56,6 @@ const handleProductCreate = async (req, res) => {
 
     res.status(200).json({ received: true });
 
-    // Only notify once the listing is actually ready
     const isPublished = !!data.published_at;
     const hasImage = !!data.images?.[0]?.src;
 
@@ -94,8 +112,6 @@ const handleOrderCreate = async (req, res) => {
     const shopifyOrderId = String(data.id);
     const lineItems = data.line_items || [];
 
-    if (!customerEmail) return;
-
     const tags = (data.tags || "").toLowerCase();
     const sourceName = (data.source_name || "").toLowerCase();
     if (
@@ -107,49 +123,104 @@ const handleOrderCreate = async (req, res) => {
       return;
     }
 
-    const landingSite = data.landing_site || "";
-    if (!landingSite.includes("utm_source=syncstock")) {
-      console.log(`Skipping non-Syncstock order for ${customerEmail} — no UTM`);
-      return;
+    const clickAttr = (data.note_attributes || []).find(
+      (attr) => attr.name === "syncstock_click_id",
+    );
+
+    if (clickAttr) {
+      const click = await AlertClick.findOne({
+        where: { id: clickAttr.value, store_id: store.id },
+      });
+
+      if (click) {
+        const matchedItem =
+          lineItems.find(
+            (item) =>
+              click.sku &&
+              item.sku &&
+              item.sku.toLowerCase() === click.sku.toLowerCase(),
+          ) ||
+          lineItems.find((item) =>
+            (item.title || "")
+              .toLowerCase()
+              .includes((click.product_name || "").toLowerCase()),
+          );
+
+        if (matchedItem) {
+          await Purchase.create({
+            store_id: store.id,
+            user_id: click.user_id,
+            alert_id: click.alert_id,
+            shopify_order_id: shopifyOrderId,
+            category: "sneakers",
+            product_name: click.product_name,
+            sku: click.sku,
+            size: click.size,
+            price_paid: parseFloat(matchedItem.price) || null,
+            customer_email: customerEmail,
+            purchased_at: new Date(data.created_at),
+          });
+          console.log(
+            `Purchase attributed via click tag — ${click.product_name} for ${customerEmail} (store ${store.id})`,
+          );
+          return;
+        }
+      }
     }
+
+    if (!customerEmail) return;
 
     const user = await User.findOne({
       where: { store_id: store.id, email: customerEmail },
     });
+    if (!user) return;
+
+    const ATTRIBUTION_WINDOW_DAYS = 30;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - ATTRIBUTION_WINDOW_DAYS);
+
+    const userAlerts = await Alert.findAll({
+      where: {
+        store_id: store.id,
+        user_id: user.id,
+        created_at: { [Op.gte]: cutoff },
+      },
+    });
+    const recentClicks = await AlertClick.findAll({
+      where: {
+        store_id: store.id,
+        user_id: user.id,
+        clicked_at: { [Op.gte]: cutoff },
+      },
+    });
 
     for (const item of lineItems) {
-      const shoeName = item.title;
-      const sku = item.sku || null;
-      const price = parseFloat(item.price) || null;
+      const matchedAlert = userAlerts.find((alert) => isItemMatch(alert, item));
+      const matchedClick = recentClicks.find((click) =>
+        isItemMatch(click, item),
+      );
 
-      let alert = null;
-      if (user) {
-        alert = await Alert.findOne({
-          where: {
-            store_id: store.id,
-            user_id: user.id,
-            shoe_name: {
-              [Op.iLike]: `%${shoeName.split(" ").slice(0, 3).join(" ")}%`,
-            },
-            active: true,
-          },
-        });
+      if (!matchedAlert && !matchedClick) {
+        continue;
       }
 
       await Purchase.create({
         store_id: store.id,
-        user_id: user?.id || null,
-        alert_id: alert?.id || null,
+        user_id: user.id,
+        alert_id: matchedAlert?.id || null,
         shopify_order_id: shopifyOrderId,
-        shoe_name: shoeName,
-        sku,
+        category: "sneakers",
+        product_name: item.title,
+        sku: item.sku || null,
         size: item.variant_title?.split(" - ")?.[0] || null,
-        price_paid: price,
+        price_paid: parseFloat(item.price) || null,
         customer_email: customerEmail,
         purchased_at: new Date(data.created_at),
       });
 
-      console.log(`Purchase recorded — ${shoeName} for ${customerEmail}`);
+      console.log(
+        `Purchase attributed via matching — ${item.title} for ${customerEmail} (store ${store.id})`,
+      );
     }
   } catch (error) {
     console.error("Order create webhook error:", error.message);
@@ -180,7 +251,8 @@ const handleProductUpdate = async (req, res) => {
         store_id: store.id,
         shopify_product_id: String(data.id),
         shopify_variant_id: String(variant.id),
-        shoe_name: data.title,
+        category: "sneakers",
+        product_name: data.title,
         sku: variant.sku || null,
         size: size,
         condition: condition,

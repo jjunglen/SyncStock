@@ -29,9 +29,11 @@ const Purchase = sequelize.define(
       allowNull: false,
       comment: "Order id from Shopify - unique per store, not globally",
     },
-    shoe_name: {
-      type: DataTypes.STRING,
-      allowNull: true,
+    product_name: { type: DataTypes.STRING, allowNull: true },
+    category: {
+      type: DataTypes.ENUM("sneakers", "trading_cards"),
+      allowNull: false,
+      defaultValue: "sneakers",
     },
     sku: {
       type: DataTypes.STRING,

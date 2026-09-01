@@ -1,5 +1,6 @@
 const crypto = require("crypto");
-const { Store } = require("../models/index.js");
+const { Store, Inventory } = require("../models/index.js");
+const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 
 const RESERVED_SUBDOMAINS = [
   "www",
@@ -11,14 +12,12 @@ const RESERVED_SUBDOMAINS = [
   "store",
 ];
 
-// Converts a name into a URL-safe slug
 const slugify = (name) =>
   name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-// Auto-generates a subdomain, resolving collisions with a number suffix
 const generateSubdomain = async (name) => {
   let base = slugify(name) || "store";
   if (RESERVED_SUBDOMAINS.includes(base)) base = `${base}-shop`;
@@ -32,7 +31,6 @@ const generateSubdomain = async (name) => {
   return candidate;
 };
 
-// Validates a subdomain a merchant chooses manually
 const isValidSubdomainFormat = (value) => {
   if (!value || value.length < 3 || value.length > 30) return false;
   if (!/^[a-z0-9-]+$/.test(value)) return false;
@@ -41,7 +39,6 @@ const isValidSubdomainFormat = (value) => {
   return true;
 };
 
-// Registers the four webhooks this app needs on a newly connected store
 const registerShopifyWebhooks = async (store, accessToken, shop) => {
   const topics = [
     "products/create",
@@ -60,7 +57,7 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
       body: JSON.stringify({
         webhook: {
           topic,
-          address: `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic.replace("/", "/")}`,
+          address: `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`,
           format: "json",
         },
       }),
@@ -70,7 +67,69 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
   }
 };
 
-// Redirects a merchant to Shopify's install/authorize screen
+// Pulls a store's existing Shopify catalog at connect-time, following
+// Shopify's Link header to walk every page rather than just the first
+// 250 products
+const backfillInventory = async (store, accessToken, shop) => {
+  try {
+    let url = `https://${shop}/admin/api/2025-01/products.json?limit=250`;
+    let totalSynced = 0;
+    let pageCount = 0;
+    const MAX_PAGES = 50; // safety cap — 12,500 products, generous ceiling
+
+    while (url && pageCount < MAX_PAGES) {
+      const response = await fetch(url, {
+        headers: { "X-Shopify-Access-Token": accessToken },
+      });
+      const { products } = await response.json();
+
+      for (const product of products) {
+        for (const variant of product.variants || []) {
+          const { size, condition, boxCondition } = parseVariantTitle(
+            variant.title,
+            product.handle,
+          );
+
+          await Inventory.upsert({
+            store_id: store.id,
+            shopify_product_id: String(product.id),
+            shopify_variant_id: String(variant.id),
+            category: "sneakers",
+            product_name: product.title,
+            sku: variant.sku || null,
+            size,
+            condition,
+            box_status: boxCondition,
+            price: parseFloat(variant.price) || null,
+            available: variant.inventory_quantity || 0,
+            shopify_url: `${store.storefront_url}/products/${product.handle}`,
+            image_url: product.images?.[0]?.src || null,
+            last_synced_at: new Date(),
+          });
+        }
+      }
+
+      totalSynced += products.length;
+      pageCount++;
+
+      const linkHeader = response.headers.get("link");
+      const nextMatch =
+        linkHeader && linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      url = nextMatch ? nextMatch[1] : null;
+    }
+
+    if (pageCount >= MAX_PAGES) {
+      console.warn(
+        `Backfill hit MAX_PAGES safety cap for store ${store.id} — may be incomplete`,
+      );
+    }
+
+    console.log(`Backfilled ${totalSynced} products for store ${store.id}`);
+  } catch (error) {
+    console.error("Backfill inventory error:", error.message);
+  }
+};
+
 const initiateShopifyConnect = (req, res) => {
   const { shop } = req.query;
   if (!shop || !shop.endsWith(".myshopify.com")) {
@@ -93,7 +152,6 @@ const initiateShopifyConnect = (req, res) => {
   return res.redirect(installUrl);
 };
 
-// Shopify redirects here after the merchant approves the install
 const handleShopifyCallback = async (req, res) => {
   try {
     const { shop, code, state, hmac } = req.query;
@@ -153,6 +211,7 @@ const handleShopifyCallback = async (req, res) => {
     }
 
     await registerShopifyWebhooks(store, access_token, shop);
+    await backfillInventory(store, access_token, shop);
 
     res.clearCookie("shopify_oauth_state");
     return res.redirect(
@@ -166,7 +225,6 @@ const handleShopifyCallback = async (req, res) => {
   }
 };
 
-// Lets a merchant override the auto-generated subdomain during onboarding
 const updateSubdomain = async (req, res) => {
   try {
     const { subdomain } = req.body;
@@ -213,11 +271,10 @@ const updateSubdomain = async (req, res) => {
   }
 };
 
-// Merchant picks a plan — final onboarding step, flips status to active
 const selectPlan = async (req, res) => {
   try {
     const { plan } = req.body;
-    if (!["free", "starter", "pro"].includes(plan)) {
+    if (!["pro"].includes(plan)) {
       return res.status(400).json({ success: false, message: "Invalid plan" });
     }
     if (!req.store) {
@@ -226,11 +283,19 @@ const selectPlan = async (req, res) => {
         .json({ success: false, message: "Store not resolved" });
     }
 
-    await req.store.update({ plan, status: "active" });
+    await req.store.update({
+      plan,
+      status: "active",
+      sms_enabled: plan === "pro",
+    });
 
     return res.status(200).json({
       success: true,
-      data: { plan: req.store.plan, status: req.store.status },
+      data: {
+        plan: req.store.plan,
+        status: req.store.status,
+        sms_enabled: req.store.sms_enabled,
+      },
     });
   } catch (error) {
     console.error("Select plan error:", error.message);

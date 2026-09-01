@@ -6,41 +6,32 @@ const {
 } = require("../utils/validate.js");
 const { getUserAlertStats } = require("../services/alert.service.js");
 
-// Resolves the store-scoped User (membership) row for the logged-in
-// Account — Alert.user_id points here, not at Account directly
 const resolveMembership = async (req, res) => {
   if (!req.account || !req.store) {
     res.status(401).json({ success: false, message: "Not logged in" });
     return null;
   }
-
   const membership = await User.findOne({
     where: { account_id: req.account.id, store_id: req.store.id },
   });
-
   if (!membership) {
     res
       .status(403)
       .json({ success: false, message: "Not a member of this store" });
     return null;
   }
-
   return membership;
 };
 
-// GET /api/alerts — all alerts for the logged-in user, this store
 const getAlerts = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
-
     const alerts = await Alert.findAll({
       where: { store_id: req.store.id, user_id: membership.id },
       order: [["created_at", "DESC"]],
     });
-
     const stats = await getUserAlertStats(membership.id);
-
     return res.status(200).json({ success: true, data: { alerts, stats } });
   } catch (error) {
     console.error("Get alerts error:", error.message);
@@ -50,26 +41,21 @@ const getAlerts = async (req, res) => {
   }
 };
 
-// GET /api/alerts/:id — single alert
 const getAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
-
     const alert = await Alert.findOne({
       where: { id: req.params.id, store_id: req.store.id },
     });
-
     if (!alert) {
       return res
         .status(404)
         .json({ success: false, message: "Alert not found" });
     }
-
     if (alert.user_id !== membership.id) {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
-
     return res.status(200).json({ success: true, data: alert });
   } catch (error) {
     console.error("Get alert error:", error.message);
@@ -79,14 +65,13 @@ const getAlert = async (req, res) => {
   }
 };
 
-// POST /api/alerts — create a new alert
 const createAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
 
     const {
-      shoe_name,
+      product_name,
       sku,
       size,
       max_price,
@@ -96,7 +81,7 @@ const createAlert = async (req, res) => {
       stockx_url_key,
     } = req.body;
 
-    const missing = requireFields(req.body, ["shoe_name", "size"]);
+    const missing = requireFields(req.body, ["product_name", "size"]);
     if (missing.length > 0) {
       return res
         .status(400)
@@ -111,7 +96,7 @@ const createAlert = async (req, res) => {
       where: {
         store_id: req.store.id,
         user_id: membership.id,
-        shoe_name,
+        product_name,
         size,
         active: true,
       },
@@ -127,7 +112,7 @@ const createAlert = async (req, res) => {
     const alert = await Alert.create({
       store_id: req.store.id,
       user_id: membership.id,
-      shoe_name,
+      product_name,
       size,
       sku: sku || null,
       max_price: max_price || null,
@@ -137,11 +122,13 @@ const createAlert = async (req, res) => {
       stockx_url_key: stockx_url_key || null,
     });
 
-    return res.status(201).json({
-      success: true,
-      data: alert,
-      message: "Alert created successfully",
-    });
+    return res
+      .status(201)
+      .json({
+        success: true,
+        data: alert,
+        message: "Alert created successfully",
+      });
   } catch (error) {
     console.error("Create alert error:", error.message);
     return res
@@ -150,7 +137,6 @@ const createAlert = async (req, res) => {
   }
 };
 
-// PUT /api/alerts/:id — update an existing alert
 const updateAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
@@ -190,11 +176,13 @@ const updateAlert = async (req, res) => {
       active: active ?? alert.active,
     });
 
-    return res.status(200).json({
-      success: true,
-      data: alert,
-      message: "Alert updated successfully",
-    });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        data: alert,
+        message: "Alert updated successfully",
+      });
   } catch (error) {
     console.error("Update alert error:", error.message);
     return res
@@ -203,7 +191,6 @@ const updateAlert = async (req, res) => {
   }
 };
 
-// DELETE /api/alerts/:id
 const deleteAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);

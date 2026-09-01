@@ -13,7 +13,7 @@ const PendingNotification = sequelize.define(
     user_id: { type: DataTypes.UUID, allowNull: false },
     alert_id: { type: DataTypes.UUID, allowNull: true },
     inventory_id: { type: DataTypes.UUID, allowNull: true },
-    shoe_name: { type: DataTypes.STRING, allowNull: false },
+    product_name: { type: DataTypes.STRING, allowNull: true },
     sku: { type: DataTypes.STRING, allowNull: true },
     size: { type: DataTypes.STRING, allowNull: true },
     price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },

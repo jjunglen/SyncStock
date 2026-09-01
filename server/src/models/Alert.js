@@ -1,7 +1,6 @@
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database.js");
 
-// Stores a specific shoe alert a user has set
 const Alert = sequelize.define(
   "Alert",
   {
@@ -10,36 +9,18 @@ const Alert = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    user_id: {
-      type: DataTypes.UUID,
+    store_id: { type: DataTypes.UUID, allowNull: false },
+    user_id: { type: DataTypes.UUID, allowNull: false },
+    category: {
+      type: DataTypes.ENUM("sneakers", "trading_cards"),
       allowNull: false,
+      defaultValue: "sneakers",
     },
-    stockx_product_id: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Stockx catalog product id",
-    },
-    store_id: {
-        type: DataTypes.UUID,
-        allowNull: false,
-
-    },
-    shoe_name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    sku: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    stockx_url_key: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    size: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
+    stockx_product_id: { type: DataTypes.STRING, allowNull: true },
+    product_name: { type: DataTypes.STRING, allowNull: false },
+    sku: { type: DataTypes.STRING, allowNull: true },
+    stockx_url_key: { type: DataTypes.STRING, allowNull: true },
+    size: { type: DataTypes.STRING, allowNull: true },
     condition_preference: {
       type: DataTypes.ENUM("brand_new", "pre_owned", "either"),
       defaultValue: "either",
@@ -48,23 +29,30 @@ const Alert = sequelize.define(
       type: DataTypes.ENUM("original_good", "any", "no_preference"),
       defaultValue: "no_preference",
     },
-    max_price: {
-      type: DataTypes.DECIMAL(10, 2),
+    attributes: {
+      type: DataTypes.JSONB,
       allowNull: true,
-      comment: "User's maximum price -- null means no limit",
+      defaultValue: {},
     },
-    notify_email: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
+    max_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    notify_email: { type: DataTypes.BOOLEAN, defaultValue: true },
+    notify_inapp: { type: DataTypes.BOOLEAN, defaultValue: true },
+    active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    graded_preference: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: "either",
+      comment: "'graded', 'raw', or 'either' — validated in validate.js",
     },
-    notify_inapp: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
+    preferred_grading_company: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "null means any grading company is acceptable",
     },
-    active: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true,
-      comment: "Users can pause or delete alerts",
+    min_grade: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Minimum acceptable grade, e.g. '9' — string to allow half-grades like '9.5'",
     },
   },
   {

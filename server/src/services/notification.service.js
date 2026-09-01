@@ -1,6 +1,5 @@
 const { NotificationLog, PendingNotification } = require("../models/index.js");
 const { Op } = require("sequelize");
-const { scheduleQuickFlush } = require("./digest.service.js");
 
 const sendNotification = async ({ store, alert, inventory }) => {
   const recentlyQueuedOrSent = await PendingNotification.findOne({
@@ -12,7 +11,7 @@ const sendNotification = async ({ store, alert, inventory }) => {
   });
   if (recentlyQueuedOrSent) {
     console.log(
-      `Skipping duplicate — ${inventory.shoe_name} already queued/sent for this user`,
+      `Skipping duplicate — ${inventory.product_name} already queued/sent for this user`,
     );
     return false;
   }
@@ -28,7 +27,7 @@ const sendNotification = async ({ store, alert, inventory }) => {
   });
   if (recentEmail) return false;
 
-  const message = `${inventory.shoe_name} (Size ${inventory.size}) is now available`;
+  const message = `${inventory.product_name} (Size ${inventory.size}) is now available`;
 
   if (alert.notify_inapp) {
     await NotificationLog.create({
@@ -48,7 +47,7 @@ const sendNotification = async ({ store, alert, inventory }) => {
       user_id: alert.user_id,
       alert_id: alert.id,
       inventory_id: inventory.id,
-      shoe_name: inventory.shoe_name,
+      product_name: inventory.product_name,
       sku: inventory.sku,
       size: inventory.size,
       price: inventory.price,
@@ -82,7 +81,7 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
   });
   if (recentEmail) return false;
 
-  const message = `${inventory.shoe_name} (Size ${inventory.size}) dropped to $${inventory.price}`;
+  const message = `${inventory.product_name} (Size ${inventory.size}) dropped to $${inventory.price}`;
 
   if (alert.notify_inapp) {
     await NotificationLog.create({
@@ -102,7 +101,7 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
       user_id: alert.user_id,
       alert_id: alert.id,
       inventory_id: inventory.id,
-      shoe_name: inventory.shoe_name,
+      product_name: inventory.product_name,
       sku: inventory.sku,
       size: inventory.size,
       price: inventory.price,

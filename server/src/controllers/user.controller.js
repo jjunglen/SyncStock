@@ -6,27 +6,22 @@ const resolveMembership = async (req, res) => {
     res.status(401).json({ success: false, message: "Not logged in" });
     return null;
   }
-
   const membership = await User.findOne({
     where: { account_id: req.account.id, store_id: req.store.id },
   });
-
   if (!membership) {
     res
       .status(403)
       .json({ success: false, message: "Not a member of this store" });
     return null;
   }
-
   return membership;
 };
 
-// GET /api/users/profile — combined Account + this store's membership
 const getProfile = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
-
     return res.status(200).json({
       success: true,
       data: {
@@ -49,7 +44,6 @@ const getProfile = async (req, res) => {
   }
 };
 
-// PUT /api/users/profile
 const updateProfile = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
@@ -64,7 +58,6 @@ const updateProfile = async (req, res) => {
       notify_size_alerts,
     } = req.body;
 
-    // Identity fields — Account, global uniqueness check
     if (email && email !== req.account.email) {
       if (!isValidEmail(email)) {
         return res
@@ -91,7 +84,6 @@ const updateProfile = async (req, res) => {
       sizes: sizes ?? req.account.sizes,
     });
 
-    // Preference fields — this store's membership only
     await membership.update({
       notify_email: notify_email ?? membership.notify_email,
       notify_inapp: notify_inapp ?? membership.notify_inapp,
@@ -119,15 +111,11 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// DELETE /api/users/profile — removes membership from THIS store only,
-// not the global Account (which may belong to other stores too)
 const deleteAccount = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
-
     await membership.destroy();
-
     return res.status(200).json({
       success: true,
       message: "Your account has been removed from this store",

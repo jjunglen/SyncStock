@@ -1,7 +1,5 @@
-const { DataTypes, UUIDV4, STRING } = require("sequelize");
+const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database.js");
-
-// Stores inventory synced from shopify via webhook
 
 const Inventory = sequelize.define(
   "Inventory",
@@ -11,72 +9,66 @@ const Inventory = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    store_id: {
-      type: DataTypes.UUID,
-      allowNull: false,
-    },
+    store_id: { type: DataTypes.UUID, allowNull: false },
     shopify_product_id: {
       type: DataTypes.STRING,
       allowNull: false,
-      comment:
-        "Unique product id from Shopify - unique per store, not globally",
+      comment: "Product id from Shopify - unique per store, not globally",
     },
     shopify_variant_id: {
       type: DataTypes.STRING,
       allowNull: true,
-      comment: "Variant id from shopify - each size is a varient",
+      comment: "Variant id from Shopify - each size/variant is a variant",
     },
-    shoe_name: {
+    // What kind of product this is — decides how attributes below gets
+    category: {
+      type: DataTypes.ENUM("sneakers", "trading_cards"),
+      allowNull: false,
+      defaultValue: "sneakers",
+    },
+    product_name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    sku: {
+    sku: { type: DataTypes.STRING, allowNull: true },
+    size: { type: DataTypes.STRING, allowNull: true },
+    condition: { type: DataTypes.STRING, allowNull: true },
+    box_status: { type: DataTypes.STRING, allowNull: true },
+    attributes: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: {},
+    },
+    price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    compare_at_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    available: { type: DataTypes.INTEGER, defaultValue: 0 },
+    shopify_url: { type: DataTypes.STRING, allowNull: true },
+    image_url: { type: DataTypes.STRING, allowNull: true },
+    last_synced_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    is_graded: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+    },
+    grading_company: {
       type: DataTypes.STRING,
       allowNull: true,
+      comment:
+        "PSA, BGS, CGC, SGC, TAG, etc. — validated list in validate.js, not an ENUM, so adding a new company never needs a migration",
     },
-    size: {
+    grade: {
       type: DataTypes.STRING,
       allowNull: true,
+      comment:
+        "String not decimal — needs to hold values like '10', '9.5', or 'BGS 10 Black Label'",
     },
-    price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-    },
-    available: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0,
-      comment: "stock quantity - 0 means out of stock",
-    },
-    condition: {
+    cert_number: {
       type: DataTypes.STRING,
       allowNull: true,
-      comment: "brand new or pre owned parsed from shopify variant title",
-    },
-    box_status: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Box condition - parsed from shopify variant title",
-    },
-    shopify_url: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Direct link to the product on your shopify store",
-    },
-    image_url: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Product image pull from shopify",
-    },
-    compare_at_price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: true,
-    },
-    last_synced_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-      comment: "Last time this record was updated from Shopify",
+      comment:
+        "The grading company's serial/certification number, for authenticity lookup",
     },
   },
+
   {
     tableName: "inventory",
     underscored: true,
@@ -86,6 +78,7 @@ const Inventory = sequelize.define(
     indexes: [
       { unique: true, fields: ["store_id", "shopify_product_id"] },
       { fields: ["store_id"] },
+      { fields: ["store_id", "category"] },
     ],
   },
 );

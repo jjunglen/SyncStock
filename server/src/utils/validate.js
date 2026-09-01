@@ -61,6 +61,14 @@ const requireFields = (body, fields) => {
     return missing;
 }
 
+const isValidCardCondition = (condition) => {
+  return ["NM", "LP", "MP", "HP", "DMG"].includes(condition);
+};
+
+const isValidGradingCompany = (company) => {
+  return ["PSA", "BGS", "CGC", "SGC", "TAG", "ACE"].includes(company);
+};
+
 module.exports = {
     isValidEmail,
     isValidPassword,
@@ -69,4 +77,7 @@ module.exports = {
     requireFields,
     isValidCondition,
     isValidBoxPreference,
+    isValidCardCondition,
+    isValidGradingCompany,
+    
 }
