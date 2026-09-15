@@ -83,6 +83,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/webhooks/shopify", webhookRoutes);
 app.use("/api/redirect", redirectRoutes);
 app.use("/api/phone", twilioRoutes);
+app.use("/api/analytics", require("./src/routes/analytics.routes.js"));
 // app.use("/api/stockx", require("./src/routes/stockx.routes.js")); // pending StockX API approval
 
 app.get("/health", (req, res) => {

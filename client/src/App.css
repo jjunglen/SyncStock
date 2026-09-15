@@ -1,1 +1,64 @@
 @import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0a0a;
+  --color-surface: #111111;
+  --color-surface-muted: #1a1a1a;
+  --color-border: #262626;
+  --color-text: #fafafa;
+  --color-text-muted: #a1a1a1;
+
+  --color-primary: #fafafa;
+  --color-primary-text: #0a0a0a;
+
+  --color-danger: #ef4444;
+  --color-warn: #f5a623;
+  --color-live: #22c55e;
+
+  --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+@keyframes signal-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse-color) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--pulse-color) 0%, transparent);
+  }
+}
+
+.animate-signal-pulse {
+  animation: signal-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-signal-pulse {
+    animation: none;
+  }
+}
+
+@keyframes appear {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes appear-zoom {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-appear {
+  animation: appear 0.5s ease-out forwards;
+}
+
+.animate-appear-zoom {
+  animation: appear-zoom 0.5s ease-out forwards;
+}

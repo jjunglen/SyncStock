@@ -1,6 +1,9 @@
 const crypto = require("crypto");
-const { Store, Inventory } = require("../models/index.js");
+const { Op } = require("sequelize");
+const { Store, Inventory, User, Account } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
+const { signOnboardingToken } = require("../utils/jwt.js");
+const { getPagination, buildMeta } = require("../utils/pagination.js");
 
 const RESERVED_SUBDOMAINS = [
   "www",
@@ -47,7 +50,34 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
     "orders/create",
   ];
 
+  const existingResp = await fetch(
+    `https://${shop}/admin/api/2025-01/webhooks.json`,
+    {
+      headers: { "X-Shopify-Access-Token": accessToken },
+    },
+  ).catch((err) => {
+    console.error("Failed to fetch existing webhooks:", err.message);
+    return null;
+  });
+
+  const existingTopics = new Set();
+  if (existingResp && existingResp.ok) {
+    const { webhooks } = await existingResp.json();
+    const ourAddress = (topic) =>
+      `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`;
+    for (const webhook of webhooks || []) {
+      if (webhook.address === ourAddress(webhook.topic)) {
+        existingTopics.add(webhook.topic);
+      }
+    }
+  }
+
   for (const topic of topics) {
+    if (existingTopics.has(topic)) {
+      console.log(`Webhook already registered, skipping: ${topic}`);
+      continue;
+    }
+
     await fetch(`https://${shop}/admin/api/2025-01/webhooks.json`, {
       method: "POST",
       headers: {
@@ -67,15 +97,12 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
   }
 };
 
-// Pulls a store's existing Shopify catalog at connect-time, following
-// Shopify's Link header to walk every page rather than just the first
-// 250 products
 const backfillInventory = async (store, accessToken, shop) => {
   try {
     let url = `https://${shop}/admin/api/2025-01/products.json?limit=250`;
     let totalSynced = 0;
     let pageCount = 0;
-    const MAX_PAGES = 50; // safety cap — 12,500 products, generous ceiling
+    const MAX_PAGES = 50;
 
     while (url && pageCount < MAX_PAGES) {
       const response = await fetch(url, {
@@ -212,16 +239,40 @@ const handleShopifyCallback = async (req, res) => {
 
     await registerShopifyWebhooks(store, access_token, shop);
     await backfillInventory(store, access_token, shop);
+    const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");
     return res.redirect(
-      `${process.env.FRONTEND_URL}/onboarding/subdomain?store=${store.subdomain}`,
+      `${process.env.FRONTEND_URL}/onboarding/subdomain?store=${store.subdomain}&onboarding_token=${onboardingToken}`,
     );
   } catch (error) {
     console.error("Shopify callback error:", error.message);
     return res.redirect(
       `${process.env.FRONTEND_URL}/onboarding?error=connect_failed`,
     );
+  }
+};
+
+const checkDomain = async (req, res) => {
+  try {
+    const { shop } = req.body;
+    if (!shop || !shop.endsWith(".myshopify.com")) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid shop domain required" });
+    }
+
+    const store = await Store.findOne({ where: { shopify_domain: shop } });
+
+    return res.status(200).json({
+      success: true,
+      data: { exists: !!store, subdomain: store?.subdomain || null },
+    });
+  } catch (error) {
+    console.error("Check domain error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to check domain" });
   }
 };
 
@@ -283,11 +334,7 @@ const selectPlan = async (req, res) => {
         .json({ success: false, message: "Store not resolved" });
     }
 
-    await req.store.update({
-      plan,
-      status: "active",
-      sms_enabled: plan === "pro",
-    });
+    await req.store.update({ plan, sms_enabled: plan === "pro" });
 
     return res.status(200).json({
       success: true,
@@ -323,10 +370,89 @@ const getStore = async (req, res) => {
   });
 };
 
+// Lists customers (role: "user", never the admin themselves) with
+// optional search by email or name
+const getCustomers = async (req, res) => {
+  try {
+    const { page, limit, offset } = getPagination(req.query);
+    const { q } = req.query;
+
+    const accountWhere = q
+      ? {
+          [Op.or]: [
+            { email: { [Op.iLike]: `%${q}%` } },
+            { full_name: { [Op.iLike]: `%${q}%` } },
+          ],
+        }
+      : undefined;
+
+    const { count, rows } = await User.findAndCountAll({
+      where: { store_id: req.store.id, role: "user" },
+      include: [{ model: Account, where: accountWhere, required: true }],
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+
+    const data = rows.map((membership) => ({
+      id: membership.id,
+      email: membership.Account.email,
+      full_name: membership.Account.full_name,
+      notify_email: membership.notify_email,
+      notify_inapp: membership.notify_inapp,
+      joined_at: membership.created_at,
+    }));
+
+    return res
+      .status(200)
+      .json({ success: true, data, meta: buildMeta(count, page, limit) });
+  } catch (error) {
+    console.error("Get customers error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch customers" });
+  }
+};
+
+// Admin removing a customer's membership — never the admin's own.
+const removeCustomer = async (req, res) => {
+  try {
+    const membership = await User.findOne({
+      where: { id: req.params.id, store_id: req.store.id },
+    });
+
+    if (!membership) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+
+    if (membership.account_id === req.account.id) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "You can't remove yourself this way — use account settings instead",
+      });
+    }
+
+    await membership.destroy();
+
+    return res.status(200).json({ success: true, message: "Customer removed" });
+  } catch (error) {
+    console.error("Remove customer error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to remove customer" });
+  }
+};
+
 module.exports = {
   initiateShopifyConnect,
   handleShopifyCallback,
+  checkDomain,
   updateSubdomain,
   selectPlan,
   getStore,
+  getCustomers,
+  removeCustomer,
 };

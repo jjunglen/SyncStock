@@ -19,20 +19,22 @@ const ensureMembership = async (account, store) => {
   });
 
   if (!membership) {
-    // First person to join a store still mid-onboarding is the
-    // merchant completing setup — make them admin. Closes once the
-    // store goes active.
-    const existingMemberCount = await User.count({
-      where: { store_id: store.id },
-    });
-    const isFirstDuringOnboarding =
-      existingMemberCount === 0 && store.status === "pending";
+    const existingMemberCount = await User.count({ where: { store_id: store.id } });
+    const isFirstDuringOnboarding = existingMemberCount === 0 && store.status === "pending";
 
     membership = await User.create({
-      account_id: account.id,
-      store_id: store.id,
-      role: isFirstDuringOnboarding ? "admin" : "user",
+        account_id: account.id,
+        store_id: store.id,
+        role: isFirstDuringOnboarding ? "admin" : "user",
+
     });
+
+    // This is the final onboarding step
+    if (isFirstDuringOnboarding) {
+        await store.update({ status: "active" });
+        
+    }
+
   }
 
   return membership;

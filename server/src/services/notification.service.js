@@ -1,6 +1,15 @@
 const { NotificationLog, PendingNotification } = require("../models/index.js");
 const { Op } = require("sequelize");
 
+const buildDashboardUrl = (store, inventoryId, alertId) => {
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const host =
+    process.env.NODE_ENV === "production"
+      ? `${store.subdomain}.syncstock.io`
+      : "localhost:5173";
+  return `${protocol}://${host}/dashboard?item=${inventoryId}&alert=${alertId}`;
+};
+
 const sendNotification = async ({ store, alert, inventory }) => {
   const recentlyQueuedOrSent = await PendingNotification.findOne({
     where: {
@@ -52,7 +61,7 @@ const sendNotification = async ({ store, alert, inventory }) => {
       size: inventory.size,
       price: inventory.price,
       image_url: inventory.image_url,
-      shopify_url: inventory.shopify_url,
+      shopify_url: buildDashboardUrl(store, inventory.id, alert.id),
     });
     scheduleQuickFlush(store.id, alert.user_id);
   }
@@ -106,7 +115,7 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
       size: inventory.size,
       price: inventory.price,
       image_url: inventory.image_url,
-      shopify_url: inventory.shopify_url,
+      shopify_url: buildDashboardUrl(store, inventory.id, alert.id),
     });
     scheduleQuickFlush(store.id, alert.user_id);
   }
