@@ -31,7 +31,7 @@ app.use("/api", apiLimiter);
 // Matches any *.syncstock.io subdomain, plus localhost in dev — can't
 // use a fixed origin list like a single-tenant app since merchant
 // subdomains are created dynamically at signup
-const allowedOriginPattern = /^https:\/\/[a-z0-9-]+\.syncstock\.io$/;
+const allowedOriginPattern = /^https:\/\/([a-z0-9-]+\.)?syncstock\.io$/;
 
 app.use(
   cors({
