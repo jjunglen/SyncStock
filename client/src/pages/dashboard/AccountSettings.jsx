@@ -33,10 +33,7 @@ export default function AccountSettings() {
     setError("");
     setSavedMessage("");
     try {
-      const res = await api.put("/users/profile", {
-        full_name: fullName,
-        email,
-      });
+      const res = await api.put("/users/profile", { full_name: fullName, email });
       setProfile((prev) => ({ ...prev, ...res.data.data }));
       setSavedMessage("Saved");
       setTimeout(() => setSavedMessage(""), 2000);
@@ -51,19 +48,14 @@ export default function AccountSettings() {
     return (
       <div className="flex min-h-screen w-full bg-bg text-text">
         <MerchantSidebar storeName={store?.name} />
-        <div className="flex-1 p-6">
-          <Spinner size={20} />
-        </div>
+        <div className="flex-1 p-6"><Spinner size={20} /></div>
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen w-full bg-bg text-text">
-      <MerchantSidebar
-        storeName={store?.name}
-        storeSubdomain={store?.subdomain}
-      />
+      <MerchantSidebar storeName={store?.name} storeSubdomain={store?.subdomain} />
 
       <div className="flex-1 p-6 overflow-auto max-w-xl">
         <div className="flex items-center gap-3 mb-8">
@@ -77,9 +69,7 @@ export default function AccountSettings() {
           <h3 className="font-semibold mb-4">Profile</h3>
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <label className="text-xs text-text-muted block mb-1.5">
-                Full name
-              </label>
+              <label className="text-xs text-text-muted block mb-1.5">Full name</label>
               <input
                 type="text"
                 value={fullName}
@@ -88,9 +78,7 @@ export default function AccountSettings() {
               />
             </div>
             <div>
-              <label className="text-xs text-text-muted block mb-1.5">
-                Email
-              </label>
+              <label className="text-xs text-text-muted block mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
@@ -138,8 +126,7 @@ export default function AccountSettings() {
             </div>
           </div>
           <p className="text-xs text-text-muted mt-4">
-            Subdomain can only be changed during onboarding. Contact support for
-            changes after launch.
+            Subdomain can only be changed during onboarding. Contact support for changes after launch.
           </p>
         </div>
       </div>
