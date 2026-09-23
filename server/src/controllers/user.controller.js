@@ -30,6 +30,8 @@ const getProfile = async (req, res) => {
         full_name: req.account.full_name,
         avatar_url: req.account.avatar_url,
         sizes: req.account.sizes,
+        phone_number: req.account.phone_number,
+        phone_verified: req.account.phone_verified,
         notify_email: membership.notify_email,
         notify_inapp: membership.notify_inapp,
         notify_size_alerts: membership.notify_size_alerts,

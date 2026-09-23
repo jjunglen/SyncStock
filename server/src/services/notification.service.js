@@ -1,5 +1,8 @@
 const { NotificationLog, PendingNotification } = require("../models/index.js");
+const { sendPushNotification } = require("./push.service.js");
 const { Op } = require("sequelize");
+const { scheduleQuickFlush } = require("./digest.service.js");
+
 
 const buildDashboardUrl = (store, inventoryId, alertId) => {
   const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
@@ -7,7 +10,7 @@ const buildDashboardUrl = (store, inventoryId, alertId) => {
     process.env.NODE_ENV === "production"
       ? `${store.subdomain}.syncstock.io`
       : "localhost:5173";
-  return `${protocol}://${host}/dashboard?item=${inventoryId}&alert=${alertId}`;
+  return `${protocol}://${host}/store/dashboard?item=${inventoryId}&alert=${alertId}`;
 };
 
 const sendNotification = async ({ store, alert, inventory }) => {
@@ -47,6 +50,13 @@ const sendNotification = async ({ store, alert, inventory }) => {
       channel: "in_app",
       image_url: inventory.image_url || null,
       message,
+    });
+
+    await sendPushNotification(store.id, alert.user_id, {
+      title: "Your shoe is in",
+      body: message,
+      icon: inventory.image_url || "/favicon.svg",
+      url: buildDashboardUrl(store, inventory.id, alert.id),
     });
   }
 
@@ -101,6 +111,13 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
       channel: "in_app",
       image_url: inventory.image_url || null,
       message,
+    });
+
+    await sendPushNotification(store.id, alert.user_id, {
+      title: "Price drop",
+      body: message,
+      icon: inventory.image_url || "/favicon.svg",
+      url: buildDashboardUrl(store, inventory.id, alert.id),
     });
   }
 

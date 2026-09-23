@@ -3,10 +3,19 @@ import { motion } from "motion/react";
 
 const ease = [0.22, 1, 0.36, 1];
 
+const POSITION_STYLES = {
+  "top-right": { top: 10, right: 24 },
+  "bottom-right": { bottom: 24, right: 24 },
+  "bottom-center": { bottom: 24, left: "50%" },
+};
+
 export default function FloatingMenu({ items = [], position = "top-right" }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
-  const isBottom = position === "bottom-center";
+
+  const isBottomAnchored = position === "bottom-center" || position === "bottom-right";
+  const isCentered = position === "bottom-center";
+  const posStyle = POSITION_STYLES[position] || POSITION_STYLES["top-right"];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,14 +38,14 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
   return (
     <motion.div
       ref={containerRef}
-      className={`fixed z-[100] ${isBottom ? "bottom-6 left-1/2" : "top-2.5 right-6"}`}
-      style={isBottom ? { x: "-50%" } : undefined}
-      initial={{ opacity: 0, y: isBottom ? 20 : -20 }}
+      className="fixed z-[100]"
+      style={{ ...posStyle, ...(isCentered ? { x: "-50%" } : {}) }}
+      initial={{ opacity: 0, y: isBottomAnchored ? 20 : -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease }}
     >
       <motion.div
-        className={`relative overflow-hidden flex flex-col font-display ${isBottom ? "justify-end" : ""}`}
+        className={`relative overflow-hidden flex flex-col font-display ${isBottomAnchored ? "justify-end" : ""}`}
         style={{ cursor: isOpen ? "default" : "pointer" }}
         onClick={() => !isOpen && setIsOpen(true)}
         animate={{
@@ -52,28 +61,20 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           scale: { duration: 0.25, ease },
         }}
       >
-        <motion.div
-          className="absolute inset-0 bg-primary"
-          style={{ borderRadius: "inherit" }}
-        />
+        <motion.div className="absolute inset-0 bg-primary" style={{ borderRadius: "inherit" }} />
 
         <motion.div
           className="absolute left-1/2 bg-bg"
-          style={{
-            width: "200%",
-            height: "200%",
-            borderRadius: "50%",
-            x: "-50%",
-          }}
+          style={{ width: "200%", height: "200%", borderRadius: "50%", x: "-50%" }}
           animate={
-            isBottom
+            isBottomAnchored
               ? { bottom: isOpen ? "-20%" : "-200%" }
               : { top: isOpen ? "-20%" : "-200%" }
           }
           transition={{ duration: 0.8, ease, delay: isOpen ? 0.1 : 0 }}
         />
 
-        {isBottom && (
+        {isBottomAnchored && (
           <div
             className="relative z-10 flex flex-col gap-1 px-2 pt-3 order-1"
             style={{
@@ -93,11 +94,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
                   animate={{ opacity: isOpen ? 1 : 0, y: isOpen ? 0 : 8 }}
-                  transition={{
-                    duration: 0.3,
-                    delay: isOpen ? 0.35 + 0.06 * idx : 0,
-                    ease,
-                  }}
+                  transition={{ duration: 0.3, delay: isOpen ? 0.35 + 0.06 * idx : 0, ease }}
                 >
                   {Icon && <Icon size={16} />}
                   {item.label}
@@ -108,12 +105,9 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
         )}
 
         <motion.div
-          className={`relative z-10 flex items-center justify-between w-full shrink-0 cursor-pointer ${isBottom ? "order-2" : ""}`}
+          className={`relative z-10 flex items-center justify-between w-full shrink-0 cursor-pointer ${isBottomAnchored ? "order-2" : ""}`}
           onClick={() => setIsOpen(!isOpen)}
-          animate={{
-            paddingLeft: isOpen ? 20 : 18,
-            paddingRight: isOpen ? 20 : 18,
-          }}
+          animate={{ paddingLeft: isOpen ? 20 : 18, paddingRight: isOpen ? 20 : 18 }}
           transition={{ duration: 0.8, ease }}
           style={{ height: 44, alignItems: "center" }}
         >
@@ -127,26 +121,18 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           <div className="relative w-5 h-5 flex items-center justify-center">
             <motion.span
               className="absolute block w-[16px] h-[2px] rounded-full"
-              animate={{
-                rotate: isOpen ? 45 : 0,
-                y: isOpen ? 0 : -3,
-                backgroundColor: isOpen ? "#fafafa" : "#0a0a0a",
-              }}
+              animate={{ rotate: isOpen ? 45 : 0, y: isOpen ? 0 : -3, backgroundColor: isOpen ? "#fafafa" : "#0a0a0a" }}
               transition={{ duration: 0.4, ease }}
             />
             <motion.span
               className="absolute block w-[16px] h-[2px] rounded-full"
-              animate={{
-                rotate: isOpen ? -45 : 0,
-                y: isOpen ? 0 : 3,
-                backgroundColor: isOpen ? "#fafafa" : "#0a0a0a",
-              }}
+              animate={{ rotate: isOpen ? -45 : 0, y: isOpen ? 0 : 3, backgroundColor: isOpen ? "#fafafa" : "#0a0a0a" }}
               transition={{ duration: 0.4, ease }}
             />
           </div>
         </motion.div>
 
-        {!isBottom && (
+        {!isBottomAnchored && (
           <div
             className="relative z-10 flex flex-col gap-1 px-2 pb-3"
             style={{
@@ -166,11 +152,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
                   animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? 0 : -8 }}
-                  transition={{
-                    duration: 0.3,
-                    delay: isOpen ? 0.35 + 0.06 * idx : 0,
-                    ease,
-                  }}
+                  transition={{ duration: 0.3, delay: isOpen ? 0.35 + 0.06 * idx : 0, ease }}
                 >
                   {Icon && <Icon size={16} />}
                   {item.label}

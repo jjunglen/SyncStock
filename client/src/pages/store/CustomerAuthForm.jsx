@@ -10,7 +10,7 @@ import {
   LuKeyRound,
 } from "react-icons/lu";
 import api from "../../lib/api.js";
-import Spinner from "../ui/Spinner.jsx";
+import Spinner from "../../components/ui/Spinner.jsx";
 
 const calculatePasswordStrength = (password) => {
   const requirements = {
@@ -29,7 +29,6 @@ const calculatePasswordStrength = (password) => {
 function PasswordStrengthIndicator({ password }) {
   const strength = calculatePasswordStrength(password);
   if (!password) return null;
-
   const strengthColor =
     strength.score <= 1
       ? "bg-danger"
@@ -38,7 +37,6 @@ function PasswordStrengthIndicator({ password }) {
         : "bg-live";
   const strengthText =
     strength.score <= 1 ? "Weak" : strength.score === 2 ? "Fair" : "Good";
-
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex items-center gap-2">
@@ -68,43 +66,61 @@ function PasswordStrengthIndicator({ password }) {
   );
 }
 
-export default function AuthForm({ initialMode = "login" }) {
+export default function CustomerAuthForm({ initialMode = "login" }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [authMode, setAuthMode] = useState(initialMode);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
   const [formData, setFormData] = useState({
+    fullName: "",
     email: "",
     password: "",
+    confirmPassword: "",
+    agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem("syncstock_email");
+    const savedEmail = localStorage.getItem("syncstock_customer_email");
     if (savedEmail && authMode === "login") {
       setFormData((prev) => ({ ...prev, email: savedEmail }));
     }
   }, [authMode]);
 
-  const validateField = useCallback((field, value) => {
-    switch (field) {
-      case "email":
-        if (!value.trim()) return "Email is required";
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
-          return "Enter a valid email address";
-        return "";
-      case "password":
-        if (!value) return "Password is required";
-        if (value.length < 8) return "Password must be at least 8 characters";
-        return "";
-      default:
-        return "";
-    }
-  }, []);
+  const validateField = useCallback(
+    (field, value) => {
+      switch (field) {
+        case "fullName":
+          if (authMode === "signup" && !value.trim()) return "Name is required";
+          return "";
+        case "email":
+          if (!value.trim()) return "Email is required";
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+            return "Enter a valid email address";
+          return "";
+        case "password":
+          if (!value) return "Password is required";
+          if (value.length < 8) return "Password must be at least 8 characters";
+          return "";
+        case "confirmPassword":
+          if (authMode === "signup" && value !== formData.password)
+            return "Passwords do not match";
+          return "";
+        case "agreeToTerms":
+          if (authMode === "signup" && !value)
+            return "You must agree to the terms";
+          return "";
+        default:
+          return "";
+      }
+    },
+    [authMode, formData.password],
+  );
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -125,13 +141,24 @@ export default function AuthForm({ initialMode = "login" }) {
   };
 
   const validateForm = () => {
+    const fields =
+      authMode === "signup"
+        ? ["fullName", "email", "password", "confirmPassword", "agreeToTerms"]
+        : ["email", "password"];
     const newErrors = {};
-    ["email", "password"].forEach((f) => {
+    fields.forEach((f) => {
       const err = validateField(f, formData[f]);
       if (err) newErrors[f] = err;
     });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const switchMode = (mode) => {
+    setAuthMode(mode);
+    setFormData((prev) => ({ ...prev, email:"", password: "", confirmPassword: "" }));
+    setErrors({});
+    setTouched({});
   };
 
   const handleSubmit = async (e) => {
@@ -162,13 +189,21 @@ export default function AuthForm({ initialMode = "login" }) {
 
     setIsLoading(true);
     try {
-      await api.post("/auth/login", {
-        email: formData.email,
-        password: formData.password,
-      });
-      localStorage.setItem("syncstock_email", formData.email);
+      if (authMode === "login") {
+        await api.post("/auth/login", {
+          email: formData.email,
+          password: formData.password,
+        });
+        localStorage.setItem("syncstock_customer_email", formData.email);
+      } else {
+        await api.post("/auth/signup", {
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullName,
+        });
+      }
       const redirectTo = searchParams.get("redirect");
-      navigate(redirectTo || "/");
+      navigate(redirectTo || "/store/dashboard");
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -194,7 +229,6 @@ export default function AuthForm({ initialMode = "login" }) {
             Enter your email and we'll send you a reset link.
           </p>
         </div>
-
         {successMessage && (
           <div className="mb-4 p-3 bg-live/10 border border-live/30 rounded-xl text-sm text-live">
             {successMessage}
@@ -205,7 +239,6 @@ export default function AuthForm({ initialMode = "login" }) {
             <LuTriangleAlert size={14} /> {errors.general}
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
             <LuMail
@@ -230,7 +263,7 @@ export default function AuthForm({ initialMode = "login" }) {
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setAuthMode("login")}
+              onClick={() => switchMode("login")}
               className="text-sm text-text-muted hover:text-text transition-colors"
             >
               Back to login
@@ -251,106 +284,203 @@ export default function AuthForm({ initialMode = "login" }) {
 
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold mb-1">
-          {authMode === "login" ? "Welcome back" : "Connect POS"}
+          {authMode === "login" ? "Welcome back" : "Create your account"}
         </h2>
         <p className="text-text-muted text-sm">
           {authMode === "login"
             ? "Sign in to manage your alerts"
-            : "Creating an account starts with linking your store"}
+            : "Start tracking restocks in seconds"}
         </p>
       </div>
 
       <div className="flex bg-surface-muted rounded-xl p-1 mb-6">
         <button
           type="button"
-          onClick={() => setAuthMode("login")}
+          onClick={() => switchMode("login")}
           className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${authMode === "login" ? "bg-surface text-text" : "text-text-muted hover:text-text"}`}
         >
           Login
         </button>
         <button
           type="button"
-          onClick={() => setAuthMode("signup")}
+          onClick={() => switchMode("signup")}
           className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${authMode === "signup" ? "bg-surface text-text" : "text-text-muted hover:text-text"}`}
         >
           Sign up
         </button>
       </div>
 
-      {authMode === "signup" ? (
-        <button
-          type="button"
-          onClick={() => navigate("/onboarding")}
-          className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 transition-all"
-        >
-          Link POS
-        </button>
-      ) : (
-        <>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <LuMail
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                size={18}
-              />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                onBlur={() => handleBlur("email")}
-                className={inputClass("email")}
-              />
-              {errors.email && (
-                <p className="text-danger text-xs mt-1">{errors.email}</p>
-              )}
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {authMode === "signup" && (
+          <div className="relative">
+            <LuUser
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Full name"
+              value={formData.fullName}
+              onChange={(e) => handleChange("fullName", e.target.value)}
+              onBlur={() => handleBlur("fullName")}
+              className={inputClass("fullName")}
+            />
+            {errors.fullName && (
+              <p className="text-danger text-xs mt-1">{errors.fullName}</p>
+            )}
+          </div>
+        )}
 
+        <div className="relative">
+          <LuMail
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+            size={18}
+          />
+          <input
+            type="email"
+            placeholder="Email address"
+            value={formData.email}
+            onChange={(e) => handleChange("email", e.target.value)}
+            onBlur={() => handleBlur("email")}
+            className={inputClass("email")}
+          />
+          {errors.email && (
+            <p className="text-danger text-xs mt-1">{errors.email}</p>
+          )}
+        </div>
+
+        <div>
+          <div className="relative">
+            <LuLock
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              size={18}
+            />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+              onBlur={() => handleBlur("password")}
+              className={`${inputClass("password")} pr-12`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
+            >
+              {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-danger text-xs mt-1">{errors.password}</p>
+          )}
+          {authMode === "signup" && (
+            <PasswordStrengthIndicator password={formData.password} />
+          )}
+        </div>
+
+        {authMode === "signup" && (
+          <div>
             <div className="relative">
               <LuLock
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
                 size={18}
               />
               <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                onBlur={() => handleBlur("password")}
-                className={`${inputClass("password")} pr-12`}
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
+                onChange={(e) =>
+                  handleChange("confirmPassword", e.target.value)
+                }
+                onBlur={() => handleBlur("confirmPassword")}
+                className={`${inputClass("confirmPassword")} pr-12`}
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
               >
-                {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
-              </button>
-              {errors.password && (
-                <p className="text-danger text-xs mt-1">{errors.password}</p>
-              )}
-            </div>
-
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={() => setAuthMode("reset")}
-                className="text-sm text-text-muted hover:text-text transition-colors"
-              >
-                Forgot password?
+                {showConfirmPassword ? (
+                  <LuEyeOff size={18} />
+                ) : (
+                  <LuEye size={18} />
+                )}
               </button>
             </div>
+            {errors.confirmPassword && (
+              <p className="text-danger text-xs mt-1">
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
+        )}
 
+        {authMode === "login" ? (
+          <div className="text-right">
             <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+              type="button"
+              onClick={() => switchMode("reset")}
+              className="text-sm text-text-muted hover:text-text transition-colors"
             >
-              {isLoading ? <Spinner size={18} /> : "Sign in"}
+              Forgot password?
             </button>
-          </form>
-        </>
-      )}
+          </div>
+        ) : (
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.agreeToTerms}
+              onChange={(e) => handleChange("agreeToTerms", e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded border-border bg-surface-muted"
+            />
+            <span className="text-sm text-text-muted">
+              I agree to the{" "}
+              <a href="#" className="text-text hover:underline">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="#" className="text-text hover:underline">
+                Privacy Policy
+              </a>
+            </span>
+          </label>
+        )}
+        {errors.agreeToTerms && (
+          <p className="text-danger text-xs">{errors.agreeToTerms}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <Spinner size={18} />
+          ) : authMode === "login" ? (
+            "Sign in"
+          ) : (
+            "Create account"
+          )}
+        </button>
+      </form>
+
+      <div className="text-center mt-6">
+        <p className="text-text-muted text-sm">
+          {authMode === "login"
+            ? "Don't have an account? "
+            : "Already have an account? "}
+          <button
+            type="button"
+            onClick={() =>
+              switchMode(authMode === "login" ? "signup" : "login")
+            }
+            className="text-text font-medium hover:underline"
+          >
+            {authMode === "login" ? "Sign up" : "Sign in"}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

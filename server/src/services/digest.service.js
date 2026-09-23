@@ -9,7 +9,7 @@ const { sendDigestEmail } = require("./email.service.js");
 const { sendDigestText } = require("./sms.service.js");
 
 const quickFlushTimers = new Map();
-const QUICK_FLUSH_DELAY_MS = 20000;
+const QUICK_FLUSH_DELAY_MS = 30000;
 
 const maybeSendText = async ({ store, account, user, items }) => {
   if (store.sms_enabled && account.phone_verified && user.notify_sms) {
