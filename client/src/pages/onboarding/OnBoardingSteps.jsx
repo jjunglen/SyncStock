@@ -43,7 +43,7 @@ const TOTAL_STEPS = 4;
 
 export default function OnboardingSteps() {
   const [searchParams] = useSearchParams();
-  const [emblaRef, emblaApi] = useEmblaCarousel({ watchDrag: false, });
+  const [emblaRef, emblaApi] = useEmblaCarousel({ watchDrag: false });
   const [current, setCurrent] = useState(0);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

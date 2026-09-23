@@ -3,7 +3,7 @@ import Landing from "./pages/Landing.jsx";
 import PricingPage from "./pages/Pricing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
 import ConnectShopify from "./pages/onboarding/ConnectShopify.jsx";
-import OnboardingSteps from "./pages/onboarding/OnboardingSteps.jsx";
+import OnboardingSteps from "./pages/onboarding/OnboardingSteps.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import MerchantDashboard from "./components/dashboard/MerchantDashboard.jsx"
 import MarketingHeader from "./components/marketing/MarketingHeader.jsx";
