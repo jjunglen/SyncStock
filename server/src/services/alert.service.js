@@ -1,118 +1,79 @@
-const { NotificationLog, PendingNotification } = require("../models/index.js");
+const { Alert } = require("../models/index.js");
 const { Op } = require("sequelize");
-const { scheduleQuickFlush } = require("./digest.service.js")
+const {
+  sendNotification,
+  sendPriceDropNotification,
+} = require("./notification.service.js");
 
-const sendNotification = async ({ store, alert, inventory }) => {
-  const recentlyQueuedOrSent = await PendingNotification.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-    },
-  });
-  if (recentlyQueuedOrSent) {
-    console.log(
-      `Skipping duplicate — ${inventory.product_name} already queued/sent for this user`,
-    );
-    return false;
-  }
-
-  const recentEmail = await NotificationLog.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-      channel: "email",
-      sent_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
-    },
-  });
-  if (recentEmail) return false;
-
-  const message = `${inventory.product_name} (Size ${inventory.size}) is now available`;
-
-  if (alert.notify_inapp) {
-    await NotificationLog.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      channel: "in_app",
-      image_url: inventory.image_url || null,
-      message,
+// Finds every active alert matching this store's newly-available
+// inventory item (product_name + size, case-insensitive — same
+// matching approach createAlert's own duplicate check already uses)
+// and notifies each matched user once per webhook batch. notifiedUsers
+// is shared across the whole product update, so if multiple variants
+// somehow match the same user, they're only notified once.
+const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
+  try {
+    const matchingAlerts = await Alert.findAll({
+      where: {
+        store_id: store.id,
+        active: true,
+        size: inventory.size,
+        product_name: { [Op.iLike]: inventory.product_name },
+      },
     });
-  }
 
-  if (alert.notify_email) {
-    await PendingNotification.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      product_name: inventory.product_name,
-      sku: inventory.sku,
-      size: inventory.size,
-      price: inventory.price,
-      image_url: inventory.image_url,
-      shopify_url: inventory.shopify_url,
-    });
-    scheduleQuickFlush(store.id, alert.user_id);
-  }
+    for (const alert of matchingAlerts) {
+      if (notifiedUsers.has(alert.user_id)) continue;
 
-  return true;
+      if (
+        alert.max_price &&
+        parseFloat(inventory.price) > parseFloat(alert.max_price)
+      ) {
+        continue;
+      }
+
+      const sent = await sendNotification({ store, alert, inventory });
+      if (sent) {
+        notifiedUsers.add(alert.user_id);
+      }
+    }
+  } catch (error) {
+    console.error("Check alerts for inventory error:", error.message);
+  }
 };
 
-const sendPriceDropNotification = async ({ store, alert, inventory }) => {
-  const recentlyQueuedOrSent = await PendingNotification.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-    },
-  });
-  if (recentlyQueuedOrSent) return false;
-
-  const recentEmail = await NotificationLog.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-      channel: "email",
-      sent_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-    },
-  });
-  if (recentEmail) return false;
-
-  const message = `${inventory.product_name} (Size ${inventory.size}) dropped to $${inventory.price}`;
-
-  if (alert.notify_inapp) {
-    await NotificationLog.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      channel: "in_app",
-      image_url: inventory.image_url || null,
-      message,
+// Same matching, but for an item that just had a genuine price drop
+// (the caller already confirmed that) — sends the price-drop-flavored
+// notification instead of the standard restock one.
+const checkPriceDropAlerts = async (store, inventory, notifiedUsers) => {
+  try {
+    const matchingAlerts = await Alert.findAll({
+      where: {
+        store_id: store.id,
+        active: true,
+        size: inventory.size,
+        product_name: { [Op.iLike]: inventory.product_name },
+      },
     });
-  }
 
-  if (alert.notify_email) {
-    await PendingNotification.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      product_name: inventory.product_name,
-      sku: inventory.sku,
-      size: inventory.size,
-      price: inventory.price,
-      image_url: inventory.image_url,
-      shopify_url: inventory.shopify_url,
-    });
-    scheduleQuickFlush(store.id, alert.user_id);
-  }
+    for (const alert of matchingAlerts) {
+      if (notifiedUsers.has(alert.user_id)) continue;
 
-  return true;
+      if (
+        alert.max_price &&
+        parseFloat(inventory.price) > parseFloat(alert.max_price)
+      ) {
+        continue;
+      }
+
+      const sent = await sendPriceDropNotification({ store, alert, inventory });
+      if (sent) {
+        notifiedUsers.add(alert.user_id);
+      }
+    }
+  } catch (error) {
+    console.error("Check price drop alerts error:", error.message);
+  }
 };
 
-module.exports = { sendNotification, sendPriceDropNotification };
+module.exports = { checkAlertsForInventory, checkPriceDropAlerts };

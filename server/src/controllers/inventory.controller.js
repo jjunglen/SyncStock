@@ -49,17 +49,21 @@ const getInventoryItem = async (req, res) => {
   }
 };
 
-// GET /api/inventory/search?q=jordan&size=10M/11.5W&max_price=300&page=1&limit=20
+// GET /api/inventory/search?q=jordan&size=10M/11.5W&category=sneakers&max_price=300&page=1&limit=20
 const searchInventory = async (req, res) => {
   try {
-    const { q, size, min_price, max_price } = req.query;
+    const { q, size, category, min_price, max_price } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
     const where = { store_id: req.store.id, available: { [Op.gt]: 0 } };
 
+    if (category) {
+      where.category = category;
+    }
+
     if (q) {
       where[Op.or] = [
-        { shoe_name: { [Op.iLike]: `%${q}%` } },
+        { product_name: { [Op.iLike]: `%${q}%` } },
         { sku: { [Op.iLike]: `%${q}%` } },
       ];
     }
@@ -94,8 +98,7 @@ const searchInventory = async (req, res) => {
   }
 };
 
-// GET /api/inventory/my-sizes?page=1&limit=20 — items in the logged-in
-// account's saved sizes, for the current store
+// GET /api/inventory/my-sizes?category=sneakers&page=1&limit=20
 const getInventoryInMySizes = async (req, res) => {
   try {
     if (!req.account) {
@@ -115,13 +118,19 @@ const getInventoryInMySizes = async (req, res) => {
     }
 
     const { page, limit, offset } = getPagination(req.query);
+    const { category } = req.query;
+
+    const where = {
+      store_id: req.store.id,
+      available: { [Op.gt]: 0 },
+      size: { [Op.in]: sizes },
+    };
+    if (category) {
+      where.category = category;
+    }
 
     const { count, rows } = await Inventory.findAndCountAll({
-      where: {
-        store_id: req.store.id,
-        available: { [Op.gt]: 0 },
-        size: { [Op.in]: sizes },
-      },
+      where,
       order: [["created_at", "DESC"]],
       limit,
       offset,

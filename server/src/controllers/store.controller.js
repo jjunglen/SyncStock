@@ -131,6 +131,7 @@ const backfillInventory = async (store, accessToken, shop) => {
             available: variant.inventory_quantity || 0,
             shopify_url: `${store.storefront_url}/products/${product.handle}`,
             image_url: product.images?.[0]?.src || null,
+            image_urls: (product.images || []).map((img) => img.src),
             last_synced_at: new Date(),
           });
         }

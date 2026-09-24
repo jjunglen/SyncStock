@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import {
   LuSearch,
@@ -53,16 +53,28 @@ const TABS = [
   { key: "alerts", label: "Your alerts" },
 ];
 
+const PAGE_SIZE = 24;
+
 export default function CustomerDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState("instock");
-  const [inventory, setInventory] = useState([]);
-  const [loadingInventory, setLoadingInventory] = useState(true);
-  const [mySizes, setMySizes] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  const [inStockItems, setInStockItems] = useState([]);
+  const [inStockMeta, setInStockMeta] = useState(null);
+  const [inStockPage, setInStockPage] = useState(1);
+  const [loadingInStock, setLoadingInStock] = useState(true);
+  const [mySizes, setMySizes] = useState([]);
+
+  const [browseItems, setBrowseItems] = useState([]);
+  const [browseMeta, setBrowseMeta] = useState(null);
+  const [browsePage, setBrowsePage] = useState(1);
+  const [loadingBrowse, setLoadingBrowse] = useState(true);
   const [browseQuery, setBrowseQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedSize, setSelectedSize] = useState("All sizes");
+
   const [alerts, setAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
 
@@ -73,13 +85,61 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load account:", err));
   }, []);
 
-  useEffect(() => {
+  const fetchInStock = useCallback((page) => {
+    setLoadingInStock(true);
     api
-      .get("/inventory")
-      .then((res) => setInventory(res.data.data || []))
-      .catch((err) => console.error("Failed to load inventory:", err))
-      .finally(() => setLoadingInventory(false));
+      .get(
+        `/inventory/my-sizes?category=sneakers&page=${page}&limit=${PAGE_SIZE}`,
+      )
+      .then((res) => {
+        setInStockItems(res.data.data || []);
+        setInStockMeta(res.data.meta || null);
+      })
+      .catch((err) => console.error("Failed to load in-stock items:", err))
+      .finally(() => setLoadingInStock(false));
   }, []);
+
+  useEffect(() => {
+    fetchInStock(inStockPage);
+  }, [inStockPage, fetchInStock]);
+
+  const fetchBrowse = useCallback((page, query, size) => {
+    setLoadingBrowse(true);
+    const params = new URLSearchParams({
+      category: "sneakers",
+      page: String(page),
+      limit: String(PAGE_SIZE),
+    });
+    if (query) params.set("q", query);
+    if (size && size !== "All sizes") params.set("size", size);
+
+    api
+      .get(`/inventory/search?${params.toString()}`)
+      .then((res) => {
+        setBrowseItems(res.data.data || []);
+        setBrowseMeta(res.data.meta || null);
+      })
+      .catch((err) => console.error("Failed to load inventory:", err))
+      .finally(() => setLoadingBrowse(false));
+  }, []);
+
+  // Debounce raw typing into debouncedQuery
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedQuery(browseQuery), 300);
+    return () => clearTimeout(timeout);
+  }, [browseQuery]);
+
+  // A real filter change (query or size) always resets to page 1
+  useEffect(() => {
+    setBrowsePage(1);
+  }, [debouncedQuery, selectedSize]);
+
+  // Single source of truth: any change to page, query, or size
+  // triggers exactly one fetch — Previous/Next just changes browsePage
+  // and this picks it up the same way a filter change does.
+  useEffect(() => {
+    fetchBrowse(browsePage, debouncedQuery, selectedSize);
+  }, [browsePage, debouncedQuery, selectedSize, fetchBrowse]);
 
   useEffect(() => {
     api
@@ -100,9 +160,6 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load item from link:", err));
   }, [location.search]);
 
-  // Lets other pages (Profile, notification clicks) deep-link into a
-  // specific tab via ?tab=, rather than relying on local component
-  // state that only works if you're already mounted on this page.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get("tab");
@@ -130,35 +187,7 @@ export default function CustomerDashboard() {
     }
   };
 
-  const sneakerInventory = inventory.filter(
-    (item) => item.category === "sneakers" && item.available > 0,
-  );
-  const inStockItems = sneakerInventory.filter((item) =>
-    mySizes.includes(item.size),
-  );
-  const browseFiltered = sneakerInventory
-    .filter((item) =>
-      browseQuery
-        ? item.product_name.toLowerCase().includes(browseQuery.toLowerCase()) ||
-          item.sku?.toLowerCase().includes(browseQuery.toLowerCase())
-        : true,
-    )
-    .filter((item) =>
-      selectedSize !== "All sizes" ? item.size === selectedSize : true,
-    );
-
-  const availableSizes = [
-    "All sizes",
-    ...new Set(
-      sneakerInventory
-        .map((i) => i.size)
-        .filter((size) => sizeOrder.includes(size)),
-    ),
-  ].sort((a, b) => {
-    if (a === "All sizes") return -1;
-    if (b === "All sizes") return 1;
-    return sizeOrder.indexOf(a) - sizeOrder.indexOf(b);
-  });
+  const availableSizes = ["All sizes", ...sizeOrder];
 
   return (
     <div className="min-h-screen bg-bg text-text pb-20">
@@ -223,7 +252,7 @@ export default function CustomerDashboard() {
                 </Link>
               </div>
 
-              {loadingInventory ? (
+              {loadingInStock ? (
                 <p className="text-text-muted text-sm">Loading...</p>
               ) : inStockItems.length === 0 ? (
                 <div className="text-center py-16">
@@ -235,16 +264,40 @@ export default function CustomerDashboard() {
                   </p>
                 </div>
               ) : (
-                <ContainerToggle>
-                  {inStockItems.map((item) => (
-                    <CellToggle
-                      key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                    >
-                      <ProductCard item={item} />
-                    </CellToggle>
-                  ))}
-                </ContainerToggle>
+                <>
+                  <ContainerToggle>
+                    {inStockItems.map((item) => (
+                      <CellToggle
+                        key={item.id}
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <ProductCard item={item} />
+                      </CellToggle>
+                    ))}
+                  </ContainerToggle>
+
+                  {inStockMeta && inStockMeta.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6">
+                      <button
+                        disabled={inStockPage <= 1}
+                        onClick={() => setInStockPage((p) => p - 1)}
+                        className="text-sm text-text-muted hover:text-text disabled:opacity-30"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs text-text-muted">
+                        Page {inStockMeta.page} of {inStockMeta.totalPages}
+                      </span>
+                      <button
+                        disabled={inStockPage >= inStockMeta.totalPages}
+                        onClick={() => setInStockPage((p) => p + 1)}
+                        className="text-sm text-text-muted hover:text-text disabled:opacity-30"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -259,7 +312,9 @@ export default function CustomerDashboard() {
                   <div>
                     <p className="text-base font-medium">Browse inventory</p>
                     <p className="text-xs text-text-muted">
-                      {sneakerInventory.length} in stock right now
+                      {browseMeta
+                        ? `${browseMeta.total} in stock right now`
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -304,19 +359,47 @@ export default function CustomerDashboard() {
                 </div>
               </div>
 
-              {loadingInventory ? (
+              {loadingBrowse ? (
                 <p className="text-text-muted text-sm">Loading...</p>
+              ) : browseItems.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-text-muted text-sm">No results found</p>
+                </div>
               ) : (
-                <ContainerToggle>
-                  {browseFiltered.map((item) => (
-                    <CellToggle
-                      key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                    >
-                      <ProductCard item={item} />
-                    </CellToggle>
-                  ))}
-                </ContainerToggle>
+                <>
+                  <ContainerToggle>
+                    {browseItems.map((item) => (
+                      <CellToggle
+                        key={item.id}
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <ProductCard item={item} />
+                      </CellToggle>
+                    ))}
+                  </ContainerToggle>
+
+                  {browseMeta && browseMeta.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-6">
+                      <button
+                        disabled={browsePage <= 1}
+                        onClick={() => setBrowsePage((p) => p - 1)}
+                        className="text-sm text-text-muted hover:text-text disabled:opacity-30"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-xs text-text-muted">
+                        Page {browseMeta.page} of {browseMeta.totalPages}
+                      </span>
+                      <button
+                        disabled={browsePage >= browseMeta.totalPages}
+                        onClick={() => setBrowsePage((p) => p + 1)}
+                        className="text-sm text-text-muted hover:text-text disabled:opacity-30"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

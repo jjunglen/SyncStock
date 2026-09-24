@@ -67,6 +67,14 @@ const Inventory = sequelize.define(
       comment:
         "The grading company's serial/certification number, for authenticity lookup",
     },
+    image_url: { type: DataTypes.STRING, allowNull: true },
+    image_urls: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: [],
+      comment:
+        "All product images from Shopify, in order — image_url stays as the first one for backward compatibility with cards/emails/push",
+    },
   },
 
   {

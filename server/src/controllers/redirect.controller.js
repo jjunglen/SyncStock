@@ -2,6 +2,8 @@ const {
   AlertClick,
   Inventory,
   NotificationLog,
+  Store,
+  User,
 } = require("../models/index.js");
 
 const trackRedirect = async (req, res) => {
@@ -14,9 +16,7 @@ const trackRedirect = async (req, res) => {
         .json({ success: false, message: "Missing inventory_id" });
     }
 
-    const item = await Inventory.findOne({
-      where: { id: inventory_id, store_id: req.store.id },
-    });
+    const item = await Inventory.findByPk(inventory_id);
 
     if (!item) {
       return res
@@ -24,13 +24,29 @@ const trackRedirect = async (req, res) => {
         .json({ success: false, message: "Inventory item not found" });
     }
 
+    const store = await Store.findByPk(item.store_id);
+    if (!store) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Store not found" });
+    }
+
+    let membership = null;
+    if (req.account) {
+      membership = await User.findOne({
+        where: { account_id: req.account.id, store_id: store.id },
+      });
+    }
+
     if (item.available < 1) {
-      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?tab=browse`);
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/store/dashboard?tab=browse`,
+      );
     }
 
     const click = await AlertClick.create({
-      store_id: req.store.id,
-      user_id: req.membership?.id || null,
+      store_id: store.id,
+      user_id: membership?.id || null,
       alert_id: alert_id && alert_id !== "null" ? alert_id : null,
       notification_id: notification_id || null,
       product_name: item.product_name,
@@ -42,11 +58,11 @@ const trackRedirect = async (req, res) => {
     if (notification_id) {
       await NotificationLog.update(
         { read: true },
-        { where: { id: notification_id, store_id: req.store.id } },
+        { where: { id: notification_id, store_id: store.id } },
       );
     }
 
-    const cartUrl = `${req.store.storefront_url}/cart/${item.shopify_variant_id}:1?attributes[syncstock_click_id]=${click.id}`;
+    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?attributes[syncstock_click_id]=${click.id}`;
 
     return res.redirect(cartUrl);
   } catch (error) {
