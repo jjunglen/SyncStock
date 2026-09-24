@@ -128,7 +128,6 @@ export default function OnboardingSteps() {
           password,
           full_name: fullName,
         });
-        const finalSubdomain = sessionStorage.getItem("onboarding_subdomain");
         sessionStorage.removeItem("onboarding_token");
         sessionStorage.removeItem("onboarding_subdomain");
         const protocol =
@@ -136,8 +135,8 @@ export default function OnboardingSteps() {
         const host =
           window.location.hostname === "localhost"
             ? "localhost:5173"
-            : `${finalSubdomain}.syncstock.io`;
-        window.location.href = `${protocol}://${host}/`;
+            : "syncstock.io";
+        window.location.href = `${protocol}://${host}/dashboard`;
       } catch (err) {
         setError(
           err.response?.data?.message ||
