@@ -2,12 +2,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { stubModule } = require("./helpers.js");
 
-let existingPending = null;
 let pendingWhere;
 const created = [];
 stubModule("src/models/index.js", {
   PendingNotification: {
-    findOne: async ({ where }) => ((pendingWhere = where), existingPending),
+    findOne: async ({ where }) => ((pendingWhere = where), null),
     create: async (row) => created.push(["pending", row]),
   },
   NotificationLog: {
@@ -17,7 +16,7 @@ stubModule("src/models/index.js", {
 });
 stubModule("src/services/push.service.js", { sendPushNotification: async () => {} });
 stubModule("src/services/digest.service.js", { scheduleQuickFlush: () => {} });
-const { sendNotification } = require("../src/services/notification.service.js");
+const { sendNotification, sendPriceDropNotification } = require("../src/services/notification.service.js");
 
 const args = {
   store: { id: "s1", subdomain: "kicks" },
@@ -26,18 +25,13 @@ const args = {
 };
 
 test("queues in-app + email notifications for a fresh match", async () => {
-  existingPending = null;
   assert.equal(await sendNotification(args), true);
   assert.deepEqual(created.map((c) => c[0]), ["log", "pending"]);
 });
 
-test("a restock weeks later still notifies (dedup must be time-bounded)", async () => {
-  // A PendingNotification row that was already sent a month ago
-  existingPending = { id: 9, sent: true, created_at: new Date(Date.now() - 30 * 864e5) };
-  const result = await sendNotification(args);
-  const keys = [...Object.keys(pendingWhere), ...Object.getOwnPropertySymbols(pendingWhere)];
-  assert.ok(
-    result === true || keys.some((k) => ["created_at", "sent"].includes(k)),
-    `dedup query has no time/sent filter: ${JSON.stringify(pendingWhere)} — user is never re-notified for this item`,
-  );
-});
+for (const [name, fn] of [["restock", sendNotification], ["price drop", sendPriceDropNotification]]) {
+  test(`${name} dedup only looks at recent notifications`, async () => {
+    await fn(args);
+    assert.ok(pendingWhere.created_at, `no time window: ${JSON.stringify(pendingWhere)}`);
+  });
+}

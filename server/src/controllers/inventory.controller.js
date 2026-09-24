@@ -2,6 +2,11 @@ const { Op } = require("sequelize");
 const { Inventory } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 
+// Must match the Inventory.category ENUM — anything else makes Postgres throw
+const CATEGORIES = Inventory.getAttributes().category.values;
+const invalidCategory = (res) =>
+  res.status(400).json({ success: false, message: "Invalid category" });
+
 // GET /api/inventory?page=1&limit=20 — available items for the current store
 const getInventory = async (req, res) => {
   try {
@@ -58,6 +63,7 @@ const searchInventory = async (req, res) => {
     const where = { store_id: req.store.id, available: { [Op.gt]: 0 } };
 
     if (category) {
+      if (!CATEGORIES.includes(category)) return invalidCategory(res);
       where.category = category;
     }
 
@@ -126,6 +132,7 @@ const getInventoryInMySizes = async (req, res) => {
       size: { [Op.in]: sizes },
     };
     if (category) {
+      if (!CATEGORIES.includes(category)) return invalidCategory(res);
       where.category = category;
     }
 

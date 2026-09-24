@@ -231,15 +231,6 @@ const handleProductUpdate = async (req, res) => {
   try {
     const store = req.store;
     const data = JSON.parse(req.body);
-    
-    // TEMPORARY — remove once this is diagnosed
-    console.log("RAW WEBHOOK DATA:", JSON.stringify({
-      title: data.title,
-      published_at: data.published_at,
-      status: data.status,
-      images: data.images,
-    }, null, 2));
-    
     const variants = data.variants || [];
     const imageUrl = data.images?.[0]?.src || null;
 

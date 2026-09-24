@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { LuX, LuExternalLink, LuBell, LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import {
+  LuX,
+  LuExternalLink,
+  LuBell,
+  LuChevronLeft,
+  LuChevronRight,
+} from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
@@ -15,7 +21,12 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
   const [alertSet, setAlertSet] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
 
-  const images = item.image_urls?.length > 0 ? item.image_urls : (item.image_url ? [item.image_url] : []);
+  const images =
+    item.image_urls?.length > 0
+      ? item.image_urls
+      : item.image_url
+        ? [item.image_url]
+        : [];
 
   useEffect(() => {
     const handleEsc = (e) => e.key === "Escape" && onClose();
@@ -27,7 +38,10 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
 
   const handleBuyNow = () => {
     const params = new URLSearchParams({ inventory_id: item.id });
-    window.open(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/redirect?${params.toString()}`, "_blank");
+    window.open(
+      `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/redirect?${params.toString()}`,
+      "_blank",
+    );
   };
 
   const handleSetAlert = async () => {
@@ -51,19 +65,31 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-surface border border-border rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[92vh] flex flex-col z-10 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <p className="text-sm font-medium text-text truncate pr-4">{item.product_name}</p>
-          <button onClick={onClose} className="text-text-muted hover:text-text shrink-0">
+          <p className="text-sm font-medium text-text truncate pr-4">
+            {item.product_name}
+          </p>
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text shrink-0"
+          >
             <LuX size={22} />
           </button>
         </div>
 
-        <div className="overflow-yv-auto flex-1">
+        <div className="overflow-y-auto flex-1">
           <div className="relative bg-white h-64 md:h-72 flex items-center justify-center">
             {images.length > 0 ? (
-              <img src={images[imageIndex]} alt={item.product_name} className="w-full h-full object-contain p-4" />
+              <img
+                src={images[imageIndex]}
+                alt={item.product_name}
+                className="w-full h-full object-contain p-4"
+              />
             ) : (
               <div className="w-full h-full bg-surface-muted" />
             )}
@@ -71,13 +97,17 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
             {images.length > 1 && (
               <>
                 <button
-                  onClick={() => setImageIndex((i) => (i === 0 ? images.length - 1 : i - 1))}
+                  onClick={() =>
+                    setImageIndex((i) => (i === 0 ? images.length - 1 : i - 1))
+                  }
                   className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
                 >
                   <LuChevronLeft size={18} />
                 </button>
                 <button
-                  onClick={() => setImageIndex((i) => (i === images.length - 1 ? 0 : i + 1))}
+                  onClick={() =>
+                    setImageIndex((i) => (i === images.length - 1 ? 0 : i + 1))
+                  }
                   className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
                 >
                   <LuChevronRight size={18} />
@@ -98,20 +128,32 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
           <div className="p-5">
             <div className="flex gap-2 flex-wrap mb-3">
               {conditionLabel(item.condition) && (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/5 text-text-muted">
+                <span
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live/10 text-live" : "bg-white/5 text-text-muted"}`}
+                >
                   {conditionLabel(item.condition)}
                 </span>
               )}
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-muted text-text">{item.size}</span>
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-muted text-text">
+                {item.size}
+              </span>
               {!isInStock && (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">Not in stock</span>
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">
+                  Not in stock
+                </span>
               )}
             </div>
 
-            <h2 className="text-base md:text-lg font-semibold text-text mb-1">{item.product_name}</h2>
-            {item.sku && <p className="text-xs text-text-muted mb-4">{item.sku}</p>}
+            <h2 className="text-base md:text-lg font-semibold text-text mb-1">
+              {item.product_name}
+            </h2>
+            {item.sku && (
+              <p className="text-xs text-text-muted mb-4">{item.sku}</p>
+            )}
 
-            <p className="text-2xl font-bold text-text mb-5">${parseFloat(item.price).toFixed(0)}</p>
+            <p className="text-2xl font-bold text-text mb-5">
+              ${parseFloat(item.price).toFixed(0)}
+            </p>
 
             {isInStock ? (
               <>
@@ -126,12 +168,25 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
               </>
             ) : alertSet ? (
               <div className="text-center py-2">
-                <p className="text-sm text-live font-medium">Alert set — we'll notify you when it's back</p>
+                <p className="text-sm text-live font-medium">
+                  Alert set — we'll notify you when it's back
+                </p>
               </div>
             ) : (
-              <Button variant="primary" fullWidth disabled={isSubmittingAlert} onClick={handleSetAlert}>
+              <Button
+                variant="primary"
+                fullWidth
+                disabled={isSubmittingAlert}
+                onClick={handleSetAlert}
+              >
                 <span className="flex items-center justify-center gap-2">
-                  {isSubmittingAlert ? <Spinner size={18} /> : <><LuBell size={16} /> Set alert for this size</>}
+                  {isSubmittingAlert ? (
+                    <Spinner size={18} />
+                  ) : (
+                    <>
+                      <LuBell size={16} /> Set alert for this size
+                    </>
+                  )}
                 </span>
               </Button>
             )}

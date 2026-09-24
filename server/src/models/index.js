@@ -10,6 +10,7 @@ const AlertClick = require("./AlertClick.js");
 const Purchase = require("./Purchase.js");
 const PushSubscription = require("./PushSubscription.js");
 const PendingNotification = require("./PendingNotification.js");
+const StockxImageCache = require("./StockxImageCache.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -84,4 +85,5 @@ module.exports = {
   Purchase,
   PushSubscription,
   PendingNotification,
+  StockxImageCache,
 };

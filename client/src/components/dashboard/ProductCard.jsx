@@ -11,40 +11,37 @@ export default function ProductCard({ item }) {
 
   if (layout === "list") {
     return (
-      <div className="flex items-center gap-3 p-3">
-        <div className="w-16 h-16 bg-white rounded-lg shrink-0 overflow-hidden">
+      <>
+        <div className="relative w-full aspect-[4/3] md:aspect-[2/1] bg-white overflow-hidden">
           {item.image_url ? (
             <img
               src={item.image_url}
               alt={item.product_name}
-              className="w-full h-full object-contain p-1"
+              className="w-full h-full object-contain p-6 md:p-10 transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
-            <div className="w-full h-full bg-surface-muted" />
+            <div className="w-full h-full bg-neutral-200" />
           )}
+          {conditionLabel(item.condition) && (
+            <span
+              className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live text-white" : "bg-black/70 text-white"}`}
+            >
+              {conditionLabel(item.condition)}
+            </span>
+          )}
+          <span className="absolute top-3 right-3 text-base px-2.5 py-1 rounded-full font-medium bg-black/70 text-white">
+            {item.size}
+          </span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-text leading-tight line-clamp-2 mb-1">
+        <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
+          <p className="text-lg text-neutral-500 truncate">
             {item.product_name}
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-surface-muted text-text-muted">
-              {item.size}
-            </span>
-            {conditionLabel(item.condition) && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-white/5 text-text-muted">
-                {conditionLabel(item.condition)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-semibold text-text">
+          <span className="text-lg font-medium text-neutral-900 shrink-0">
             ${parseFloat(item.price).toFixed(0)}
-          </p>
-          <span className="text-xs text-text-muted">View →</span>
+          </span>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -61,7 +58,9 @@ export default function ProductCard({ item }) {
           <div className="w-full h-full bg-surface-muted" />
         )}
         {conditionLabel(item.condition) && (
-          <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/60 text-white">
+          <span
+            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${item.condition === "brand_new" ? "bg-live text-white" : "bg-black/60 text-white"}`}
+          >
             {conditionLabel(item.condition)}
           </span>
         )}
@@ -74,7 +73,7 @@ export default function ProductCard({ item }) {
           {item.product_name}
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-text">
+          <span className="text-lg font-semibold text-text">
             ${parseFloat(item.price).toFixed(0)}
           </span>
           <span className="text-xs font-medium bg-white/5 text-text-muted px-2.5 py-1 rounded-lg">

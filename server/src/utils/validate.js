@@ -20,7 +20,7 @@ const isValidPassword = (password) => {
 const isValidSize = (size) => {
     const validSizes = [
     // Mens/Womens
-    "4M/5.5W", "4.5M/6W", "5M/6.5W", "5.5M/7W",
+    "3.5M/5W", "4M/5.5W", "4.5M/6W", "5M/6.5W", "5.5M/7W",
     "6M/7.5W", "6.5M/8W", "7M/8.5W", "7.5M/9W",
     "8M/9.5W", "8.5M/10W", "9M/10.5W", "9.5M/11W",
     "10M/11.5W", "10.5M/12W", "11M/12.5W", "11.5M/13W",
@@ -36,7 +36,9 @@ const isValidSize = (size) => {
 
 // Checks that a price is a positive number
 const isValidPrice = (price) => {
-    return price === null || price === undefined || Number(price) >= 0;
+    if (price === null || price === undefined) return true;
+    if (String(price).trim() === "") return false;
+    return Number(price) >= 0;
 };
 
 // Checks that condition preference is valid

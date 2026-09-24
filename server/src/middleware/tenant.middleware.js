@@ -7,6 +7,7 @@ const extractSubdomain = (hostname) => {
   }
   const parts = hostname.split(".");
   if (parts.length < 3) return null;
+  if (parts[0] === "www") return null;
   return parts[0];
 };
 
@@ -108,51 +109,63 @@ const attachStoreIfPresent = async (req, res, next) => {
 };
 
 const resolveStoreForOnboarding = async (req, res, next) => {
-  const token = req.headers["x-onboarding-token"];
+  try {
+    const token = req.headers["x-onboarding-token"];
 
-  if (token) {
-    const result = verifyOnboardingToken(token);
+    if (token) {
+      const result = verifyOnboardingToken(token);
 
-    if (result.valid) {
-      const store = await Store.findByPk(result.storeId);
-      if (store) {
-        req.store = store;
-        return next();
+      if (result.valid) {
+        const store = await Store.findByPk(result.storeId);
+        if (store) {
+          req.store = store;
+          return next();
+        }
+      }
+
+      if (!result.expired) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid onboarding link" });
       }
     }
 
-    if (!result.expired) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid onboarding link" });
-    }
+    return resolveStoreFromSubdomain(req, res, next);
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to resolve store" });
   }
-
-  return resolveStoreFromSubdomain(req, res, next);
 };
 
 const resolveStoreFromAdminMembership = async (req, res, next) => {
-  if (!req.account) {
-    return res.status(401).json({ success: false, message: "Not logged in" });
-  }
+  try {
+    if (!req.account) {
+      return res.status(401).json({ success: false, message: "Not logged in" });
+    }
 
-  const membership = await User.findOne({
-    where: { account_id: req.account.id, role: "admin" },
-  });
+    const membership = await User.findOne({
+      where: { account_id: req.account.id, role: "admin" },
+    });
 
-  if (!membership) {
+    if (!membership) {
+      return res
+        .status(403)
+        .json({ success: false, message: "No store found for this account" });
+    }
+
+    const store = await Store.findByPk(membership.store_id);
+    if (!store) {
+      return res.status(404).json({ success: false, message: "Store not found" });
+    }
+
+    req.store = store;
+    next();
+  } catch (error) {
     return res
-      .status(403)
-      .json({ success: false, message: "No store found for this account" });
+      .status(500)
+      .json({ success: false, message: "Failed to resolve store" });
   }
-
-  const store = await Store.findByPk(membership.store_id);
-  if (!store) {
-    return res.status(404).json({ success: false, message: "Store not found" });
-  }
-
-  req.store = store;
-  next();
 };
 
 module.exports = {

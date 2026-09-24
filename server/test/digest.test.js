@@ -3,12 +3,13 @@ const assert = require("node:assert/strict");
 const { stubModule } = require("./helpers.js");
 
 let pending = [];
-const markedSent = [];
+const updates = [];
 const emailed = [];
 stubModule("src/models/index.js", {
   PendingNotification: {
     findAll: async () => pending,
-    update: async (vals, { where }) => markedSent.push(...where.id[Object.getOwnPropertySymbols(where.id)[0]]),
+    update: async ({ sent }, { where }) =>
+      updates.push([sent, where.id[Object.getOwnPropertySymbols(where.id)[0]]]),
   },
   Store: { findByPk: async (id) => ({ id, sms_enabled: false }) },
   User: { findByPk: async (id) => ({ id, account_id: `acc-${id}` }) },
@@ -23,12 +24,19 @@ stubModule("src/services/email.service.js", {
 stubModule("src/services/sms.service.js", { sendDigestText: async () => {} });
 const { flushPendingNotifications } = require("../src/services/digest.service.js");
 
-test("one failing digest email does not stop other users' digests", async () => {
+test("one failing digest email does not stop other users' digests, and is requeued", async () => {
+  const origError = console.error;
+  console.error = () => {};
   pending = [
     { id: 1, store_id: "s1", user_id: "u1" },
     { id: 2, store_id: "s1", user_id: "u2" },
   ];
-  await flushPendingNotifications().catch(() => {});
-  assert.deepEqual(markedSent, [1, 2]); // both marked sent up front...
-  assert.deepEqual(emailed, ["acc-u2"], "u2 was marked sent but never emailed");
+  await flushPendingNotifications();
+  console.error = origError;
+
+  assert.deepEqual(emailed, ["acc-u2"]);
+  assert.deepEqual(updates, [
+    [true, [1, 2]], // claimed up front
+    [false, [1]], // u1's failed item goes back in the queue
+  ]);
 });

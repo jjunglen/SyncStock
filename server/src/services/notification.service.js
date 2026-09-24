@@ -86,6 +86,7 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
       store_id: store.id,
       user_id: alert.user_id,
       inventory_id: inventory.id,
+      created_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
     },
   });
   if (recentlyQueuedOrSent) return false;

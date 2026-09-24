@@ -87,7 +87,9 @@ const sendDigestEmail = async ({ store, account, items }) => {
     `,
     )
     .join("");
-  await resend.emails.send({
+  // Resend returns API failures instead of throwing — throw so the
+  // digest service can requeue the items
+  const { error } = await resend.emails.send({
     from: `${fromName} <${fromEmail}>`,
     to: account.email,
     subject: `${items.length} new match${items.length > 1 ? "es" : ""} at ${fromName}`,
@@ -101,6 +103,7 @@ const sendDigestEmail = async ({ store, account, items }) => {
       </div>
     `,
   });
+  if (error) throw new Error(error.message || "Digest email failed");
 };
 
 const sendPasswordResetEmail = async ({

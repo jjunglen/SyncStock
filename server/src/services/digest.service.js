@@ -21,26 +21,42 @@ const maybeSendText = async ({ store, account, user, items }) => {
   }
 };
 
+const setSent = (items, sent) =>
+  PendingNotification.update(
+    { sent },
+    { where: { id: { [Op.in]: items.map((p) => p.id) } } },
+  );
+
+// Sends one user's digest. Items are already marked sent (so a
+// concurrent flush can't pick them up too); if the email fails they're
+// put back in the queue for the next cron run.
+const deliverDigest = async (storeId, userId, items) => {
+  try {
+    const store = await Store.findByPk(storeId);
+    const user = await User.findByPk(userId);
+    if (!store || !user) return;
+
+    const account = await Account.findByPk(user.account_id);
+    if (!account) return;
+
+    await sendDigestEmail({ store, account, items });
+    await maybeSendText({ store, account, user, items });
+  } catch (err) {
+    console.error(`Digest send failed for user ${userId}:`, err.message);
+    await setSent(items, false).catch((resetErr) =>
+      console.error("Digest requeue error:", resetErr.message),
+    );
+  }
+};
+
 const flushForUser = async (storeId, userId) => {
   const pending = await PendingNotification.findAll({
     where: { store_id: storeId, user_id: userId, sent: false },
   });
   if (pending.length === 0) return;
 
-  await PendingNotification.update(
-    { sent: true },
-    { where: { id: { [Op.in]: pending.map((p) => p.id) } } },
-  );
-
-  const store = await Store.findByPk(storeId);
-  const user = await User.findByPk(userId);
-  if (!store || !user) return;
-
-  const account = await Account.findByPk(user.account_id);
-  if (!account) return;
-
-  await sendDigestEmail({ store, account, items: pending });
-  await maybeSendText({ store, account, user, items: pending });
+  await setSent(pending, true);
+  await deliverDigest(storeId, userId, pending);
 };
 
 const scheduleQuickFlush = (storeId, userId) => {
@@ -64,10 +80,7 @@ const flushPendingNotifications = async () => {
   const pending = await PendingNotification.findAll({ where: { sent: false } });
   if (pending.length === 0) return;
 
-  await PendingNotification.update(
-    { sent: true },
-    { where: { id: { [Op.in]: pending.map((p) => p.id) } } },
-  );
+  await setSent(pending, true);
 
   const groups = new Map();
   for (const p of pending) {
@@ -78,15 +91,7 @@ const flushPendingNotifications = async () => {
 
   for (const [key, items] of groups) {
     const [storeId, userId] = key.split(":");
-    const store = await Store.findByPk(storeId);
-    const user = await User.findByPk(userId);
-    if (!store || !user) continue;
-
-    const account = await Account.findByPk(user.account_id);
-    if (!account) continue;
-
-    await sendDigestEmail({ store, account, items });
-    await maybeSendText({ store, account, user, items });
+    await deliverDigest(storeId, userId, items);
   }
 };
 

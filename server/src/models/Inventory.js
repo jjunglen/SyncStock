@@ -67,7 +67,6 @@ const Inventory = sequelize.define(
       comment:
         "The grading company's serial/certification number, for authenticity lookup",
     },
-    image_url: { type: DataTypes.STRING, allowNull: true },
     image_urls: {
       type: DataTypes.JSONB,
       allowNull: true,
@@ -84,7 +83,10 @@ const Inventory = sequelize.define(
     createdAt: "created_at",
     updatedAt: false,
     indexes: [
-      { unique: true, fields: ["store_id", "shopify_product_id"] },
+      // One row per variant (size), so uniqueness is on the variant id —
+      // keying on product id made each size overwrite the previous one
+      { unique: true, fields: ["store_id", "shopify_variant_id"] },
+      { fields: ["store_id", "shopify_product_id"] },
       { fields: ["store_id"] },
       { fields: ["store_id", "category"] },
     ],
