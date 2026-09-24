@@ -40,7 +40,7 @@ const Store = sequelize.define(
     },
     shopify_webhook_secret: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         get() {
             const raw = this.getDataValue("shopify_webhook_secret");
             return raw ? decrypt(raw) : raw;

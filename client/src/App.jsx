@@ -16,11 +16,14 @@ import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
 import TrackShoe from "./pages/dashboard/TrackShoe.jsx";
 import CustomerProfile from "./pages/dashboard/CustomerProfile.jsx";
 import CustomerAuthForm from "./pages/store/CustomerAuthForm.jsx";
+import { getSubdomain } from "./lib/getSubdomain.js";
 
 function App() {
+  const subdomain = getSubdomain();
+
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={subdomain ? <StoreLanding /> : <Landing />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/login" element={
         <div className="min-h-screen bg-bg">

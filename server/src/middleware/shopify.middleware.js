@@ -21,7 +21,7 @@ const verifyShopifyWebhook = (req, res, next) => {
     }
 
     const generateSig = crypto
-      .createHmac("sha256", req.store.shopify_webhook_secret)
+      .createHmac("sha256", process.env.SHOPIFY_APP_CLIENT_SECRET)
       .update(req.body)
       .digest("base64");
 

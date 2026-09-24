@@ -78,13 +78,14 @@ export default function MerchantSidebar({ storeName, storeSubdomain }) {
   const handleClick = (item) => {
     if (item.disabled) return;
     if (item.external) {
-      const protocol =
-        window.location.hostname === "localhost" ? "http" : "https";
-      const host =
-        window.location.hostname === "localhost"
-          ? "localhost:5173"
-          : `${storeSubdomain}.syncstock.io`;
-      window.open(`${protocol}://${host}/`, "_blank");
+      if (window.location.hostname === "localhost") {
+        window.open("http://localhost:5173/store/dashboard", "_blank");
+      } else {
+        window.open(
+          `https://${storeSubdomain}.syncstock.io/store/dashboard`,
+          "_blank",
+        );
+      }
       return;
     }
     navigate(item.to);
