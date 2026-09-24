@@ -2,15 +2,14 @@ const { NotificationLog, PendingNotification } = require("../models/index.js");
 const { sendPushNotification } = require("./push.service.js");
 const { Op } = require("sequelize");
 const { scheduleQuickFlush } = require("./digest.service.js");
+const { storeBaseUrl } = require("../utils/storeUrl.js");
 
 
 const buildDashboardUrl = (store, inventoryId, alertId) => {
-  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-  const host =
-    process.env.NODE_ENV === "production"
-      ? `${store.subdomain}.syncstock.io`
-      : "localhost:5173";
-  return `${protocol}://${host}/store/dashboard?item=${inventoryId}&alert=${alertId}`;
+  const params = new URLSearchParams({ item: inventoryId });
+  // Size-match notifications have no alert behind them
+  if (alertId) params.set("alert", alertId);
+  return `${storeBaseUrl(store)}/store/dashboard?${params.toString()}`;
 };
 
 const sendNotification = async ({ store, alert, inventory }) => {

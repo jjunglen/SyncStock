@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   LuX,
   LuExternalLink,
@@ -20,6 +20,7 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
   const [alertSet, setAlertSet] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
+  const touchStartX = useRef(null);
 
   const images =
     item.image_urls?.length > 0
@@ -27,6 +28,23 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
       : item.image_url
         ? [item.image_url]
         : [];
+
+  const showPrevImage = () =>
+    setImageIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  const showNextImage = () =>
+    setImageIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+
+  // Swipe between photos on touch screens
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || images.length < 2) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (deltaX > 40) showPrevImage();
+    else if (deltaX < -40) showNextImage();
+  };
 
   useEffect(() => {
     const handleEsc = (e) => e.key === "Escape" && onClose();
@@ -83,7 +101,11 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
         </div>
 
         <div className="overflow-y-auto flex-1">
-          <div className="relative bg-white h-64 md:h-72 flex items-center justify-center">
+          <div
+            className="relative bg-white h-64 md:h-72 flex items-center justify-center"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             {images.length > 0 ? (
               <img
                 src={images[imageIndex]}
@@ -97,17 +119,15 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
             {images.length > 1 && (
               <>
                 <button
-                  onClick={() =>
-                    setImageIndex((i) => (i === 0 ? images.length - 1 : i - 1))
-                  }
+                  onClick={showPrevImage}
+                  aria-label="Previous photo"
                   className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
                 >
                   <LuChevronLeft size={18} />
                 </button>
                 <button
-                  onClick={() =>
-                    setImageIndex((i) => (i === images.length - 1 ? 0 : i + 1))
-                  }
+                  onClick={showNextImage}
+                  aria-label="Next photo"
                   className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
                 >
                   <LuChevronRight size={18} />

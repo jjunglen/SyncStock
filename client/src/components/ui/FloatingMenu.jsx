@@ -61,7 +61,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           scale: { duration: 0.25, ease },
         }}
       >
-        <motion.div className="absolute inset-0 bg-primary" style={{ borderRadius: "inherit" }} />
+        <motion.div className="absolute inset-0 bg-blue-300" style={{ borderRadius: "inherit" }} />
 
         <motion.div
           className="absolute left-1/2 bg-bg"

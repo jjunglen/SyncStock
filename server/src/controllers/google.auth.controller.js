@@ -1,5 +1,6 @@
 const { Account, Store } = require("../models/index.js");
 const { signToken } = require("../utils/jwt.js");
+const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { ensureMembership, COOKIE_OPTIONS} = require("./auth.controller.js");
 
 const googleCallback = async (req, res) => {
@@ -57,14 +58,7 @@ const googleCallback = async (req, res) => {
             : "dashboard?verified=true";
 
         // Redirect back to the SAME store's subdomain, not a generic page
-        const protocol =
-            process.env.NODE_ENV === "production" ? "https" : "http";
-        const host =
-            process.env.NODE_ENV === "production"
-                ? `${store.subdomain}.syncstock.io`
-                : "localhost:5173";
-
-        return res.redirect(`${protocol}://${host}/${destination}`);
+        return res.redirect(`${storeBaseUrl(store)}/${destination}`);
 
     } catch (error) {
         console.error("Google callback error:", error.message);

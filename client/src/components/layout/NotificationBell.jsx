@@ -7,6 +7,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const containerRef = useRef(null);
   const navigate = useNavigate();
 
@@ -59,10 +60,29 @@ export default function NotificationBell() {
     }
   };
 
+  // Deleting is permanent, so the first click only arms the button
+  const handleClearAll = async () => {
+    if (!confirmingClear) {
+      setConfirmingClear(true);
+      return;
+    }
+    try {
+      await api.delete("/notifications");
+      setNotifications([]);
+    } catch (err) {
+      console.error("Failed to clear notifications:", err);
+    } finally {
+      setConfirmingClear(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          setConfirmingClear(false);
+          setIsOpen((prev) => !prev);
+        }}
         className="relative p-2 rounded-lg text-text-muted hover:text-text hover:bg-white/5 transition-colors"
       >
         <LuBell size={18} />
@@ -75,14 +95,24 @@ export default function NotificationBell() {
         <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-medium">Notifications</p>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-xs text-text-muted hover:text-text"
-              >
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-xs text-text-muted hover:text-text"
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className={`text-xs ${confirmingClear ? "text-danger font-medium" : "text-text-muted hover:text-text"}`}
+                >
+                  {confirmingClear ? "Click again to clear" : "Clear all"}
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (

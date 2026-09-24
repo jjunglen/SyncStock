@@ -168,7 +168,7 @@ export default function AuthForm({ initialMode = "login" }) {
       });
       localStorage.setItem("syncstock_email", formData.email);
       const redirectTo = searchParams.get("redirect");
-      navigate(redirectTo || "/");
+      navigate(redirectTo || "/dashboard");
     } catch (err) {
       const message =
         err.response?.data?.message ||

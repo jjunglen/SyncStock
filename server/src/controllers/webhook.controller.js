@@ -1,7 +1,9 @@
 const {
+  sequelize,
   Inventory,
   Alert,
   User,
+  Account,
   Purchase,
   AlertClick,
 } = require("../models/index.js");
@@ -50,6 +52,7 @@ const handleProductCreate = async (req, res) => {
         available: variant.inventory_quantity || 0,
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: data.images?.[0]?.src || null,
+        image_urls: (data.images || []).map((img) => img.src),
         last_synced_at: new Date(),
       });
     }
@@ -170,8 +173,18 @@ const handleOrderCreate = async (req, res) => {
 
     if (!customerEmail) return;
 
+    // Email lives on Account; User is the account's membership at this
+    // store. Case-insensitive since emails are stored as the user typed them.
+    const account = await Account.findOne({
+      where: sequelize.where(
+        sequelize.fn("lower", sequelize.col("email")),
+        customerEmail.toLowerCase(),
+      ),
+    });
+    if (!account) return;
+
     const user = await User.findOne({
-      where: { store_id: store.id, email: customerEmail },
+      where: { store_id: store.id, account_id: account.id },
     });
     if (!user) return;
 
@@ -262,6 +275,7 @@ const handleProductUpdate = async (req, res) => {
         available: variant.inventory_quantity || 0,
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: imageUrl,
+        image_urls: (data.images || []).map((img) => img.src),
         last_synced_at: new Date(),
       });
 

@@ -5,6 +5,7 @@ const {
   Store,
   User,
 } = require("../models/index.js");
+const { storeBaseUrl } = require("../utils/storeUrl.js");
 
 const trackRedirect = async (req, res) => {
   try {
@@ -40,7 +41,7 @@ const trackRedirect = async (req, res) => {
 
     if (item.available < 1) {
       return res.redirect(
-        `${process.env.FRONTEND_URL}/store/dashboard?tab=browse`,
+        `${storeBaseUrl(store)}/store/dashboard?tab=browse`,
       );
     }
 
