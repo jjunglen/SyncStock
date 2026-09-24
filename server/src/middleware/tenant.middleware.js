@@ -83,6 +83,30 @@ const attachAccountIfPresent = async (req, res, next) => {
   }
 };
 
+const attachStoreIfPresent = async (req, res, next) => {
+  try {
+    const subdomain =
+      req.headers["x-store-subdomain"] || extractSubdomain(req.hostname);
+    const resolvedSubdomain =
+      subdomain ||
+      (process.env.NODE_ENV !== "production"
+        ? req.headers["x-dev-store"] || req.query.store
+        : null);
+
+    if (resolvedSubdomain) {
+      const store = await Store.findOne({
+        where: { subdomain: resolvedSubdomain },
+      });
+      if (store && store.status === "active") {
+        req.store = store;
+      }
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
 const resolveStoreForOnboarding = async (req, res, next) => {
   const token = req.headers["x-onboarding-token"];
 
@@ -137,4 +161,5 @@ module.exports = {
   attachAccountIfPresent,
   resolveStoreForOnboarding,
   resolveStoreFromAdminMembership,
+  attachStoreIfPresent
 };

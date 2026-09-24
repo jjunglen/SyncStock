@@ -100,40 +100,33 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        if (!req.store) {
-            return res.status(400).json({ success: false, message: "Store not resolved"})
-        }
-
         if (!email || !password) {
             return res.status(400).json({ success: false, message: "Email and password are required" });
         }
 
         const account = await Account.findOne({ where: { email} })
 
-        // account check
         if (!account || !account.password) {
             return res.status(401).json({ success: false, message: "Invalid email or password"});
-
         }
 
         const validPassword = await bcrypt.compare(password, account.password);
         if (!validPassword) {
             return res.status(401).json({ success: false, message: "Invalid email or password"})
-
         }
 
-        await ensureMembership(account, req.store);
+        if (req.store) {
+          await ensureMembership(account, req.store);
+        }
 
         const token = signToken(account);
         res.cookie("session_token", token, COOKIE_OPTIONS);
 
         return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name } });
 
-
     } catch(error) {
         console.error("Login error:", error.message);
         return res.status(500).json({ success: false, message: "Login failed"});
-
     }
 }
 
