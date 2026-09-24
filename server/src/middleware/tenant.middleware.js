@@ -12,7 +12,8 @@ const extractSubdomain = (hostname) => {
 
 const resolveStoreFromSubdomain = async (req, res, next) => {
   try {
-    let subdomain = extractSubdomain(req.hostname);
+    let subdomain =
+      req.headers["x-store-subdomain"] || extractSubdomain(req.hostname);
     if (!subdomain && process.env.NODE_ENV !== "production") {
       subdomain = req.headers["x-dev-store"] || req.query.store || null;
     }
