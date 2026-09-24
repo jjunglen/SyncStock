@@ -19,6 +19,7 @@ const sendNotification = async ({ store, alert, inventory }) => {
       store_id: store.id,
       user_id: alert.user_id,
       inventory_id: inventory.id,
+      created_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
     },
   });
   if (recentlyQueuedOrSent) {
@@ -95,7 +96,7 @@ const sendPriceDropNotification = async ({ store, alert, inventory }) => {
       user_id: alert.user_id,
       inventory_id: inventory.id,
       channel: "email",
-      sent_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      sent_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
     },
   });
   if (recentEmail) return false;
