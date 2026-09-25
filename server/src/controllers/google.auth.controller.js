@@ -1,7 +1,8 @@
 const { Account, Store } = require("../models/index.js");
 const { signToken } = require("../utils/jwt.js");
 const { storeBaseUrl, safeRedirectPath } = require("../utils/storeUrl.js");
-const { ensureMembership, COOKIE_OPTIONS} = require("./auth.controller.js");
+const { ensureMembership } = require("./auth.controller.js");
+const { setSessionCookie } = require("../utils/session.js");
 
 // Which store this login started from and the page to return to
 // afterwards — both carried through Google's OAuth roundtrip in state
@@ -61,7 +62,7 @@ const googleCallback = async (req, res) => {
         await ensureMembership(account, store);
 
         const token = signToken(account);
-        res.cookie("session_token", token, COOKIE_OPTIONS);
+        setSessionCookie(res, token);
 
         // New customers pick their sizes first, then continue on to
         // wherever they were headed

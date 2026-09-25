@@ -1,5 +1,6 @@
 const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
+const { findSessionAccount } = require("../utils/session.js");
 
 const extractSubdomain = (hostname) => {
   if (hostname === "localhost" || hostname.startsWith("127.0.0.1")) {
@@ -65,12 +66,7 @@ const resolveStoreFromShopifyDomain = async (req, res, next) => {
 
 const attachAccountIfPresent = async (req, res, next) => {
   try {
-    const token = req.cookies.session_token;
-    if (!token) return next();
-    const { verifyToken } = require("../utils/jwt.js");
-    const decoded = verifyToken(token);
-    if (!decoded) return next();
-    const account = await Account.findByPk(decoded.id);
+    const { account } = await findSessionAccount(req, Account);
     if (!account) return next();
     req.account = account;
     if (req.store) {

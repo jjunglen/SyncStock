@@ -1,26 +1,17 @@
-const { verifyToken } = require("../utils/jwt.js");
 const { Account } = require("../models/index.js");
+const { findSessionAccount } = require("../utils/session.js");
+
+const MESSAGES = {
+    missing: "Not logged in",
+    invalid: "Invalid or expired session",
+    deleted: "Account no longer exists",
+};
 
 const authenticateAccount = async (req, res, next) => {
     try {
-        const token = req.cookies.session_token;
-
-        if (!token) {
-            return res.status(401).json({ success: false, message: "Not logged in"});
-
-        }
-
-        const decoded = verifyToken(token);
-
-        if (!decoded) { 
-            return res.status(401).json({ success: false, message: "Invalid or expired session"})
-        }
-
-        const account = await Account.findByPk(decoded.id);
-
+        const { account, reason } = await findSessionAccount(req, Account);
         if (!account) {
-            return res.status(401).json({ success: false, message: "Account no longer exists" });
-
+            return res.status(401).json({ success: false, message: MESSAGES[reason] });
         }
 
         req.account = account;

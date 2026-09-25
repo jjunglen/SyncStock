@@ -4,14 +4,7 @@ const { signToken } = require("../utils/jwt.js");
 const crypto = require("crypto");
 const { sendPasswordResetEmail } = require("../services/email.service.js");
 
-const COOKIE_OPTIONS = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    domain: process.env.NODE_ENV === "production" ? ".syncstock.io" : undefined,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days expire time
-
-};
+const { setSessionCookie, clearSessionCookies } = require("../utils/session.js");
 
 const ensureMembership = async (account, store) => {
   let membership = await User.findOne({
@@ -86,7 +79,7 @@ const signup = async (req, res) => {
         await ensureMembership(account, req.store);
 
         const token = signToken(account);
-        res.cookie("session_token", token, COOKIE_OPTIONS);
+        setSessionCookie(res, token);
 
         return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name}});
 
@@ -120,7 +113,7 @@ const login = async (req, res) => {
         }
 
         const token = signToken(account);
-        res.cookie("session_token", token, COOKIE_OPTIONS);
+        setSessionCookie(res, token);
 
         return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name } });
 
@@ -160,7 +153,7 @@ const merchantLogin = async (req, res) => {
         }
 
         const token = signToken(account);
-        res.cookie("session_token", token, COOKIE_OPTIONS);
+        setSessionCookie(res, token);
 
         return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name } });
 
@@ -171,7 +164,7 @@ const merchantLogin = async (req, res) => {
 };
 
 const logout = async (req, res) => {
-    res.clearCookie("session_token", COOKIE_OPTIONS);
+    clearSessionCookies(res);
 
     return res.status(200).json({ success: true, message: "Successfully logged out"});
 
@@ -330,4 +323,5 @@ module.exports = {
   getMe,
   forgotPassword,
   resetPassword,
+  ensureMembership, // used by the Google sign-in callback
 };
