@@ -64,4 +64,4 @@ const queueNotification = async ({ store, alert, inventory }) => {
 const sendNotification = queueNotification;
 const sendPriceDropNotification = queueNotification;
 
-module.exports = { sendNotification, sendPriceDropNotification };
+module.exports = { sendNotification, sendPriceDropNotification, buildDashboardUrl };

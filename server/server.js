@@ -45,7 +45,8 @@ app.use(
       if (allowedOriginPattern.test(origin)) {
         return callback(null, true);
       }
-      return callback(new Error("Not allowed by CORS"));
+      // 403, not a server error — the site asking just isn't allowed
+      return callback(Object.assign(new Error("Not allowed by CORS"), { status: 403 }));
     },
     credentials: true,
   }),
@@ -102,9 +103,11 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error("Server error:", err.message);
+  const status = err.status || 500;
+  // Only real failures are logged; refused requests (e.g. CORS) are expected
+  if (status >= 500) console.error("Server error:", err.message);
   res
-    .status(err.status || 500)
+    .status(status)
     .json({ error: err.message || "Internal server error" });
 });
 

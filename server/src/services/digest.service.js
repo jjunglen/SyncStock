@@ -12,6 +12,7 @@ const { sendDigestEmail } = require("./email.service.js");
 const { sendDigestText } = require("./sms.service.js");
 const { sendPushNotification } = require("./push.service.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
+const { buildDashboardUrl } = require("./notification.service.js");
 
 // A shopper's digest waits until their batch has settled: nothing new
 // queued for them, and none of the queued products edited in Shopify,
@@ -101,8 +102,8 @@ const deliverInApp = async (store, userId, items) => {
 // queued, so turning a channel off or deleting an alert while the batch
 // waits is respected. One email covers saved-alert and size-alert
 // matches (no alert_id); if it fails, the batch is requeued.
-const deliverDigest = async (storeId, userId, items) => {
-  let store, user, account, wants;
+const deliverDigest = async (storeId, userId, queuedItems) => {
+  let store, user, account, wants, items;
   let emailItems = [];
   try {
     store = await Store.findByPk(storeId);
@@ -110,6 +111,13 @@ const deliverDigest = async (storeId, userId, items) => {
     if (!store || !user) return;
     account = await Account.findByPk(user.account_id);
     if (!account) return;
+
+    // Build each item's link now, not when it was queued, so links always
+    // point at the store's current subdomain
+    items = queuedItems.map((item) => ({
+      ...item,
+      shopify_url: buildDashboardUrl(store, item.inventory_id, item.alert_id),
+    }));
 
     const alertIds = [...new Set(items.map((i) => i.alert_id).filter(Boolean))];
     const alerts = await Alert.findAll({
@@ -132,7 +140,7 @@ const deliverDigest = async (storeId, userId, items) => {
       });
     }
   } catch (err) {
-    return requeue(items, userId, err);
+    return requeue(queuedItems, userId, err);
   }
 
   const inAppItems = wants("notify_inapp");
