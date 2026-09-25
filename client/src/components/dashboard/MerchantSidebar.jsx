@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LuLayoutDashboard,
@@ -47,6 +47,36 @@ const NAV_ITEMS = [
   },
 ];
 
+// Expanded/collapsed is remembered per browser, so it stays the same
+// across pages (each page renders its own sidebar) until toggled again
+const SIDEBAR_KEY = "syncstock_sidebar_open";
+
+const readSavedOpen = () => {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) !== "false";
+  } catch {
+    return true;
+  }
+};
+
+const saveOpen = (open) => {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, String(open));
+  } catch {
+    // Storage blocked — the choice just won't carry over to the next page
+  }
+};
+
+// Phones always get the icon-only sidebar
+const MOBILE_QUERY = "(max-width: 767px)";
+const subscribeToMobile = (onChange) => {
+  const query = window.matchMedia(MOBILE_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+const useIsMobile = () =>
+  useSyncExternalStore(subscribeToMobile, () => window.matchMedia(MOBILE_QUERY).matches);
+
 function NavOption({ item, isSelected, onClick, open }) {
   const Icon = item.icon;
 
@@ -71,8 +101,16 @@ function NavOption({ item, isSelected, onClick, open }) {
 }
 
 export default function MerchantSidebar({ storeName, storeSubdomain }) {
-  const [open, setOpen] = useState(true);
+  const [savedOpen, setSavedOpen] = useState(readSavedOpen);
+  const isMobile = useIsMobile();
+  const open = savedOpen && !isMobile;
   const navigate = useNavigate();
+
+  const toggleOpen = () => {
+    const next = !savedOpen;
+    setSavedOpen(next);
+    saveOpen(next);
+  };
   const location = useLocation();
 
   const handleClick = (item) => {
@@ -124,8 +162,10 @@ export default function MerchantSidebar({ storeName, storeSubdomain }) {
         ))}
       </div>
 
+      {!isMobile && (
       <button
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
+        aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
         className="absolute bottom-0 left-0 right-0 border-t border-border hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center p-3">
@@ -140,6 +180,7 @@ export default function MerchantSidebar({ storeName, storeSubdomain }) {
           )}
         </div>
       </button>
+      )}
     </nav>
   );
 }

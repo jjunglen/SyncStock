@@ -1,9 +1,6 @@
 const { NotificationLog, PendingNotification } = require("../models/index.js");
-const { sendPushNotification } = require("./push.service.js");
 const { Op } = require("sequelize");
-const { scheduleQuickFlush } = require("./digest.service.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
-
 
 const buildDashboardUrl = (store, inventoryId, alertId) => {
   const params = new URLSearchParams({ item: inventoryId });
@@ -12,7 +9,14 @@ const buildDashboardUrl = (store, inventoryId, alertId) => {
   return `${storeBaseUrl(store)}/store/dashboard?${params.toString()}`;
 };
 
-const sendNotification = async ({ store, alert, inventory }) => {
+// Queues a match for the shopper. Nothing is sent here: email, in-app,
+// and push all go out together from digest.service.js once the batch has
+// settled, with each product's final photo (listing tools like Copyt
+// add photos after creating the product). Returns false if this item
+// was already queued or sent to this shopper in the last hour.
+const queueNotification = async ({ store, alert, inventory }) => {
+  if (!alert.notify_inapp && !alert.notify_email) return false;
+
   const recentlyQueuedOrSent = await PendingNotification.findOne({
     where: {
       store_id: store.id,
@@ -39,106 +43,25 @@ const sendNotification = async ({ store, alert, inventory }) => {
   });
   if (recentEmail) return false;
 
-  const message = `${inventory.product_name} (Size ${inventory.size}) is now available`;
-
-  if (alert.notify_inapp) {
-    await NotificationLog.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      channel: "in_app",
-      image_url: inventory.image_url || null,
-      message,
-    });
-
-    await sendPushNotification(store.id, alert.user_id, {
-      title: "Your shoe is in",
-      body: message,
-      icon: inventory.image_url || "/favicon.svg",
-      url: buildDashboardUrl(store, inventory.id, alert.id),
-    });
-  }
-
-  if (alert.notify_email) {
-    await PendingNotification.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      product_name: inventory.product_name,
-      sku: inventory.sku,
-      size: inventory.size,
-      price: inventory.price,
-      image_url: inventory.image_url,
-      shopify_url: buildDashboardUrl(store, inventory.id, alert.id),
-    });
-    scheduleQuickFlush(store.id, alert.user_id);
-  }
+  await PendingNotification.create({
+    store_id: store.id,
+    user_id: alert.user_id,
+    alert_id: alert.id,
+    inventory_id: inventory.id,
+    product_name: inventory.product_name,
+    sku: inventory.sku,
+    size: inventory.size,
+    price: inventory.price,
+    image_url: inventory.image_url,
+    shopify_url: buildDashboardUrl(store, inventory.id, alert.id),
+  });
 
   return true;
 };
 
-const sendPriceDropNotification = async ({ store, alert, inventory }) => {
-  const recentlyQueuedOrSent = await PendingNotification.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-      created_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
-    },
-  });
-  if (recentlyQueuedOrSent) return false;
-
-  const recentEmail = await NotificationLog.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-      channel: "email",
-      sent_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
-    },
-  });
-  if (recentEmail) return false;
-
-  const message = `${inventory.product_name} (Size ${inventory.size}) dropped to $${inventory.price}`;
-
-  if (alert.notify_inapp) {
-    await NotificationLog.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      channel: "in_app",
-      image_url: inventory.image_url || null,
-      message,
-    });
-
-    await sendPushNotification(store.id, alert.user_id, {
-      title: "Price drop",
-      body: message,
-      icon: inventory.image_url || "/favicon.svg",
-      url: buildDashboardUrl(store, inventory.id, alert.id),
-    });
-  }
-
-  if (alert.notify_email) {
-    await PendingNotification.create({
-      store_id: store.id,
-      user_id: alert.user_id,
-      alert_id: alert.id,
-      inventory_id: inventory.id,
-      product_name: inventory.product_name,
-      sku: inventory.sku,
-      size: inventory.size,
-      price: inventory.price,
-      image_url: inventory.image_url,
-      shopify_url: buildDashboardUrl(store, inventory.id, alert.id),
-    });
-    scheduleQuickFlush(store.id, alert.user_id);
-  }
-
-  return true;
-};
+// Restocks and price drops queue the same way; the digest tells them
+// apart when sending (price below compare-at price = price drop)
+const sendNotification = queueNotification;
+const sendPriceDropNotification = queueNotification;
 
 module.exports = { sendNotification, sendPriceDropNotification };

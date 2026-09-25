@@ -35,6 +35,7 @@ const getProfile = async (req, res) => {
         notify_email: membership.notify_email,
         notify_inapp: membership.notify_inapp,
         notify_size_alerts: membership.notify_size_alerts,
+        notify_sms: membership.notify_sms,
         role: membership.role,
       },
     });
@@ -58,6 +59,7 @@ const updateProfile = async (req, res) => {
       notify_email,
       notify_inapp,
       notify_size_alerts,
+      notify_sms,
     } = req.body;
 
     if (email && email !== req.account.email) {
@@ -90,6 +92,7 @@ const updateProfile = async (req, res) => {
       notify_email: notify_email ?? membership.notify_email,
       notify_inapp: notify_inapp ?? membership.notify_inapp,
       notify_size_alerts: notify_size_alerts ?? membership.notify_size_alerts,
+      notify_sms: notify_sms ?? membership.notify_sms,
     });
 
     return res.status(200).json({

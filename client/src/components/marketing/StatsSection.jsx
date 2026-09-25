@@ -3,10 +3,10 @@ import { PLAN } from "../../lib/plan.js";
 
 // Adapted from Launch UI's stats row (MIT — see LAUNCH_UI_LICENSE.md).
 // Product facts, not usage claims — keep them matching the code:
-// QUICK_FLUSH_DELAY_MS (digest.service.js), ATTRIBUTION_WINDOW_DAYS
+// one batched message per drop (digest.service.js), ATTRIBUTION_WINDOW_DAYS
 // (webhook.controller.js), the email/SMS/push channels, and lib/plan.js.
 const STATS = [
-  { label: "alerts go out in", value: "30", suffix: "sec", description: "from the moment an item restocks" },
+  { label: "a whole drop in", value: "1", suffix: "alert", description: "sent once your listing finishes, with final photos" },
   { label: "reach shoppers on", value: "3", suffix: "channels", description: "email, text, and push, all included" },
   { label: "sales tracked for", value: "30", suffix: "days", description: "after a shopper sets an alert" },
   { label: "one plan,", value: `$${PLAN.price}`, suffix: "/mo", description: "every feature and SMS included" },

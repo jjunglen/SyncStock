@@ -57,6 +57,16 @@ const Account = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    // Text alerts — E.164 format (+15551234567), set by the phone
+    // verification flow in twilio.controller.js
+    phone_number: { type: DataTypes.STRING(20), allowNull: true },
+    phone_verified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    phone_verification_code: { type: DataTypes.STRING(6), allowNull: true },
+    phone_verification_expires: { type: DataTypes.DATE, allowNull: true },
   },
   {
     tableName: "accounts",

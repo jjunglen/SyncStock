@@ -14,7 +14,7 @@ const FAQS = [
   },
   {
     q: "How do shoppers get notified?",
-    a: "By email, text, and push notification — whichever they turn on. Alerts go out within about 30 seconds of a restock, and the link takes them straight to the item.",
+    a: "By email, text, and push notification — whichever they turn on. Alerts wait until your drop finishes listing (usually a few minutes), then go out together, so shoppers get the whole drop in one message with the final photos. Every link goes straight to the item.",
   },
   {
     q: "Does it work for more than sneakers?",

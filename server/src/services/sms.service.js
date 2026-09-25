@@ -1,5 +1,6 @@
 require("dotenv").config();
 const twilio = require("twilio");
+const { storeBaseUrl } = require("../utils/storeUrl.js");
 
 let client = null;
 
@@ -34,14 +35,14 @@ const sendDigestText = async ({ phoneNumber, store, items }) => {
   }
   const names = items
     .slice(0, 2)
-    .map((i) => i.shoe_name)
+    .map((i) => i.product_name)
     .join(", ");
   const remaining = items.length > 2 ? ` +${items.length - 2} more` : "";
 
   await client.messages.create({
     to: phoneNumber,
     from: process.env.TWILIO_PHONE_NUMBER,
-    body: `${store.name}: ${names}${remaining} just went live. Check your email or visit ${store.subdomain}.syncstock.io — Reply STOP to unsubscribe.`,
+    body: `${store.name}: ${names}${remaining} just went live in your size. See it at ${storeBaseUrl(store)}/store/dashboard — Reply STOP to opt out, HELP for help.`,
   });
 };
 

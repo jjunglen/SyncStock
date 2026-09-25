@@ -31,6 +31,13 @@ const User = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
+    // Texts also need a verified phone on the account and SMS enabled
+    // for the store; this lets a shopper turn them off per store
+    notify_sms: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     // Store-specific: admin at one store, regular user elsewhere.
     role: {
       type: DataTypes.ENUM("user", "admin"),

@@ -60,6 +60,12 @@ const Store = sequelize.define(
     type: DataTypes.ENUM("pro", "internal"),
     allowNull: true,
     },
+    // Text alerts on/off for the whole store — set by the plan step
+    sms_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     status: {
     type: DataTypes.ENUM("pending", "active", "suspended"),
     defaultValue: "pending",

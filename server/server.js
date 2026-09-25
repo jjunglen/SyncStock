@@ -60,7 +60,9 @@ app.use("/api", apiLimiter);
 app.use(cookieParser());
 app.use(passport.initialize());
 
-cron.schedule("*/3 * * * *", () => {
+// Every minute: sends each shopper's digest once their batch has
+// settled (see QUIET_MS in digest.service.js)
+cron.schedule("* * * * *", () => {
   flushPendingNotifications().catch((err) =>
     console.error("Digest flush error:", err.message),
   );

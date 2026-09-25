@@ -35,6 +35,7 @@ export default function CustomerProfile() {
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyInapp, setNotifyInapp] = useState(true);
   const [notifySizeAlerts, setNotifySizeAlerts] = useState(false);
+  const [notifySms, setNotifySms] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +61,7 @@ export default function CustomerProfile() {
         setNotifyEmail(data.notify_email ?? true);
         setNotifyInapp(data.notify_inapp ?? true);
         setNotifySizeAlerts(data.notify_size_alerts ?? false);
+        setNotifySms(data.notify_sms ?? true);
         setPhoneNumber(data.phone_number || "");
         setPhoneVerified(data.phone_verified || false);
         setPhoneInput(data.phone_number || "");
@@ -81,6 +83,7 @@ export default function CustomerProfile() {
         notify_email: notifyEmail,
         notify_inapp: notifyInapp,
         notify_size_alerts: notifySizeAlerts,
+        notify_sms: notifySms,
       });
       setSavedMessage("Saved");
       setTimeout(() => setSavedMessage(""), 2000);
@@ -96,7 +99,9 @@ export default function CustomerProfile() {
     setPhoneError("");
     setPhoneMessage("");
     try {
-      await api.post("/phone/send-code", { phone_number: phoneInput });
+      const res = await api.post("/phone/send-code", { phone_number: phoneInput });
+      // Server returns the number in +1XXXXXXXXXX form
+      setPhoneInput(res.data.phone_number || phoneInput);
       setPhoneStep("codeSent");
       setPhoneMessage("Code sent — check your texts");
     } catch (err) {
@@ -113,6 +118,7 @@ export default function CustomerProfile() {
       await api.post("/phone/verify", { code: codeInput });
       setPhoneVerified(true);
       setPhoneNumber(phoneInput);
+      setNotifySms(true);
       setPhoneStep("idle");
       setCodeInput("");
       setPhoneMessage("");
@@ -200,6 +206,14 @@ export default function CustomerProfile() {
               label="Any size match"
               description="Notify me about anything in my saved sizes, not just specific alerts"
             />
+            {phoneVerified && (
+              <Toggle
+                checked={notifySms}
+                onChange={setNotifySms}
+                label="Text messages"
+                description={`Text ${phoneNumber} when my alerts hit`}
+              />
+            )}
           </div>
 
           {error && <p className="text-danger text-xs">{error}</p>}
@@ -226,9 +240,21 @@ export default function CustomerProfile() {
           </p>
 
           {phoneVerified ? (
-            <div className="flex items-center gap-2 text-sm text-live">
-              <LuBadgeCheck size={16} />
-              {phoneNumber} — verified
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm text-live">
+                <LuBadgeCheck size={16} />
+                {phoneNumber} — verified
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPhoneVerified(false);
+                  setPhoneInput("");
+                }}
+                className="text-xs text-text-muted hover:text-text underline"
+              >
+                Change number
+              </button>
             </div>
           ) : phoneStep === "codeSent" ? (
             <div className="space-y-3">
@@ -278,6 +304,21 @@ export default function CustomerProfile() {
               {phoneMessage && (
                 <p className="text-live text-xs">{phoneMessage}</p>
               )}
+              {/* Consent wording carriers and TCPA expect at opt-in */}
+              <p className="text-xs text-text-muted">
+                By verifying your number, you agree to receive automated
+                restock alert texts from this store via Syncstock. How often
+                depends on your alerts. Msg & data rates may apply. Reply STOP
+                to opt out, HELP for help. See our{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
+                  Terms
+                </a>{" "}
+                and{" "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
+                  Privacy Policy
+                </a>
+                .
+              </p>
               <Button
                 type="button"
                 variant="primary"

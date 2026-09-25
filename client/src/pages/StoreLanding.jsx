@@ -36,7 +36,7 @@ const FAQS = [
   },
   {
     q: "How fast will I hear about a restock?",
-    a: "Usually within seconds of it going live. Email alerts are bundled so you get one message, not ten.",
+    a: "Within a few minutes of it going live. We wait until the store finishes listing a drop, so you get one message with everything in your size, not ten.",
   },
   {
     q: "How do I stop alerts?",

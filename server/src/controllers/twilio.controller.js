@@ -1,13 +1,25 @@
 const crypto = require("crypto");
 const { sendVerificationCode } = require("../services/sms.service.js");
 
+// Twilio needs E.164 (+15551234567). Accepts "+1 (555) 123-4567",
+// "555-123-4567" (assumed US), etc. Returns null if it can't be a number.
+const toE164 = (input) => {
+  const raw = String(input || "").trim();
+  const digits = raw.replace(/\D/g, "");
+  if (raw.startsWith("+")) return digits.length >= 10 && digits.length <= 15 ? `+${digits}` : null;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return null;
+};
+
 const sendPhoneVerification = async (req, res) => {
   try {
-    const { phone_number } = req.body;
+    const phone_number = toE164(req.body.phone_number);
     if (!phone_number) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Phone number is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid phone number, like +1 555 123 4567",
+      });
     }
 
     const code = crypto.randomInt(100000, 999999).toString();
@@ -26,7 +38,7 @@ const sendPhoneVerification = async (req, res) => {
 
     return res
       .status(200)
-      .json({ success: true, message: "Verification code sent" });
+      .json({ success: true, message: "Verification code sent", phone_number });
   } catch (error) {
     console.error("Send phone verification error:", error.message);
     return res
@@ -37,7 +49,7 @@ const sendPhoneVerification = async (req, res) => {
 
 const verifyPhone = async (req, res) => {
   try {
-    const { code } = req.body;
+    const code = String(req.body.code || "").trim();
 
     if (
       !req.account.phone_verification_code ||
