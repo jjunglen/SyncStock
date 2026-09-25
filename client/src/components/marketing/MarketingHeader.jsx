@@ -4,7 +4,7 @@ import SignalDot from "../ui/SignalDot.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 
 const NAV_ITEMS = [
-  { title: "How it works", href: "/#how-it-works" },
+  { title: "How it works", href: "/#features" },
   { title: "Pricing", href: "/pricing" },
 ];
 

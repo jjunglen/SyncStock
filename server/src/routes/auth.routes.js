@@ -10,6 +10,7 @@ const { authenticateAccount } = require("../middleware/auth.middleware.js");
 const {
   signup,
   login,
+  merchantLogin,
   logout,
   getMe,
   forgotPassword,
@@ -20,6 +21,7 @@ const {
 
 router.post("/signup", authLimiter, resolveStoreForOnboarding, signup);
 router.post("/login", authLimiter, attachStoreIfPresent, login);
+router.post("/merchant/login", authLimiter, merchantLogin);
 router.post("/logout", logout);
 router.get("/me", attachStoreIfPresent, authenticateAccount, getMe);
 router.post("/forgot-password", authLimiter, resolveStoreFromSubdomain, forgotPassword);

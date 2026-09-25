@@ -31,7 +31,7 @@ const Purchase = sequelize.define(
     },
     product_name: { type: DataTypes.STRING, allowNull: true },
     category: {
-      type: DataTypes.ENUM("sneakers", "trading_cards"),
+      type: DataTypes.ENUM("sneakers", "clothing", "trading_cards"),
       allowNull: false,
       defaultValue: "sneakers",
     },

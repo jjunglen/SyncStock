@@ -131,6 +131,45 @@ const login = async (req, res) => {
 }
 
 
+// Merchant login (syncstock.io/login). Accounts are shared across
+// stores, so a customer's email/password is valid here too — only
+// accounts that own a store (admin membership) get a session.
+const merchantLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password are required" });
+        }
+
+        const account = await Account.findOne({ where: { email } });
+        const validPassword =
+            account?.password && (await bcrypt.compare(password, account.password));
+        if (!validPassword) {
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
+        }
+
+        const adminMembership = await User.findOne({
+            where: { account_id: account.id, role: "admin" },
+        });
+        if (!adminMembership) {
+            return res.status(403).json({
+                success: false,
+                message: "This isn't a merchant account. Shoppers sign in on their store's page.",
+            });
+        }
+
+        const token = signToken(account);
+        res.cookie("session_token", token, COOKIE_OPTIONS);
+
+        return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name } });
+
+    } catch (error) {
+        console.error("Merchant login error:", error.message);
+        return res.status(500).json({ success: false, message: "Login failed" });
+    }
+};
+
 const logout = async (req, res) => {
     res.clearCookie("session_token", COOKIE_OPTIONS);
 
@@ -145,6 +184,11 @@ const getMe = async (req, res) => {
                 .status(401)
                 .json({ success: false, message: "Not logged in" });
         }
+
+        // Owns at least one store — decides access to merchant pages
+        const isMerchant = !!(await User.findOne({
+            where: { account_id: req.account.id, role: "admin" },
+        }));
 
         let membership = null;
         if (req.store) {
@@ -161,6 +205,7 @@ const getMe = async (req, res) => {
                 full_name: req.account.full_name,
                 avatar_url: req.account.avatar_url,
                 sizes: req.account.sizes,
+                is_merchant: isMerchant,
                 membership: membership
                 ? {
                     role: membership.role,
@@ -280,6 +325,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   signup,
   login,
+  merchantLogin,
   logout,
   getMe,
   forgotPassword,

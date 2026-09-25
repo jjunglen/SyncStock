@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import SizeSelector from "./SizeSelector.jsx";
 import api from "../../lib/api.js";
+import { safeRedirect } from "../../lib/safeRedirect.js";
 
 export default function SelectSizes() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selected, setSelected] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -14,7 +18,7 @@ export default function SelectSizes() {
     setError("");
     try {
       await api.put("/users/profile", { sizes: selected });
-      navigate("/store/dashboard");
+      navigate(safeRedirect(searchParams.get("redirect"), "/store/dashboard"));
     } catch (err) {
       setError(
         err.response?.data?.message ||

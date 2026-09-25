@@ -138,6 +138,37 @@ const resolveStoreForOnboarding = async (req, res, next) => {
   }
 };
 
+// Strict version of resolveStoreForOnboarding for the store-setup
+// steps (subdomain, plan): ONLY a valid onboarding token works — no
+// subdomain fallback, or anyone could change a live store's plan.
+const requireOnboardingToken = async (req, res, next) => {
+  try {
+    const token = req.headers["x-onboarding-token"];
+    const result = token ? verifyOnboardingToken(token) : { valid: false };
+
+    if (!result.valid) {
+      return res.status(401).json({
+        success: false,
+        message: result.expired
+          ? "Your onboarding link expired — reconnect your Shopify store to continue"
+          : "Invalid onboarding link",
+      });
+    }
+
+    const store = await Store.findByPk(result.storeId);
+    if (!store) {
+      return res.status(404).json({ success: false, message: "Store not found" });
+    }
+
+    req.store = store;
+    next();
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to resolve store" });
+  }
+};
+
 const resolveStoreFromAdminMembership = async (req, res, next) => {
   try {
     if (!req.account) {
@@ -173,6 +204,7 @@ module.exports = {
   resolveStoreFromShopifyDomain,
   attachAccountIfPresent,
   resolveStoreForOnboarding,
+  requireOnboardingToken,
   resolveStoreFromAdminMembership,
   attachStoreIfPresent
 };

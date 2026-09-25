@@ -4,20 +4,7 @@ import Button from "../components/ui/Button.jsx";
 import MarketingHeader from "../components/marketing/MarketingHeader.jsx";
 import Footer from "../components/marketing/Footer.jsx";
 import BlackHoleBackground from "../components/ui/BlackHoleBackground.jsx";
-
-const PLAN = {
-  name: "Pro",
-  price: 40,
-  info: "Everything included, for any Shopify store",
-  features: [
-    "Automatic Shopify sync — including your existing catalog",
-    "Unlimited customer restock alerts",
-    "Email, in-app, and text notifications",
-    "SMS included, not a paid add-on",
-    "Customer browse & search dashboard",
-    "StockX-powered catalog search",
-  ],
-};
+import { PLAN } from "../lib/plan.js";
 
 export default function PricingPage() {
   return (

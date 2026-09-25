@@ -2,14 +2,14 @@ import Spinner from "./Spinner.jsx";
 
 const VARIANT_CLASSES = {
   primary: "bg-primary text-primary-text hover:opacity-90 active:opacity-90",
-  secondary: "bg-surface text-text border border-border hover:border-white/20",
-  ghost: "bg-transparent text-text hover:bg-white/5",
+  secondary: "bg-surface text-text border border-border hover:border-text/20",
+  ghost: "bg-transparent text-text hover:bg-text/5",
   danger: "bg-danger text-white hover:brightness-110",
   warning: "bg-warn text-[#2b1a00] hover:brightness-110",
 };
 
 const DISABLED_CLASSES =
-  "bg-white/5 text-text-muted border border-border cursor-not-allowed";
+  "bg-text/5 text-text-muted border border-border cursor-not-allowed";
 
 const SIZE_CLASSES = {
   xs: "px-2 h-6 text-xs gap-1",

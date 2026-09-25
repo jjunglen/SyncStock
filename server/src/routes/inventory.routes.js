@@ -10,13 +10,17 @@ const {
   getInventoryItem,
   searchInventory,
   getInventoryInMySizes,
+  getCategories,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
+// Browsing and single items need an account; only the store page's
+// small preview ("/") and the category list stay public
 router.get(
   "/search",
   publicLimiter,
   resolveStoreFromSubdomain,
+  authenticateAccount,
   searchInventory,
 );
 router.get(
@@ -25,6 +29,18 @@ router.get(
   authenticateAccount,
   getInventoryInMySizes,
 );
-router.get("/:id", publicLimiter, resolveStoreFromSubdomain, getInventoryItem);
+router.get(
+  "/categories",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  getCategories,
+);
+router.get(
+  "/:id",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  getInventoryItem,
+);
 
 module.exports = router;

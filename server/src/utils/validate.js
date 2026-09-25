@@ -30,6 +30,8 @@ const isValidSize = (size) => {
     "3.5Y", "4Y", "4.5Y", "5Y", "5.5Y", "6Y", "6.5Y", "7Y",
     // Toddler
     "1C", "2C", "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C",
+    // Clothing
+    "XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "OS",
     ];
     return validSizes.includes(String(size));
 }

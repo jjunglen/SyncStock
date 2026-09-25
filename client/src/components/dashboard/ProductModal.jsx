@@ -67,6 +67,7 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
     try {
       await api.post("/alerts", {
         product_name: item.product_name,
+        category: item.category,
         size: item.size,
         sku: item.sku || null,
         notify_email: true,
@@ -149,14 +150,16 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
             <div className="flex gap-2 flex-wrap mb-3">
               {conditionLabel(item.condition) && (
                 <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live/10 text-live" : "bg-white/5 text-text-muted"}`}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"}`}
                 >
                   {conditionLabel(item.condition)}
                 </span>
               )}
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-muted text-text">
+              {item.size && (
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-muted text-text">
                 {item.size}
               </span>
+              )}
               {!isInStock && (
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">
                   Not in stock

@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { Op } = require("sequelize");
 const { Store, Inventory, User, Account } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
+const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
@@ -111,6 +112,8 @@ const backfillInventory = async (store, accessToken, shop) => {
       const { products } = await response.json();
 
       for (const product of products) {
+        const category = categorizeProduct(product);
+        if (!category) continue; // gift cards aren't listed
         for (const variant of product.variants || []) {
           const { size, condition, boxCondition } = parseVariantTitle(
             variant.title,
@@ -121,10 +124,10 @@ const backfillInventory = async (store, accessToken, shop) => {
             store_id: store.id,
             shopify_product_id: String(product.id),
             shopify_variant_id: String(variant.id),
-            category: "sneakers",
+            category,
             product_name: product.title,
             sku: variant.sku || null,
-            size,
+            size: normalizeSize(size, category),
             condition,
             box_status: boxCondition,
             price: parseFloat(variant.price) || null,

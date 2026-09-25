@@ -8,6 +8,7 @@ const {
   AlertClick,
 } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
+const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
@@ -26,11 +27,24 @@ const isItemMatch = (source, item) => {
   return sourceWords.every((word) => itemName.includes(word));
 };
 
+// A purchase's category comes from the inventory row for the variant
+// bought; items we never synced fall back to sneakers
+const categoryForLineItem = async (store, lineItem) => {
+  if (!lineItem?.variant_id) return "sneakers";
+  const item = await Inventory.findOne({
+    where: { store_id: store.id, shopify_variant_id: String(lineItem.variant_id) },
+    attributes: ["category"],
+  });
+  return item?.category || "sneakers";
+};
+
 const handleProductCreate = async (req, res) => {
   try {
     const store = req.store;
     const data = JSON.parse(req.body);
     const variants = data.variants || [];
+    const category = categorizeProduct(data);
+    if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
 
     for (const variant of variants) {
       const { size, condition, boxCondition } = parseVariantTitle(
@@ -42,10 +56,10 @@ const handleProductCreate = async (req, res) => {
         store_id: store.id,
         shopify_product_id: String(data.id),
         shopify_variant_id: String(variant.id),
-        category: "sneakers",
+        category,
         product_name: data.title,
         sku: variant.sku || null,
-        size: size,
+        size: normalizeSize(size, category),
         condition: condition,
         box_status: boxCondition,
         price: parseFloat(variant.price) || null,
@@ -155,7 +169,7 @@ const handleOrderCreate = async (req, res) => {
             user_id: click.user_id,
             alert_id: click.alert_id,
             shopify_order_id: shopifyOrderId,
-            category: "sneakers",
+            category: await categoryForLineItem(store, matchedItem),
             product_name: click.product_name,
             sku: click.sku,
             size: click.size,
@@ -222,7 +236,7 @@ const handleOrderCreate = async (req, res) => {
         user_id: user.id,
         alert_id: matchedAlert?.id || null,
         shopify_order_id: shopifyOrderId,
-        category: "sneakers",
+        category: await categoryForLineItem(store, item),
         product_name: item.title,
         sku: item.sku || null,
         size: item.variant_title?.split(" - ")?.[0] || null,
@@ -246,6 +260,8 @@ const handleProductUpdate = async (req, res) => {
     const data = JSON.parse(req.body);
     const variants = data.variants || [];
     const imageUrl = data.images?.[0]?.src || null;
+    const category = categorizeProduct(data);
+    if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
 
     const priceDropVariants = [];
 
@@ -264,10 +280,10 @@ const handleProductUpdate = async (req, res) => {
         store_id: store.id,
         shopify_product_id: String(data.id),
         shopify_variant_id: String(variant.id),
-        category: "sneakers",
+        category,
         product_name: data.title,
         sku: variant.sku || null,
-        size: size,
+        size: normalizeSize(size, category),
         condition: condition,
         box_status: boxCondition,
         price: newPrice,

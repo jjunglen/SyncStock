@@ -6,6 +6,8 @@ const {
 } = require("../utils/validate.js");
 const { getUserAlertStats } = require("../services/alert.service.js");
 
+const ALERT_CATEGORIES = Alert.getAttributes().category.values;
+
 const resolveMembership = async (req, res) => {
   if (!req.account || !req.store) {
     res.status(401).json({ success: false, message: "Not logged in" });
@@ -72,6 +74,7 @@ const createAlert = async (req, res) => {
 
     const {
       product_name,
+      category = "sneakers",
       sku,
       size,
       max_price,
@@ -81,11 +84,17 @@ const createAlert = async (req, res) => {
       stockx_url_key,
     } = req.body;
 
-    const missing = requireFields(req.body, ["product_name", "size"]);
+    if (!ALERT_CATEGORIES.includes(category)) {
+      return res.status(400).json({ success: false, message: "Invalid category" });
+    }
+
+    // Trading cards have no size; sneakers and clothing need one
+    const required = category === "trading_cards" ? ["product_name"] : ["product_name", "size"];
+    const missing = requireFields(req.body, required);
     if (missing.length > 0) {
       return res
         .status(400)
-        .json({ success: false, message: "Invalid shoe preference" });
+        .json({ success: false, message: "Product name and size are required" });
     }
 
     if (max_price && !isValidPrice(max_price)) {
@@ -97,7 +106,7 @@ const createAlert = async (req, res) => {
         store_id: req.store.id,
         user_id: membership.id,
         product_name,
-        size,
+        size: size || null,
         active: true,
       },
     });
@@ -105,15 +114,16 @@ const createAlert = async (req, res) => {
     if (existingAlert) {
       return res.status(400).json({
         success: false,
-        message: "You already have an active alert for this shoe and size",
+        message: "You already have an active alert for this item",
       });
     }
 
     const alert = await Alert.create({
       store_id: req.store.id,
       user_id: membership.id,
+      category,
       product_name,
-      size,
+      size: size || null,
       sku: sku || null,
       max_price: max_price || null,
       notify_email: notify_email ?? true,
@@ -161,7 +171,7 @@ const updateAlert = async (req, res) => {
     if (size && !isValidSize(size)) {
       return res
         .status(400)
-        .json({ success: false, message: "Invalid shoe size" });
+        .json({ success: false, message: "Invalid size" });
     }
 
     if (max_price && !isValidPrice(max_price)) {

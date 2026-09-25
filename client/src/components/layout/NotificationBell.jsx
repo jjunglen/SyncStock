@@ -83,7 +83,7 @@ export default function NotificationBell() {
           setConfirmingClear(false);
           setIsOpen((prev) => !prev);
         }}
-        className="relative p-2 rounded-lg text-text-muted hover:text-text hover:bg-white/5 transition-colors"
+        className="relative p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
       >
         <LuBell size={18} />
         {unreadCount > 0 && (
@@ -129,7 +129,7 @@ export default function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex gap-3 ${!n.read ? "bg-white/[0.02]" : ""}`}
+                  className={`w-full text-left px-4 py-3 hover:bg-text/5 transition-colors flex gap-3 ${!n.read ? "bg-text/[0.02]" : ""}`}
                 >
                   {n.image_url && (
                     <img

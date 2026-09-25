@@ -30,7 +30,7 @@ const LayoutButton = ({ isSelected, onClick, isMiddle, label, mode }) => (
   <div className={`relative ${mode === "4col" ? "hidden md:block" : ""}`}>
     {isSelected && (
       <motion.div
-        className="absolute inset-0 bg-white/10 rounded-sm"
+        className="absolute inset-0 bg-text/10 rounded-sm"
         layoutId="layout-toggle-bg"
         transition={{ type: "spring", stiffness: 400, damping: 35 }}
       />
@@ -100,11 +100,7 @@ export const CellToggle = React.forwardRef(
         whileHover={{ scale: layout === "list" ? 1 : 1.02 }}
         transition={{ type: "spring", stiffness: 300, damping: 28 }}
         exit="hidden"
-        className={
-          layout === "list"
-            ? "bg-surface border border-border rounded-xl overflow-hidden cursor-pointer hover:border-white/20 transition-colors"
-            : className
-        }
+        className={`bg-linear-to-b from-card to-card-end border border-border rounded-xl overflow-hidden cursor-pointer hover:border-text/20 transition-colors ${className}`}
         onClick={onClick}
         ref={ref}
         {...props}

@@ -103,4 +103,25 @@ const checkSizeMatchNotifications = async (store, inventory, notifiedUsers) => {
   }
 };
 
-module.exports = { checkAlertsForInventory, checkPriceDropAlerts };
+const getUserAlertStats = async (userId) => {
+  try {
+    const totalAlerts = await Alert.count({ where: { user_id: userId } });
+    const activeAlerts = await Alert.count({
+      where: { user_id: userId, active: true },
+    });
+    return {
+      totalAlerts,
+      activeAlerts,
+      pausedAlerts: totalAlerts - activeAlerts,
+    };
+  } catch (error) {
+    console.error("Get user alert stats error:", error.message);
+    return { totalAlerts: 0, activeAlerts: 0, pausedAlerts: 0 };
+  }
+};
+
+module.exports = {
+  checkAlertsForInventory,
+  checkPriceDropAlerts,
+  getUserAlertStats,
+};

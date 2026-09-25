@@ -7,11 +7,14 @@ return (
     <section className="group relative overflow-hidden py-24">
     <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center gap-6 text-center px-4">
         <h2 className="font-display text-3xl sm:text-5xl font-semibold animate-appear">
-        Ready to turn your restocks into revenue?
+        Stop losing sales to "sold out"
         </h2>
-        <Link to="/signup" className="animate-appear [animation-delay:100ms]">
+        <p className="text-text-muted max-w-xl animate-appear [animation-delay:50ms]">
+        Connect your Shopify store and your next restock starts selling itself.
+        </p>
+        <Link to="/onboarding" className="animate-appear [animation-delay:100ms]">
         <Button variant="primary" size="lg">
-            Get started
+            Connect your Shopify store
         </Button>
         </Link>
     </div>

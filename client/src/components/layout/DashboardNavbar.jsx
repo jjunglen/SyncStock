@@ -7,17 +7,21 @@ import {
   LuUser,
   LuPlus,
   LuLogOut,
+  LuSun,
+  LuMoon,
 } from "react-icons/lu";
 import SignalDot from "../ui/SignalDot.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import Button from "../ui/Button.jsx";
 import api from "../../lib/api.js";
+import { useTheme } from "../../lib/theme.js";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
   const [storeName, setStoreName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     api
@@ -32,7 +36,7 @@ export default function DashboardNavbar() {
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
-      navigate("/login");
+      navigate("/store");
     }
   };
 
@@ -76,16 +80,23 @@ export default function DashboardNavbar() {
           </Link>
 
           <div className="flex items-center gap-1.5 md:gap-3">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            >
+              {theme === "light" ? <LuMoon size={18} /> : <LuSun size={18} />}
+            </button>
             <NotificationBell />
             <button
               onClick={() => navigate("/store/profile")}
-              className="hidden lg:flex p-2 rounded-lg text-text-muted hover:text-text hover:bg-white/5 transition-colors"
+              className="hidden lg:flex p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
             >
               <LuUser size={18} />
             </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-white/5 transition-colors lg:hidden"
+              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors lg:hidden"
               aria-label="Sign out"
             >
               <LuLogOut size={18} />

@@ -11,6 +11,13 @@
   --color-primary: #fafafa;
   --color-primary-text: #0a0a0a;
 
+  --color-charcoal-800: #1f1f1f;
+  --color-charcoal-900: #161616;
+
+  /* Product cards — charcoal 800 fading to 900, lifts off the page bg */
+  --color-card: var(--color-charcoal-800);
+  --color-card-end: var(--color-charcoal-900);
+
   --color-danger: #ef4444;
   --color-warn: #f5a623;
   --color-live: #22c55e;
@@ -18,6 +25,22 @@
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* Light theme — only applied on the customer dashboard pages, via
+   data-theme on <html> (see lib/theme.js). Dark is the default. */
+:root[data-theme="light"] {
+  --color-bg: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f4f5;
+  --color-border: #e4e4e7;
+  --color-text: #0a0a0a;
+  --color-text-muted: #52525b;
+  --color-primary: #0a0a0a;
+  --color-primary-text: #fafafa;
+  --color-card: #ffffff;
+  --color-card-end: #fafafa;
+  color-scheme: light;
 }
 
 body {
@@ -61,4 +84,53 @@ body {
 
 .animate-appear-zoom {
   animation: appear-zoom 0.5s ease-out forwards;
+}
+/* Landing page helpers, adapted from Launch UI (MIT —
+   components/marketing/LAUNCH_UI_LICENSE.md) */
+.fade-bottom {
+  mask-image: linear-gradient(to top, transparent 0%, black 35%);
+}
+
+.line-b {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.layout-lines {
+  border-left: 1px dashed color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+/* Long-form text on the Privacy / Terms / Cookie pages */
+.legal-prose { color: var(--color-text-muted); line-height: 1.75; }
+.legal-prose h2 { color: var(--color-text); font-size: 1.25rem; font-weight: 600; margin: 2.5rem 0 0.75rem; }
+.legal-prose h3 { color: var(--color-text); font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.legal-prose p, .legal-prose ul { margin-bottom: 1rem; }
+.legal-prose ul { list-style: disc; padding-left: 1.25rem; }
+.legal-prose li { margin-bottom: 0.35rem; }
+.legal-prose strong { color: var(--color-text); font-weight: 600; }
+.legal-prose a { color: var(--color-text); text-decoration: underline; }
+.legal-prose table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; font-size: 0.875rem; }
+.legal-prose th { color: var(--color-text); text-align: left; font-weight: 600; }
+.legal-prose th, .legal-prose td { border-bottom: 1px solid var(--color-border); padding: 0.6rem 0.75rem 0.6rem 0; vertical-align: top; }
+.legal-prose code { font-family: var(--font-mono); font-size: 0.8em; color: var(--color-text); }
+
+/* Store page "live inventory" strip: the item list is rendered twice
+   and slides left by one copy, so the loop is seamless */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 60s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee { animation: none; }
+}
+
+/* Soft left/right edges on the scrolling inventory strip (Launch UI) */
+.fade-x {
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
 }

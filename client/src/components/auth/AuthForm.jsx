@@ -162,7 +162,7 @@ export default function AuthForm({ initialMode = "login" }) {
 
     setIsLoading(true);
     try {
-      await api.post("/auth/login", {
+      await api.post("/auth/merchant/login", {
         email: formData.email,
         password: formData.password,
       });

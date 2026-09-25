@@ -29,9 +29,11 @@ export default function ProductCard({ item }) {
               {conditionLabel(item.condition)}
             </span>
           )}
-          <span className="absolute top-3 right-3 text-base px-2.5 py-1 rounded-full font-medium bg-black/70 text-white">
+          {item.size && (
+            <span className="absolute top-3 right-3 text-base px-2.5 py-1 rounded-full font-medium bg-black/70 text-white">
             {item.size}
           </span>
+          )}
         </div>
         <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
           <p className="text-lg text-neutral-500 truncate">
@@ -64,9 +66,11 @@ export default function ProductCard({ item }) {
             {conditionLabel(item.condition)}
           </span>
         )}
-        <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/60 text-white">
+        {item.size && (
+          <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/60 text-white">
           {item.size}
         </span>
+        )}
       </div>
       <div className="p-3">
         <p className="text-xs md:text-sm font-medium text-text leading-tight line-clamp-2 mb-2 min-h-[2.5rem]">
@@ -76,7 +80,7 @@ export default function ProductCard({ item }) {
           <span className="text-lg font-semibold text-text">
             ${parseFloat(item.price).toFixed(0)}
           </span>
-          <span className="text-xs font-medium bg-white/5 text-text-muted px-2.5 py-1 rounded-lg">
+          <span className="text-xs font-medium bg-text/5 text-text-muted px-2.5 py-1 rounded-lg">
             View →
           </span>
         </div>

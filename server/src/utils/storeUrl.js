@@ -13,4 +13,14 @@ const storeBaseUrl = (store) => {
   return process.env.FRONTEND_URL || "http://localhost:5173";
 };
 
-module.exports = { storeBaseUrl };
+// Only allow same-site paths ("/store/dashboard?item=...") as post-login
+// redirects — rejects full URLs and protocol-relative "//evil.com"
+const safeRedirectPath = (value) => {
+  if (typeof value !== "string" || value.length > 500) return null;
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) {
+    return null;
+  }
+  return value;
+};
+
+module.exports = { storeBaseUrl, safeRedirectPath };

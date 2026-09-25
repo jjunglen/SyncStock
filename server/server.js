@@ -26,7 +26,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.set("trust proxy", 1);
-app.use("/api", apiLimiter);
 
 // Matches any *.syncstock.io subdomain, plus localhost in dev — can't
 // use a fixed origin list like a single-tenant app since merchant
@@ -51,6 +50,12 @@ app.use(
     credentials: true,
   }),
 );
+
+// After CORS on purpose: rate-limited (429) responses still get CORS
+// headers, so the browser can read "Too many requests" instead of a
+// generic network error — and preflight OPTIONS requests, which CORS
+// answers itself, no longer count against the limit
+app.use("/api", apiLimiter);
 
 app.use(cookieParser());
 app.use(passport.initialize());

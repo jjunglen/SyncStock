@@ -163,7 +163,7 @@ export default function TrackShoe() {
                   setError("");
                 }}
                 placeholder="Search by name or SKU..."
-                className="w-full bg-surface-muted border border-border rounded-xl pl-11 pr-10 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-white/10"
+                className="w-full bg-surface-muted border border-border rounded-xl pl-11 pr-10 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
               />
               {query && (
                 <button
@@ -202,7 +202,7 @@ export default function TrackShoe() {
                     className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
                       selectedShoe?.productId === shoe.productId
                         ? "border-primary bg-surface"
-                        : "border-border bg-surface hover:border-white/20"
+                        : "border-border bg-surface hover:border-text/20"
                     }`}
                   >
                     {shoe.image_url ? (

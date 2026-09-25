@@ -12,7 +12,7 @@ const Alert = sequelize.define(
     store_id: { type: DataTypes.UUID, allowNull: false },
     user_id: { type: DataTypes.UUID, allowNull: false },
     category: {
-      type: DataTypes.ENUM("sneakers", "trading_cards"),
+      type: DataTypes.ENUM("sneakers", "clothing", "trading_cards"),
       allowNull: false,
       defaultValue: "sneakers",
     },

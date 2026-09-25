@@ -16,6 +16,11 @@ import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
 import TrackShoe from "./pages/dashboard/TrackShoe.jsx";
 import CustomerProfile from "./pages/dashboard/CustomerProfile.jsx";
 import CustomerAuthForm from "./pages/store/CustomerAuthForm.jsx";
+import StoreAuthLayout from "./components/store/StoreAuthLayout.jsx";
+import SelectSizes from "./pages/onboarding/SelectSizes.jsx";
+import Privacy from "./pages/legal/Privacy.jsx";
+import Terms from "./pages/legal/Terms.jsx";
+import Cookies from "./pages/legal/Cookies.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
 
 function App() {
@@ -25,6 +30,9 @@ function App() {
     <Routes>
       <Route path="/" element={subdomain ? <StoreLanding /> : <Landing />} />
       <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/cookies" element={<Cookies />} />
       <Route path="/login" element={
         <div className="min-h-screen bg-bg">
           <MarketingHeader />
@@ -40,16 +48,17 @@ function App() {
       <Route path="/onboarding" element={<ConnectShopify />} />
       <Route path="/onboarding/subdomain" element={<OnboardingSteps />} />
       <Route path="/store" element={<StoreLanding />} />
-      <Route path="/dashboard" element={<ProtectedRoute><MerchantDashboard /></ProtectedRoute>} />
-      <Route path="/sourcing" element={<ProtectedRoute><SourcingPage /></ProtectedRoute>} />
-      <Route path="/purchases" element={<ProtectedRoute><PurchasesPage /></ProtectedRoute>} />
-      <Route path="/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
-      <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-      <Route path="/store/dashboard" element={<ProtectedRoute><CustomerDashboard /></ProtectedRoute>} />
-      <Route path="/store/track" element={<ProtectedRoute><TrackShoe /></ProtectedRoute>} />
-      <Route path="/store/profile" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
-      <Route path="/store/login" element={<CustomerAuthForm initialMode="login" />} />
-      <Route path="/store/signup" element={<CustomerAuthForm initialMode="signup" />} />
+      <Route path="/dashboard" element={<ProtectedRoute requireMerchant><MerchantDashboard /></ProtectedRoute>} />
+      <Route path="/sourcing" element={<ProtectedRoute requireMerchant><SourcingPage /></ProtectedRoute>} />
+      <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />
+      <Route path="/account" element={<ProtectedRoute requireMerchant><AccountSettings /></ProtectedRoute>} />
+      <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
+      <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />
+      <Route path="/store/track" element={<ProtectedRoute loginPath="/store/login"><TrackShoe /></ProtectedRoute>} />
+      <Route path="/store/profile" element={<ProtectedRoute loginPath="/store/login"><CustomerProfile /></ProtectedRoute>} />
+      <Route path="/onboarding/size" element={<ProtectedRoute loginPath="/store/login"><SelectSizes /></ProtectedRoute>} />
+      <Route path="/store/login" element={<StoreAuthLayout><CustomerAuthForm initialMode="login" /></StoreAuthLayout>} />
+      <Route path="/store/signup" element={<StoreAuthLayout><CustomerAuthForm initialMode="signup" /></StoreAuthLayout>} />
     </Routes>
   );
 }

@@ -1,19 +1,33 @@
-const { Op } = require("sequelize");
+const { Op, fn, col } = require("sequelize");
 const { Inventory } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
+// Listed items must be in stock and have a photo — Shopify products
+// with no images (merch, books) would show as empty cards
+const listable = (storeId) => ({
+  store_id: storeId,
+  available: { [Op.gt]: 0 },
+  image_url: { [Op.ne]: null },
+});
+
 const invalidCategory = (res) =>
   res.status(400).json({ success: false, message: "Invalid category" });
 
-// GET /api/inventory?page=1&limit=20 — available items for the current store
+const PREVIEW_LIMIT = 16;
+
+// GET /api/inventory?limit=16 — public preview for the store page. Capped
+// to the first 16 items with no paging, so the full catalog is only
+// browsable with an account (see /search)
 const getInventory = async (req, res) => {
   try {
-    const { page, limit, offset } = getPagination(req.query);
+    const page = 1;
+    const offset = 0;
+    const limit = Math.min(getPagination(req.query).limit, PREVIEW_LIMIT);
 
     const { count, rows } = await Inventory.findAndCountAll({
-      where: { store_id: req.store.id, available: { [Op.gt]: 0 } },
+      where: listable(req.store.id),
       order: [["created_at", "DESC"]],
       limit,
       offset,
@@ -60,7 +74,7 @@ const searchInventory = async (req, res) => {
     const { q, size, category, min_price, max_price } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
-    const where = { store_id: req.store.id, available: { [Op.gt]: 0 } };
+    const where = listable(req.store.id);
 
     if (category) {
       if (!CATEGORIES.includes(category)) return invalidCategory(res);
@@ -112,8 +126,13 @@ const getInventoryInMySizes = async (req, res) => {
     }
 
     const sizes = req.account.sizes;
+    const { category } = req.query;
+    if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
 
-    if (!sizes || sizes.length === 0) {
+    // Trading cards have no sizes — "in your sizes" is every listed card
+    const sizeless = category === "trading_cards";
+
+    if (!sizeless && (!sizes || sizes.length === 0)) {
       return res.status(200).json({
         success: true,
         data: [],
@@ -124,17 +143,10 @@ const getInventoryInMySizes = async (req, res) => {
     }
 
     const { page, limit, offset } = getPagination(req.query);
-    const { category } = req.query;
 
-    const where = {
-      store_id: req.store.id,
-      available: { [Op.gt]: 0 },
-      size: { [Op.in]: sizes },
-    };
-    if (category) {
-      if (!CATEGORIES.includes(category)) return invalidCategory(res);
-      where.category = category;
-    }
+    const where = listable(req.store.id);
+    if (!sizeless) where.size = { [Op.in]: sizes };
+    if (category) where.category = category;
 
     const { count, rows } = await Inventory.findAndCountAll({
       where,
@@ -156,7 +168,32 @@ const getInventoryInMySizes = async (req, res) => {
   }
 };
 
+// GET /api/inventory/categories — the categories this store has listed
+// items in, in display order; the dashboard only shows tabs for these
+const getCategories = async (req, res) => {
+  try {
+    const rows = await Inventory.findAll({
+      where: listable(req.store.id),
+      attributes: ["category", [fn("COUNT", col("id")), "count"]],
+      group: ["category"],
+      raw: true,
+    });
+    const counts = Object.fromEntries(rows.map((r) => [r.category, Number(r.count)]));
+    const data = CATEGORIES.filter((c) => counts[c] > 0).map((c) => ({
+      key: c,
+      count: counts[c],
+    }));
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Get categories error:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch categories" });
+  }
+};
+
 module.exports = {
+  getCategories,
   getInventory,
   getInventoryItem,
   searchInventory,

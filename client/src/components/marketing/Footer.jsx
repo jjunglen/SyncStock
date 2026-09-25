@@ -66,9 +66,9 @@ return (
             © {new Date().getFullYear()} Syncstock. All rights reserved.
         </p>
         <nav className="flex gap-4 text-xs text-text-muted">
-            <a href="#" className="hover:text-text transition-colors">Privacy</a>
-            <a href="#" className="hover:text-text transition-colors">Terms</a>
-            <a href="#" className="hover:text-text transition-colors">Cookies</a>
+            <Link to="/privacy" className="hover:text-text transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-text transition-colors">Terms</Link>
+            <Link to="/cookies" className="hover:text-text transition-colors">Cookies</Link>
         </nav>
         </div>
     </div>

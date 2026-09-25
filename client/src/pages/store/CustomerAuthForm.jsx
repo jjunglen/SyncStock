@@ -9,8 +9,30 @@ import {
   LuTriangleAlert,
   LuKeyRound,
 } from "react-icons/lu";
+import { FcGoogle } from "react-icons/fc";
 import api from "../../lib/api.js";
 import Spinner from "../../components/ui/Spinner.jsx";
+import { getSubdomain } from "../../lib/getSubdomain.js";
+import { safeRedirect } from "../../lib/safeRedirect.js";
+import {
+  getLastLoginMethod,
+  setLastLoginMethod,
+} from "../../lib/lastLoginMethod.js";
+
+// ?error= values the server sends back after a failed Google sign-in
+const LOGIN_ERRORS = {
+  google_cancelled: "Google sign-in was cancelled. Try again or use your email.",
+  google_failed: "Google sign-in didn't work. Try again or use your email.",
+  invalid_store: "We couldn't find this store. Check the link and try again.",
+};
+
+function LastUsedBadge() {
+  return (
+    <span className="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-blue-300 text-[10px] font-medium text-blue-950">
+      Last used
+    </span>
+  );
+}
 
 const calculatePasswordStrength = (password) => {
   const requirements = {
@@ -74,6 +96,8 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [lastLoginMethod] = useState(getLastLoginMethod);
+  const redirectTo = safeRedirect(searchParams.get("redirect"), null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -82,7 +106,10 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
     confirmPassword: "",
     agreeToTerms: false,
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(() => {
+    const message = LOGIN_ERRORS[searchParams.get("error")];
+    return message ? { general: message } : {};
+  });
   const [touched, setTouched] = useState({});
 
   useEffect(() => {
@@ -195,14 +222,20 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
           password: formData.password,
         });
         localStorage.setItem("syncstock_customer_email", formData.email);
+        setLastLoginMethod("password");
       } else {
         await api.post("/auth/signup", {
           email: formData.email,
           password: formData.password,
           full_name: formData.fullName,
         });
+        setLastLoginMethod("password");
+        // New customers pick their sizes first, then continue on
+        navigate(
+          `/onboarding/size${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`,
+        );
+        return;
       }
-      const redirectTo = searchParams.get("redirect");
       navigate(redirectTo || "/store/dashboard");
     } catch (err) {
       const message =
@@ -212,6 +245,19 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Full-page redirect through Google — the API can't see this app's
+  // store header here, so the store and return path ride in the URL
+  const handleGoogleSignIn = () => {
+    const store =
+      getSubdomain() ||
+      (import.meta.env.DEV ? import.meta.env.VITE_DEV_STORE : null);
+    const params = new URLSearchParams();
+    if (store) params.set("store", store);
+    if (redirectTo) params.set("redirect", redirectTo);
+    setLastLoginMethod("google");
+    window.location.href = `${api.defaults.baseURL}/auth/google?${params.toString()}`;
   };
 
   const inputClass = (field) =>
@@ -308,6 +354,26 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
         >
           Sign up
         </button>
+      </div>
+
+      <div className="relative mb-6">
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="w-full bg-surface-muted border border-border text-text font-medium py-3 px-6 rounded-xl hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+        >
+          <FcGoogle size={18} />
+          Continue with Google
+        </button>
+        {authMode === "login" && lastLoginMethod === "google" && (
+          <LastUsedBadge />
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-text-muted">or use email</span>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -436,11 +502,11 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
             />
             <span className="text-sm text-text-muted">
               I agree to the{" "}
-              <a href="#" className="text-text hover:underline">
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-text hover:underline">
                 Terms
               </a>{" "}
               and{" "}
-              <a href="#" className="text-text hover:underline">
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-text hover:underline">
                 Privacy Policy
               </a>
             </span>
@@ -450,19 +516,24 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
           <p className="text-danger text-xs">{errors.agreeToTerms}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <Spinner size={18} />
-          ) : authMode === "login" ? (
-            "Sign in"
-          ) : (
-            "Create account"
+        <div className="relative">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <Spinner size={18} />
+            ) : authMode === "login" ? (
+              "Sign in"
+            ) : (
+              "Create account"
+            )}
+          </button>
+          {authMode === "login" && lastLoginMethod === "password" && (
+            <LastUsedBadge />
           )}
-        </button>
+        </div>
       </form>
 
       <div className="text-center mt-6">

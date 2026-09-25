@@ -17,35 +17,7 @@ import {
   CellToggle,
 } from "../../components/ui/AnimatedToggleLayout.jsx";
 import api from "../../lib/api.js";
-
-const sizeOrder = [
-  "3.5M/5W",
-  "4M/5.5W",
-  "4.5M/6W",
-  "5M/6.5W",
-  "5.5M/7W",
-  "6M/7.5W",
-  "6.5M/8W",
-  "7M/8.5W",
-  "7.5M/9W",
-  "8M/9.5W",
-  "8.5M/10W",
-  "9M/10.5W",
-  "9.5M/11W",
-  "10M/11.5W",
-  "10.5M/12W",
-  "11M/12.5W",
-  "11.5M/13W",
-  "12M/13.5W",
-  "12.5M/14W",
-  "13M/14.5W",
-  "13.5M/15W",
-  "14M/15.5W",
-  "14.5M/16W",
-  "15M",
-  "16M",
-  "17M",
-];
+import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
 
 const TABS = [
   { key: "instock", label: "In stock" },
@@ -60,6 +32,12 @@ export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState("instock");
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Categories this store carries (only those get a tab)
+  const [categories, setCategories] = useState([]);
+  const [category, setCategory] = useState(
+    () => new URLSearchParams(location.search).get("category") || "sneakers",
+  );
 
   const [inStockItems, setInStockItems] = useState([]);
   const [inStockMeta, setInStockMeta] = useState(null);
@@ -80,17 +58,38 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     api
+      .get("/inventory/categories")
+      .then((res) => {
+        const list = res.data.data || [];
+        setCategories(list);
+        // Stay on the current category only if this store carries it
+        if (list.length > 0 && !list.some((c) => c.key === category)) {
+          setCategory(list[0].key);
+        }
+      })
+      .catch((err) => console.error("Failed to load categories:", err));
+    // Runs once — `category` is only read to validate the initial value
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const changeCategory = (key) => {
+    setCategory(key);
+    setInStockPage(1);
+    setBrowsePage(1);
+    setSelectedSize("All sizes");
+  };
+
+  useEffect(() => {
+    api
       .get("/auth/me")
       .then((res) => setMySizes(res.data.data.sizes || []))
       .catch((err) => console.error("Failed to load account:", err));
   }, []);
 
-  const fetchInStock = useCallback((page) => {
+  const fetchInStock = useCallback((page, cat) => {
     setLoadingInStock(true);
     api
-      .get(
-        `/inventory/my-sizes?category=sneakers&page=${page}&limit=${PAGE_SIZE}`,
-      )
+      .get(`/inventory/my-sizes?category=${cat}&page=${page}&limit=${PAGE_SIZE}`)
       .then((res) => {
         setInStockItems(res.data.data || []);
         setInStockMeta(res.data.meta || null);
@@ -100,13 +99,13 @@ export default function CustomerDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchInStock(inStockPage);
-  }, [inStockPage, fetchInStock]);
+    fetchInStock(inStockPage, category);
+  }, [inStockPage, category, fetchInStock]);
 
-  const fetchBrowse = useCallback((page, query, size) => {
+  const fetchBrowse = useCallback((page, query, size, cat) => {
     setLoadingBrowse(true);
     const params = new URLSearchParams({
-      category: "sneakers",
+      category: cat,
       page: String(page),
       limit: String(PAGE_SIZE),
     });
@@ -138,8 +137,8 @@ export default function CustomerDashboard() {
   // triggers exactly one fetch — Previous/Next just changes browsePage
   // and this picks it up the same way a filter change does.
   useEffect(() => {
-    fetchBrowse(browsePage, debouncedQuery, selectedSize);
-  }, [browsePage, debouncedQuery, selectedSize, fetchBrowse]);
+    fetchBrowse(browsePage, debouncedQuery, selectedSize, category);
+  }, [browsePage, debouncedQuery, selectedSize, category, fetchBrowse]);
 
   useEffect(() => {
     api
@@ -172,6 +171,7 @@ export default function CustomerDashboard() {
     setSelectedItem(null);
     const params = new URLSearchParams(location.search);
     params.delete("item");
+    params.delete("alert");
     const newSearch = params.toString();
     navigate(`/store/dashboard${newSearch ? `?${newSearch}` : ""}`, {
       replace: true,
@@ -187,7 +187,59 @@ export default function CustomerDashboard() {
     }
   };
 
-  const availableSizes = ["All sizes", ...sizeOrder];
+  const categorySizes = SIZES_BY_CATEGORY[category] || [];
+  const availableSizes = ["All sizes", ...categorySizes];
+  const mySizesHere = mySizes.filter((s) => categorySizes.includes(s));
+  const isCards = category === "trading_cards";
+  const showSwitcher = categories.length > 1;
+
+  // One switch, laid out vertically in the left column on desktop and
+  // as a full-width row under the tabs on phones
+  const categorySwitch = (vertical) => (
+    <div
+      role="tablist"
+      aria-label="Category"
+      className={`flex ${vertical ? "flex-col" : ""} border border-border rounded-lg overflow-hidden bg-surface`}
+    >
+      {categories.map((c) => (
+        <button
+          key={c.key}
+          role="tab"
+          aria-selected={category === c.key}
+          onClick={() => changeCategory(c.key)}
+          className={`flex items-center gap-2 text-sm px-3 py-2.5 transition-colors ${vertical ? "justify-between text-left" : "flex-1 justify-center text-center leading-tight"} ${
+            category === c.key
+              ? "bg-primary/10 text-text font-medium"
+              : "text-text-muted hover:text-text hover:bg-text/5"
+          }`}
+        >
+          {CATEGORY_META[c.key]?.label || c.key}
+          {vertical && <span className="text-xs text-text-muted">{c.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+
+  const sizeFilter = categorySizes.length > 0 && (
+    <div className="relative">
+      <select
+        value={selectedSize}
+        onChange={(e) => setSelectedSize(e.target.value)}
+        aria-label="Size"
+        className="w-full appearance-none text-sm border border-border bg-surface text-text-muted pl-4 pr-9 py-2.5 rounded-lg focus:outline-none cursor-pointer"
+      >
+        {availableSizes.map((size) => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+      <LuChevronDown
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        size={14}
+      />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-bg text-text pb-20">
@@ -214,7 +266,24 @@ export default function CustomerDashboard() {
           ))}
         </div>
 
-        <div className="px-4 md:px-10 py-6 max-w-6xl mx-auto">
+        {showSwitcher && (
+          <div className="lg:hidden px-4 md:px-10 pt-4">{categorySwitch(false)}</div>
+        )}
+
+        <div className="px-4 md:px-10 py-6 max-w-6xl mx-auto lg:flex lg:gap-8">
+          {showSwitcher && (
+            <aside className="hidden lg:flex flex-col gap-6 w-48 shrink-0">
+              {categorySwitch(true)}
+              {tab === "browse" && sizeFilter && (
+                <div>
+                  <p className="text-xs text-text-muted mb-2">Size</p>
+                  {sizeFilter}
+                </div>
+              )}
+            </aside>
+          )}
+
+          <div className="flex-1 min-w-0">
           {tab === "instock" && (
             <>
               <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
@@ -224,11 +293,14 @@ export default function CustomerDashboard() {
                   </div>
                   <div>
                     <p className="text-base font-medium">
-                      In stock in your sizes
+                      {isCards
+                        ? "Trading cards in stock"
+                        : `${CATEGORY_META[category]?.label || "Items"} in your sizes`}
                     </p>
+                    {!isCards && (
                     <div className="flex gap-2 mt-1 flex-wrap">
-                      {mySizes.length > 0 ? (
-                        mySizes.map((size) => (
+                      {mySizesHere.length > 0 ? (
+                        mySizesHere.map((size) => (
                           <span
                             key={size}
                             className="text-xs bg-surface border border-border text-text-muted py-1 px-2.5 rounded-full"
@@ -237,19 +309,25 @@ export default function CustomerDashboard() {
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-text-muted">
-                          No sizes saved yet
-                        </span>
+                        <Link
+                          to="/store/profile"
+                          className="text-xs text-text-muted hover:text-text underline"
+                        >
+                          No {CATEGORY_META[category]?.sizeName} sizes saved yet — add them
+                        </Link>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
+                {category === "sneakers" && (
                 <Link
                   to="/store/track"
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
                   <LuPlus size={16} /> Track a new shoe
                 </Link>
+                )}
               </div>
 
               {loadingInStock ? (
@@ -318,12 +396,14 @@ export default function CustomerDashboard() {
                     </p>
                   </div>
                 </div>
+                {category === "sneakers" && (
                 <Link
                   to="/store/track"
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
                   <LuPlus size={16} /> Track a new shoe
                 </Link>
+                )}
               </div>
 
               <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -337,26 +417,12 @@ export default function CustomerDashboard() {
                     value={browseQuery}
                     onChange={(e) => setBrowseQuery(e.target.value)}
                     placeholder="Search inventory"
-                    className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-white/10"
+                    className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-text/10"
                   />
                 </div>
-                <div className="relative">
-                  <select
-                    value={selectedSize}
-                    onChange={(e) => setSelectedSize(e.target.value)}
-                    className="appearance-none text-sm border border-border bg-surface text-text-muted pl-4 pr-9 py-2.5 rounded-lg focus:outline-none cursor-pointer"
-                  >
-                    {availableSizes.map((size) => (
-                      <option key={size} value={size}>
-                        {size}
-                      </option>
-                    ))}
-                  </select>
-                  <LuChevronDown
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
-                    size={14}
-                  />
-                </div>
+                {sizeFilter && (
+                  <div className={showSwitcher ? "lg:hidden" : ""}>{sizeFilter}</div>
+                )}
               </div>
 
               {loadingBrowse ? (
@@ -458,7 +524,7 @@ export default function CustomerDashboard() {
                           </p>
                         )}
                         <span
-                          className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${alert.active ? "bg-live/10 text-live" : "bg-white/5 text-text-muted"}`}
+                          className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${alert.active ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"}`}
                         >
                           {alert.active ? "Active" : "Paused"}
                         </span>
@@ -475,6 +541,7 @@ export default function CustomerDashboard() {
               )}
             </>
           )}
+          </div>
         </div>
       </div>
     </div>

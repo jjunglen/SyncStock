@@ -1,7 +1,31 @@
 const { Account, Store } = require("../models/index.js");
 const { signToken } = require("../utils/jwt.js");
-const { storeBaseUrl } = require("../utils/storeUrl.js");
+const { storeBaseUrl, safeRedirectPath } = require("../utils/storeUrl.js");
 const { ensureMembership, COOKIE_OPTIONS} = require("./auth.controller.js");
+
+// Which store this login started from and the page to return to
+// afterwards — both carried through Google's OAuth roundtrip in state
+const readState = (req) => {
+    try {
+        const state = JSON.parse(req.query.state || "{}");
+        return {
+            storeId: state.store_id || null,
+            redirectPath: safeRedirectPath(state.redirect),
+        };
+    } catch (error) {
+        return { storeId: null, redirectPath: null };
+    }
+};
+
+// Sends the user back to the store's customer login with an error to
+// show, keeping ?redirect= so a retry still lands on the right page
+const redirectToLogin = async (req, res, error) => {
+    const { storeId, redirectPath } = readState(req);
+    const store = storeId ? await Store.findByPk(storeId).catch(() => null) : null;
+    const params = new URLSearchParams({ error });
+    if (redirectPath) params.set("redirect", redirectPath);
+    return res.redirect(`${storeBaseUrl(store)}/store/login?${params.toString()}`);
+};
 
 const googleCallback = async (req, res) => {
     try {
@@ -9,24 +33,11 @@ const googleCallback = async (req, res) => {
         const email = emails[0].value;
         const avatarUrl = photos?.[0]?.value || null;
 
-        // Which store this login started from - carries through google's Oauth roundtrip via the state param
-        let storeId = null;
-        try {
-            storeId = JSON.parse(req.query.state || "{}").store_id;
+        const { storeId, redirectPath } = readState(req);
 
-        } catch(error) {
-            storeId = null;
-
-        }
-
-        if (!storeId) {
-            return res.redirect(`${process.env.FRONTEND_URL}/auth?error=missing_store`)
-        }
-
-        const store = await Store.findByPk(storeId);
-        if (!store) { 
-            return res.redirect(`${process.env.FRONTEND_URL}/auth?error=invalid_store`);
-
+        const store = storeId ? await Store.findByPk(storeId) : null;
+        if (!store) {
+            return redirectToLogin(req, res, "invalid_store");
         }
 
         let account = await Account.findOne({ where: { email } });
@@ -52,18 +63,20 @@ const googleCallback = async (req, res) => {
         const token = signToken(account);
         res.cookie("session_token", token, COOKIE_OPTIONS);
 
+        // New customers pick their sizes first, then continue on to
+        // wherever they were headed
         const needsSizes = !account.sizes || account.sizes.length === 0;
         const destination = needsSizes
-            ? "onboarding/size"
-            : "dashboard?verified=true";
+            ? `/onboarding/size${redirectPath ? `?redirect=${encodeURIComponent(redirectPath)}` : ""}`
+            : redirectPath || "/store/dashboard";
 
         // Redirect back to the SAME store's subdomain, not a generic page
-        return res.redirect(`${storeBaseUrl(store)}/${destination}`);
+        return res.redirect(`${storeBaseUrl(store)}${destination}`);
 
     } catch (error) {
         console.error("Google callback error:", error.message);
-        return res.redirect(`${process.env.FRONTEND_URL}/auth?error=google_failed`)
+        return redirectToLogin(req, res, "google_failed");
     }
 }
 
-module.exports = { googleCallback };
+module.exports = { googleCallback, redirectToLogin };

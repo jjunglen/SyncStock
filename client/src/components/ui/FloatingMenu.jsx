@@ -11,7 +11,9 @@ const POSITION_STYLES = {
 
 export default function FloatingMenu({ items = [], position = "top-right" }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(0);
   const containerRef = useRef(null);
+  const listRef = useRef(null);
 
   const isBottomAnchored = position === "bottom-center" || position === "bottom-right";
   const isCentered = position === "bottom-center";
@@ -28,12 +30,18 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen]);
 
+  // Size the open panel to the items' real rendered height (plus the
+  // 44px Menu row) — a fixed per-item estimate clipped the top item
+  const openMenu = () => {
+    setPanelHeight(44 + (listRef.current?.scrollHeight || 0));
+    setIsOpen(true);
+  };
+  const toggleMenu = () => (isOpen ? setIsOpen(false) : openMenu());
+
   const handleItemClick = (item) => {
     setIsOpen(false);
     item.onClick?.();
   };
-
-  const panelHeight = 40 + items.length * 44 + 24;
 
   return (
     <motion.div
@@ -45,9 +53,9 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
       transition={{ duration: 0.4, ease }}
     >
       <motion.div
-        className={`relative overflow-hidden flex flex-col font-display ${isBottomAnchored ? "justify-end" : ""}`}
+        className={`relative overflow-hidden flex flex-col font-display transition-shadow duration-300 ${isBottomAnchored ? "justify-end" : ""} ${isOpen ? "ring-1 ring-border shadow-2xl shadow-black/30" : "ring-1 ring-slate-300 shadow-lg shadow-black/25"}`}
         style={{ cursor: isOpen ? "default" : "pointer" }}
-        onClick={() => !isOpen && setIsOpen(true)}
+        onClick={() => !isOpen && openMenu()}
         animate={{
           width: isOpen ? 220 : 110,
           height: isOpen ? panelHeight : 44,
@@ -61,10 +69,14 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           scale: { duration: 0.25, ease },
         }}
       >
-        <motion.div className="absolute inset-0 bg-blue-300" style={{ borderRadius: "inherit" }} />
+        {/* Closed pill: cool off-white with an outline and shadow, so it
+            separates from dark pages, light pages, and white shoe photos */}
+        <motion.div className="absolute inset-0 bg-slate-50" style={{ borderRadius: "inherit" }} />
 
+        {/* Open panel uses the surface color (not the page bg) so it
+            stands out from the page in light and dark mode */}
         <motion.div
-          className="absolute left-1/2 bg-bg"
+          className="absolute left-1/2 bg-surface"
           style={{ width: "200%", height: "200%", borderRadius: "50%", x: "-50%" }}
           animate={
             isBottomAnchored
@@ -76,6 +88,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
 
         {isBottomAnchored && (
           <div
+            ref={listRef}
             className="relative z-10 flex flex-col gap-1 px-2 pt-3 order-1"
             style={{
               pointerEvents: isOpen ? "auto" : "none",
@@ -90,7 +103,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                 <motion.button
                   key={item.label}
                   onClick={() => handleItemClick(item)}
-                  className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-white/5 transition-colors ${
+                  className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-text/5 transition-colors ${
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
                   animate={{ opacity: isOpen ? 1 : 0, y: isOpen ? 0 : 8 }}
@@ -106,27 +119,27 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
 
         <motion.div
           className={`relative z-10 flex items-center justify-between w-full shrink-0 cursor-pointer ${isBottomAnchored ? "order-2" : ""}`}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={toggleMenu}
           animate={{ paddingLeft: isOpen ? 20 : 18, paddingRight: isOpen ? 20 : 18 }}
           transition={{ duration: 0.8, ease }}
           style={{ height: 44, alignItems: "center" }}
         >
-          <motion.span
-            className="text-sm font-medium"
-            animate={{ color: isOpen ? "#fafafa" : "#0a0a0a" }}
-            transition={{ duration: 0.3, ease }}
+          {/* Closed: dark on the off-white pill. Open: the theme's text color on
+              the surface-colored panel, so it reads in light and dark mode */}
+          <span
+            className={`text-sm font-medium transition-colors duration-300 ${isOpen ? "text-text" : "text-neutral-950"}`}
           >
             Menu
-          </motion.span>
+          </span>
           <div className="relative w-5 h-5 flex items-center justify-center">
             <motion.span
-              className="absolute block w-[16px] h-[2px] rounded-full"
-              animate={{ rotate: isOpen ? 45 : 0, y: isOpen ? 0 : -3, backgroundColor: isOpen ? "#fafafa" : "#0a0a0a" }}
+              className={`absolute block w-[16px] h-[2px] rounded-full transition-colors duration-300 ${isOpen ? "bg-text" : "bg-neutral-950"}`}
+              animate={{ rotate: isOpen ? 45 : 0, y: isOpen ? 0 : -3 }}
               transition={{ duration: 0.4, ease }}
             />
             <motion.span
-              className="absolute block w-[16px] h-[2px] rounded-full"
-              animate={{ rotate: isOpen ? -45 : 0, y: isOpen ? 0 : 3, backgroundColor: isOpen ? "#fafafa" : "#0a0a0a" }}
+              className={`absolute block w-[16px] h-[2px] rounded-full transition-colors duration-300 ${isOpen ? "bg-text" : "bg-neutral-950"}`}
+              animate={{ rotate: isOpen ? -45 : 0, y: isOpen ? 0 : 3 }}
               transition={{ duration: 0.4, ease }}
             />
           </div>
@@ -134,6 +147,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
 
         {!isBottomAnchored && (
           <div
+            ref={listRef}
             className="relative z-10 flex flex-col gap-1 px-2 pb-3"
             style={{
               pointerEvents: isOpen ? "auto" : "none",
@@ -148,7 +162,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                 <motion.button
                   key={item.label}
                   onClick={() => handleItemClick(item)}
-                  className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-white/5 transition-colors ${
+                  className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-text/5 transition-colors ${
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
                   animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? 0 : -8 }}

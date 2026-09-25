@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Syncstock</title>
+    <script>
+      // Apply the saved customer-dashboard theme before first paint (no
+      // dark flash). Mirrors src/lib/theme.js.
+      (function () {
+        if (!/^\/(store\/(dashboard|track|profile)|onboarding\/size)/.test(location.pathname)) return;
+        try {
+          var t = localStorage.getItem("syncstock_theme");
+          if (!t) t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          if (t === "light") document.documentElement.dataset.theme = "light";
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
