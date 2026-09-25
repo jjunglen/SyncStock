@@ -61,13 +61,20 @@ app.use("/api", apiLimiter);
 app.use(cookieParser());
 app.use(passport.initialize());
 
-// Every minute: sends each shopper's digest once their batch has
-// settled (see QUIET_MS in digest.service.js)
-cron.schedule("* * * * *", () => {
-  flushPendingNotifications().catch((err) =>
-    console.error("Digest flush error:", err.message),
-  );
-});
+// Every 15 seconds: sends each shopper's digest once their batch has
+// settled (see QUIET_MS in digest.service.js), so alerts go out
+// 90–105 seconds after a drop's last change. Production only by default:
+// local dev shares the live database and would send real emails too
+// (set RUN_DIGEST=true locally to test sending on purpose).
+if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") {
+  cron.schedule("*/15 * * * * *", () => {
+    flushPendingNotifications().catch((err) =>
+      console.error("Digest flush error:", err.message),
+    );
+  });
+} else {
+  console.log("Digest sender off (not production). Set RUN_DIGEST=true to enable.");
+}
 
 // Webhook routes need the RAW body for HMAC signature verification —
 // everything else gets normal JSON parsing

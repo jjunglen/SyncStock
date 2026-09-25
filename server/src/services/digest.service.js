@@ -20,8 +20,8 @@ const { buildDashboardUrl } = require("./notification.service.js");
 // or reorder photos over several webhooks, and list a drop over several
 // minutes — waiting lets the whole drop land in one email with final
 // photos. MAX_WAIT_MS caps the wait on a busy listing day.
-const QUIET_MS = 3 * 60 * 1000;
-const MAX_WAIT_MS = 10 * 60 * 1000;
+const QUIET_MS = 90 * 1000;
+const MAX_WAIT_MS = 5 * 60 * 1000;
 
 const maybeSendText = async ({ store, account, user, items }) => {
   if (store.sms_enabled && account.phone_verified && user.notify_sms) {
@@ -178,9 +178,8 @@ const isSettled = (items, inventoryById, now) => {
   return now - lastActivity >= QUIET_MS || now - firstQueued >= MAX_WAIT_MS;
 };
 
-// Runs every minute from server.js; sends each shopper's batch (email,
-// in-app, push, text) once it has settled
-const flushPendingNotifications = async () => {
+// Checks every queued batch and sends the ones that have settled
+const flushSettledBatches = async () => {
   const pending = await PendingNotification.findAll({ where: { sent: false } });
   if (pending.length === 0) return;
 
@@ -205,12 +204,35 @@ const flushPendingNotifications = async () => {
   for (const [key, items] of groups) {
     if (!isSettled(items, inventoryById, now)) continue;
 
-    await setSent(items, true);
-    const current = withCurrentProduct(items, inventoryById);
+    // Claim atomically: only rows still unsent are flipped, and only the
+    // rows THIS server flipped are sent — so if two servers (or two
+    // Railway replicas) check at once, each batch still goes out once
+    const [, claimedRows] = await PendingNotification.update(
+      { sent: true },
+      { where: { id: { [Op.in]: items.map((p) => p.id) }, sent: false }, returning: true },
+    );
+    const claimedIds = new Set(claimedRows.map((r) => r.id));
+    const claimed = items.filter((p) => claimedIds.has(p.id));
+    if (claimed.length === 0) continue; // another server took this batch
+
+    const current = withCurrentProduct(claimed, inventoryById);
     if (current.length === 0) continue; // everything sold out meanwhile
 
     const [storeId, userId] = key.split(":");
     await deliverDigest(storeId, userId, current);
+  }
+};
+
+// Runs every 15 seconds from server.js. Skips a run while the previous
+// one is still sending, so two runs can't send the same batch twice.
+let flushing = false;
+const flushPendingNotifications = async () => {
+  if (flushing) return;
+  flushing = true;
+  try {
+    await flushSettledBatches();
+  } finally {
+    flushing = false;
   }
 };
 
