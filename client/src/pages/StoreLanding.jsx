@@ -230,18 +230,24 @@ export default function StoreLanding() {
 
         {/* Live inventory strip */}
         {strip.length > 0 && (
-          <section className="line-b py-10 overflow-hidden">
+          <section className="line-b py-10">
             <p className="text-xs text-text-muted uppercase tracking-widest text-center mb-6">
               Live inventory
             </p>
-            <div className="fade-x flex w-max animate-marquee gap-4">
-              {[...strip, ...strip].map((item, i) => (
-                <InventoryTile
-                  key={`${item.id}-${i}`}
-                  item={item}
-                  className="w-40 sm:w-48 shrink-0"
-                />
-              ))}
+            {/* Contained to the dashed guide lines; tiles blur and fade out
+                under the bands at each edge */}
+            <div className="fade-x relative mx-auto max-w-6xl overflow-hidden">
+              <div className="flex w-max animate-marquee gap-4">
+                {[...strip, ...strip].map((item, i) => (
+                  <InventoryTile
+                    key={`${item.id}-${i}`}
+                    item={item}
+                    className="w-40 sm:w-48 shrink-0"
+                  />
+                ))}
+              </div>
+              <div aria-hidden="true" className="edge-blur edge-blur-left" />
+              <div aria-hidden="true" className="edge-blur edge-blur-right" />
             </div>
           </section>
         )}

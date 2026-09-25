@@ -134,3 +134,26 @@ body {
 .fade-x {
   mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
 }
+
+/* Blurred bands over the strip's edges — strongest at the edge, clear
+   toward the middle. Clicks pass through to the tiles underneath. */
+.edge-blur {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.edge-blur-left {
+  left: 0;
+  mask-image: linear-gradient(to right, black, transparent);
+}
+.edge-blur-right {
+  right: 0;
+  mask-image: linear-gradient(to left, black, transparent);
+}
+@media (min-width: 640px) {
+  .edge-blur { width: 96px; }
+}
