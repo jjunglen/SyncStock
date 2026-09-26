@@ -5,7 +5,7 @@ export const LEGAL = {
   company: "[Company legal name]",
   brand: "Syncstock",
   site: "syncstock.io",
-  contactEmail: "hello@syncstock.io",
+  contactEmail: "support@syncstock.io",
   mailingAddress: "[Mailing address]",
   apiHost: "[API hosting provider]",
   governingLaw: "[State]",

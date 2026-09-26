@@ -11,6 +11,8 @@ const {
   signup,
   login,
   merchantLogin,
+  verifyEmail,
+  resendVerification,
   logout,
   getMe,
   forgotPassword,
@@ -22,6 +24,9 @@ const {
 router.post("/signup", authLimiter, resolveStoreForOnboarding, signup);
 router.post("/login", authLimiter, attachStoreIfPresent, login);
 router.post("/merchant/login", authLimiter, merchantLogin);
+// Email verification: the link from the email, and "send it again"
+router.get("/verify-email", verifyEmail);
+router.post("/resend-verification", authLimiter, attachStoreIfPresent, resendVerification);
 router.post("/logout", logout);
 router.get("/me", attachStoreIfPresent, authenticateAccount, getMe);
 router.post("/forgot-password", authLimiter, resolveStoreFromSubdomain, forgotPassword);

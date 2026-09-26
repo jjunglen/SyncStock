@@ -57,7 +57,7 @@ return (
                 );
             })}
             </div>
-            <p className="text-sm text-text-muted">hello@syncstock.io</p>
+            <p className="text-sm text-text-muted">support@syncstock.io</p>
         </div>
         </div>
 

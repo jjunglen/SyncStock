@@ -11,6 +11,7 @@ import {
 } from "react-icons/lu";
 import api from "../../lib/api.js";
 import Spinner from "../ui/Spinner.jsx";
+import UnverifiedNotice from "./UnverifiedNotice.jsx";
 
 const calculatePasswordStrength = (password) => {
   const requirements = {
@@ -162,18 +163,23 @@ export default function AuthForm({ initialMode = "login" }) {
 
     setIsLoading(true);
     try {
-      await api.post("/auth/merchant/login", {
+      const res = await api.post("/auth/merchant/login", {
         email: formData.email,
         password: formData.password,
       });
       localStorage.setItem("syncstock_email", formData.email);
+      // Setup not finished yet → pick up where they left off
+      if (res.data.data?.onboarding_step && res.data.data.onboarding_step !== "complete") {
+        navigate("/onboarding/setup");
+        return;
+      }
       const redirectTo = searchParams.get("redirect");
       navigate(redirectTo || "/dashboard");
     } catch (err) {
       const message =
         err.response?.data?.message ||
         "Something went wrong. Please try again.";
-      setErrors({ general: message });
+      setErrors({ general: message, unverified: err.response?.data?.code === "EMAIL_NOT_VERIFIED" });
     } finally {
       setIsLoading(false);
     }
@@ -243,11 +249,13 @@ export default function AuthForm({ initialMode = "login" }) {
 
   return (
     <div className="p-6 max-w-sm mx-auto">
-      {errors.general && (
+      {errors.general && errors.unverified ? (
+        <UnverifiedNotice email={formData.email} message={errors.general} />
+      ) : errors.general ? (
         <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-xl text-sm text-danger flex items-center gap-2">
           <LuTriangleAlert size={14} /> {errors.general}
         </div>
-      )}
+      ) : null}
 
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold mb-1">

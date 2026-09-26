@@ -236,6 +236,7 @@ const handleShopifyCallback = async (req, res) => {
         shopify_access_token: access_token,
         subdomain,
         status: "pending",
+        onboarding_step: "account",
       });
     } else {
       await store.update({ shopify_access_token: access_token });
@@ -246,8 +247,13 @@ const handleShopifyCallback = async (req, res) => {
     const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");
+    // Reconnecting a live store just goes to the dashboard (login if needed)
+    if (store.onboarding_step === "complete") {
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    }
+    // Unfinished: back into setup, which resumes at the saved step
     return res.redirect(
-      `${process.env.FRONTEND_URL}/onboarding/subdomain?store=${store.subdomain}&onboarding_token=${onboardingToken}`,
+      `${process.env.FRONTEND_URL}/onboarding/setup?onboarding_token=${onboardingToken}`,
     );
   } catch (error) {
     console.error("Shopify callback error:", error.message);
@@ -313,7 +319,10 @@ const updateSubdomain = async (req, res) => {
         .json({ success: false, message: "That subdomain is already taken" });
     }
 
-    await req.store.update({ subdomain: cleaned });
+    await req.store.update({
+      subdomain: cleaned,
+      onboarding_step: req.store.onboarding_step === "subdomain" ? "plan" : req.store.onboarding_step,
+    });
 
     return res
       .status(200)
@@ -324,6 +333,21 @@ const updateSubdomain = async (req, res) => {
       .status(500)
       .json({ success: false, message: "Failed to update subdomain" });
   }
+};
+
+// GET /api/store/onboarding — where this merchant is in setup
+const getOnboarding = async (req, res) => {
+  const { store } = req;
+  return res.status(200).json({
+    success: true,
+    data: {
+      step: store.onboarding_step,
+      logged_in: !!req.account,
+      store_name: store.name,
+      subdomain: store.subdomain,
+      shopify_domain: store.shopify_domain,
+    },
+  });
 };
 
 const selectPlan = async (req, res) => {
@@ -338,7 +362,14 @@ const selectPlan = async (req, res) => {
         .json({ success: false, message: "Store not resolved" });
     }
 
-    await req.store.update({ plan, sms_enabled: plan === "pro" });
+    // Last step (payment is a placeholder until billing is built):
+    // the store goes live here
+    await req.store.update({
+      plan,
+      sms_enabled: plan === "pro",
+      onboarding_step: "complete",
+      status: "active",
+    });
 
     return res.status(200).json({
       success: true,
@@ -456,6 +487,7 @@ module.exports = {
   checkDomain,
   updateSubdomain,
   selectPlan,
+  getOnboarding,
   getStore,
   getCustomers,
   removeCustomer,

@@ -3,7 +3,8 @@ const router = express.Router();
 const { authenticateAccount } = require("../middleware/auth.middleware.js");
 const {
   resolveStoreFromSubdomain,
-  requireOnboardingToken,
+  resolveOnboardingStore,
+  requireOnboardingOwner,
   resolveStoreFromAdminMembership,
 } = require("../middleware/tenant.middleware.js");
 const {
@@ -12,6 +13,7 @@ const {
   checkDomain,
   updateSubdomain,
   selectPlan,
+  getOnboarding,
   getStore,
   getCustomers,
   removeCustomer,
@@ -22,11 +24,13 @@ router.post("/check-domain", checkDomain);
 router.get("/shopify/connect", initiateShopifyConnect);
 router.get("/shopify/callback", handleShopifyCallback);
 
-// Subdomain and plan happen BEFORE login — no account exists yet, so
-// the onboarding token (from the Shopify connect callback) is the only
-// proof this request comes from the store's owner.
-router.put("/subdomain", requireOnboardingToken, updateSubdomain);
-router.put("/plan", requireOnboardingToken, selectPlan);
+// Merchant onboarding: Shopify → account → subdomain → plan. Progress is
+// saved on the store (onboarding_step). Where they are can be read with
+// the setup link or their login; the steps after the account need the
+// logged-in owner, so they can leave and pick up where they left off.
+router.get("/onboarding", resolveOnboardingStore, getOnboarding);
+router.put("/subdomain", requireOnboardingOwner, updateSubdomain);
+router.put("/plan", requireOnboardingOwner, selectPlan);
 
 router.get("/", resolveStoreFromSubdomain, getStore);
 

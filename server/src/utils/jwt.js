@@ -46,4 +46,29 @@ const verifyOnboardingToken = (token) => {
   }
 };
 
-module.exports = { signToken, verifyToken, signOnboardingToken, verifyOnboardingToken };
+// Email verification link (24h). Carries where to send the person after
+// verifying: a merchant back to onboarding, or a shopper to their store.
+const signEmailVerifyToken = (accountId, { storeId = null, merchant = false, redirect = null } = {}) =>
+  jwt.sign(
+    { id: accountId, purpose: "verify-email", store_id: storeId, merchant, redirect },
+    process.env.JWT_SECRET,
+    { expiresIn: "24h" },
+  );
+
+const verifyEmailVerifyToken = (token) => {
+  try {
+    const decoded = jwt.verify(String(token || ""), process.env.JWT_SECRET);
+    return decoded.purpose === "verify-email" ? decoded : null;
+  } catch {
+    return null;
+  }
+};
+
+module.exports = {
+  signToken,
+  verifyToken,
+  signOnboardingToken,
+  verifyOnboardingToken,
+  signEmailVerifyToken,
+  verifyEmailVerifyToken,
+};

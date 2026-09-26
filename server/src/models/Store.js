@@ -60,6 +60,15 @@ const Store = sequelize.define(
     type: DataTypes.ENUM("pro", "internal"),
     allowNull: true,
     },
+    // Where the merchant is in onboarding, so they can leave and come
+    // back: account → subdomain → plan → complete. The store only goes
+    // live (status "active") at complete.
+    onboarding_step: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: "account",
+      validate: { isIn: [["account", "subdomain", "plan", "complete"]] },
+    },
     // Text alerts on/off for the whole store — set by the plan step
     sms_enabled: {
       type: DataTypes.BOOLEAN,

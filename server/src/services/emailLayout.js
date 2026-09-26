@@ -51,7 +51,8 @@ const button = (href, label) => `
   <a href="${escapeHtml(href)}" style="display: inline-block; background: ${ACCENT}; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">${escapeHtml(label)}</a>`;
 
 // preheader: the preview line inboxes show next to the subject
-const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer }) => `<!DOCTYPE html>
+// unsubscribeHref: adds a visible "Unsubscribe" link after the footer
+const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer, unsubscribeHref }) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -77,7 +78,11 @@ const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer }) 
               ${bodyHtml}
               ${
                 footer
-                  ? `<p class="ss-muted ss-rule" style="margin: 24px 0 0; padding-top: 16px; border-top: 1px solid ${DARK.border}; font-size: 12px; line-height: 1.5; color: ${DARK.muted};">${footer}</p>`
+                  ? `<p class="ss-muted ss-rule" style="margin: 24px 0 0; padding-top: 16px; border-top: 1px solid ${DARK.border}; font-size: 12px; line-height: 1.5; color: ${DARK.muted};">${footer}${
+                      unsubscribeHref
+                        ? ` <a href="${escapeHtml(unsubscribeHref)}" class="ss-muted" style="color: ${DARK.muted}; text-decoration: underline;">Unsubscribe</a>`
+                        : ""
+                    }</p>`
                   : ""
               }
             </td>
@@ -115,4 +120,24 @@ const productCard = ({ name, details, imageUrl, href, cta = "View →", label })
     </tr>
   </table>`;
 
-module.exports = { renderEmail, productCard, button, escapeHtml };
+// Compact row for alert emails: small thumbnail, linked name, details.
+// Deliberately light — big photo grids with a button per product read as
+// a sale flyer to Gmail and get filed under Promotions.
+const itemRow = ({ name, details, imageUrl, href }) => `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="ss-rule" style="border-bottom: 1px solid ${DARK.border};">
+    <tr>
+      ${
+        imageUrl
+          ? `<td width="64" style="padding: 12px 12px 12px 0; vertical-align: middle;">
+        <img src="${escapeHtml(imageUrl)}" alt="" width="56" height="56" style="display: block; width: 56px; height: 56px; object-fit: contain; background: #ffffff; border-radius: 8px;" />
+      </td>`
+          : ""
+      }
+      <td style="padding: 12px 0; vertical-align: middle; font-family: Arial, Helvetica, sans-serif;">
+        <a href="${escapeHtml(href)}" class="ss-text" style="color: ${DARK.text}; font-size: 15px; font-weight: bold; text-decoration: none;">${escapeHtml(name)}</a>
+        <p class="ss-muted" style="margin: 2px 0 0; font-size: 13px; color: ${DARK.muted};">${escapeHtml(details)}</p>
+      </td>
+    </tr>
+  </table>`;
+
+module.exports = { renderEmail, productCard, itemRow, button, escapeHtml };

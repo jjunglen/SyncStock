@@ -51,6 +51,13 @@ const googleCallback = async (req, res) => {
                 auth_id: id,
                 email_verified: true,
             });
+        } else if (!account.email_verified) {
+            // Google has confirmed this email — counts as verifying it
+            await account.update({
+                email_verified: true,
+                auth_id: account.auth_id || id,
+                avatar_url: account.avatar_url || avatarUrl,
+            });
         } else if (!account.auth_id) {
           // Existing email/password account signing in with Google for
             await account.update({

@@ -21,7 +21,7 @@ const { buildDashboardUrl } = require("./notification.service.js");
 // minutes — waiting lets the whole drop land in one email with final
 // photos. MAX_WAIT_MS caps the wait on a busy listing day.
 const QUIET_MS = 90 * 1000;
-const MAX_WAIT_MS = 5 * 60 * 1000;
+const MAX_WAIT_MS = 3 * 60 * 1000;
 
 const maybeSendText = async ({ store, account, user, items }) => {
   if (store.sms_enabled && account.phone_verified && user.notify_sms) {
@@ -125,16 +125,20 @@ const deliverDigest = async (storeId, userId, queuedItems) => {
       attributes: ["id", "notify_email", "notify_inapp"],
     });
     const alertsById = new Map(alerts.map((a) => [a.id, a]));
-    // Saved alerts use their own settings; size matches use the shopper's
+    // The shopper's Email / In-app switches are master switches (and what
+    // the unsubscribe link turns off); within them, saved alerts use their
+    // own settings and size matches need size alerts on
     const settingsFor = (item) =>
       item.alert_id ? alertsById.get(item.alert_id) : user.notify_size_alerts ? user : null;
-    wants = (channel) => items.filter((item) => settingsFor(item)?.[channel]);
+    wants = (channel) =>
+      user[channel] ? items.filter((item) => settingsFor(item)?.[channel]) : [];
 
     emailItems = wants("notify_email");
     if (emailItems.length > 0) {
       await sendDigestEmail({
         store,
         account,
+        membershipId: user.id,
         alerts: emailItems.filter((i) => i.alert_id),
         sizes: emailItems.filter((i) => !i.alert_id),
       });

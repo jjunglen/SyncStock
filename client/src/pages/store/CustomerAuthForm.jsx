@@ -12,6 +12,7 @@ import {
 import { FcGoogle } from "react-icons/fc";
 import api from "../../lib/api.js";
 import Spinner from "../../components/ui/Spinner.jsx";
+import UnverifiedNotice from "../../components/auth/UnverifiedNotice.jsx";
 import { getSubdomain } from "../../lib/getSubdomain.js";
 import { safeRedirect } from "../../lib/safeRedirect.js";
 import {
@@ -224,13 +225,21 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
         localStorage.setItem("syncstock_customer_email", formData.email);
         setLastLoginMethod("password");
       } else {
-        await api.post("/auth/signup", {
+        const res = await api.post("/auth/signup", {
           email: formData.email,
           password: formData.password,
           full_name: formData.fullName,
+          redirect: redirectTo, // where the verification link sends them
         });
         setLastLoginMethod("password");
-        // New customers pick their sizes first, then continue on
+        // New accounts verify their email first; the link then continues
+        // to picking sizes and on to where they were headed
+        if (res.data.data?.needs_verification) {
+          const params = new URLSearchParams({ email: res.data.data.email });
+          if (redirectTo) params.set("redirect", redirectTo);
+          navigate(`/email-verification?${params.toString()}`);
+          return;
+        }
         navigate(
           `/onboarding/size${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`,
         );
@@ -241,7 +250,7 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
       const message =
         err.response?.data?.message ||
         "Something went wrong. Please try again.";
-      setErrors({ general: message });
+      setErrors({ general: message, unverified: err.response?.data?.code === "EMAIL_NOT_VERIFIED" });
     } finally {
       setIsLoading(false);
     }
@@ -322,11 +331,13 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
 
   return (
     <div className="p-6 max-w-sm mx-auto">
-      {errors.general && (
+      {errors.general && errors.unverified ? (
+        <UnverifiedNotice email={formData.email} message={errors.general} redirect={redirectTo} />
+      ) : errors.general ? (
         <div className="mb-4 p-3 bg-danger/10 border border-danger/30 rounded-xl text-sm text-danger flex items-center gap-2">
           <LuTriangleAlert size={14} /> {errors.general}
         </div>
-      )}
+      ) : null}
 
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold mb-1">

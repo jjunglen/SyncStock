@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
 const { findSessionAccount } = require("../utils/session.js");
@@ -134,34 +135,70 @@ const resolveStoreForOnboarding = async (req, res, next) => {
   }
 };
 
-// Strict version of resolveStoreForOnboarding for the store-setup
-// steps (subdomain, plan): ONLY a valid onboarding token works — no
-// subdomain fallback, or anyone could change a live store's plan.
-const requireOnboardingToken = async (req, res, next) => {
-  try {
-    const token = req.headers["x-onboarding-token"];
-    const result = token ? verifyOnboardingToken(token) : { valid: false };
+// The unfinished store this merchant is onboarding. Before their account
+// exists, the onboarding link from the Shopify connect step identifies
+// it; after that, only the store's logged-in owner (admin) can continue —
+// which is what lets them leave and resume later.
+const findOnboardingStore = async (req) => {
+  const { account } = await findSessionAccount(req, Account);
+  if (account) {
+    const membership = await User.findOne({
+      where: { account_id: account.id, role: "admin" },
+      include: [{ model: Store, where: { onboarding_step: { [Op.ne]: "complete" } } }],
+      order: [["created_at", "DESC"]],
+    });
+    if (membership) return { store: membership.Store, account };
+  }
 
-    if (!result.valid) {
+  const token = req.headers["x-onboarding-token"];
+  const result = token ? verifyOnboardingToken(token) : { valid: false };
+  if (result.valid) {
+    const store = await Store.findByPk(result.storeId);
+    if (store) return { store, account: null, expired: false };
+  }
+  return { store: null, account, expired: !!result.expired };
+};
+
+// GET /store/onboarding — link or owner session
+const resolveOnboardingStore = async (req, res, next) => {
+  try {
+    const { store, account, expired } = await findOnboardingStore(req);
+    if (!store) {
       return res.status(401).json({
         success: false,
-        message: result.expired
-          ? "Your onboarding link expired — reconnect your Shopify store to continue"
-          : "Invalid onboarding link",
+        message: expired
+          ? "Your setup link expired — log in, or reconnect your Shopify store"
+          : "Log in to continue setting up your store",
       });
     }
-
-    const store = await Store.findByPk(result.storeId);
-    if (!store) {
-      return res.status(404).json({ success: false, message: "Store not found" });
-    }
-
     req.store = store;
+    req.account = account;
     next();
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: "Failed to resolve store" });
+    return res.status(500).json({ success: false, message: "Failed to resolve store" });
+  }
+};
+
+// Subdomain and plan steps: the store's logged-in owner only
+const requireOnboardingOwner = async (req, res, next) => {
+  try {
+    const { store, account } = await findOnboardingStore(req);
+    if (!store || !account) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Log in to continue setting up your store" });
+    }
+    const isOwner = await User.findOne({
+      where: { account_id: account.id, store_id: store.id, role: "admin" },
+    });
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: "Only the store owner can do this" });
+    }
+    req.store = store;
+    req.account = account;
+    next();
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to resolve store" });
   }
 };
 
@@ -200,7 +237,8 @@ module.exports = {
   resolveStoreFromShopifyDomain,
   attachAccountIfPresent,
   resolveStoreForOnboarding,
-  requireOnboardingToken,
+  resolveOnboardingStore,
+  requireOnboardingOwner,
   resolveStoreFromAdminMembership,
   attachStoreIfPresent
 };

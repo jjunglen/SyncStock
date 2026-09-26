@@ -25,6 +25,11 @@ export default function ProtectedRoute({
           navigate(onStore ? "/store/dashboard" : "/", { replace: true });
           return;
         }
+        const step = res.data.data?.merchant_onboarding_step;
+        if (requireMerchant && step && step !== "complete") {
+          navigate("/onboarding/setup", { replace: true });
+          return;
+        }
         setStatus("ok");
       })
       .catch(() => {

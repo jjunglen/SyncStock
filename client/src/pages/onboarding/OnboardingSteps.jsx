@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useEmblaCarousel from "embla-carousel-react";
 import {
   LuGlobe,
@@ -13,16 +13,16 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import BlackHoleBackground from "../../components/ui/BlackHoleBackground.jsx";
 import api from "../../lib/api.js";
+import { PLAN } from "../../lib/plan.js";
 
-const RESERVED_SUBDOMAINS = [
-  "www",
-  "api",
-  "app",
-  "admin",
-  "mail",
-  "syncstock",
-  "store",
-];
+// Merchant setup, after connecting Shopify (step 1):
+//   2. Create account → verify email (/email-verification)
+//   3. Choose subdomain
+//   4. Plan & payment (placeholder until billing) → store goes live
+// Progress is saved on the store (onboarding_step), so a merchant can
+// leave and come back: logging in resumes at the saved step.
+
+const RESERVED_SUBDOMAINS = ["www", "api", "app", "admin", "mail", "syncstock", "store"];
 const isValidSubdomainFormat = (value) => {
   if (!value || value.length < 3 || value.length > 30) return false;
   if (!/^[a-z0-9-]+$/.test(value)) return false;
@@ -31,124 +31,161 @@ const isValidSubdomainFormat = (value) => {
   return true;
 };
 
-const FEATURES = [
-  "Automatic Shopify sync — including your existing catalog",
-  "Unlimited customer restock alerts",
-  "Email, in-app, and text notifications",
-  "SMS included, not a paid add-on",
-];
-
-const GLOBAL_STEP_OFFSET = 2;
+const STEPS = ["account", "subdomain", "plan"]; // carousel slides, in order
+const GLOBAL_STEP_OFFSET = 2; // "Connect Shopify" was step 1
 const TOTAL_STEPS = 4;
 
+const inputClass =
+  "w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none";
+
 export default function OnboardingSteps() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [emblaRef, emblaApi] = useEmblaCarousel({ watchDrag: false });
   const [current, setCurrent] = useState(0);
+  const [status, setStatus] = useState("loading"); // loading | ready | error
+  const [loadError, setLoadError] = useState("");
+  const [storeName, setStoreName] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [subdomain, setSubdomain] = useState(searchParams.get("store") || "");
+  const [subdomain, setSubdomain] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Find out where this merchant is. The setup link from the Shopify
+  // connect step identifies the store before an account exists (sent as
+  // X-Onboarding-Token by lib/api.js); after that, their login does.
   useEffect(() => {
     const token = searchParams.get("onboarding_token");
-    const suggestedSubdomain = searchParams.get("store");
     if (token) sessionStorage.setItem("onboarding_token", token);
-    if (suggestedSubdomain)
-      sessionStorage.setItem("onboarding_subdomain", suggestedSubdomain);
-  }, [searchParams]);
 
+    api
+      .get("/store/onboarding")
+      .then((res) => {
+        const { step, logged_in, store_name, subdomain: saved } = res.data.data;
+        if (step === "complete") {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+        // Past the account step, only the logged-in owner can continue
+        if (step !== "account" && !logged_in) {
+          navigate(`/login?redirect=${encodeURIComponent("/onboarding/setup")}`, { replace: true });
+          return;
+        }
+        setStoreName(store_name || "");
+        setSubdomain(saved || "");
+        setCurrent(Math.max(0, STEPS.indexOf(step)));
+        setStatus("ready");
+      })
+      .catch((err) => {
+        setLoadError(
+          err.response?.data?.message || "We couldn't load your setup. Try again.",
+        );
+        setStatus("error");
+      });
+  }, [searchParams, navigate]);
+
+  // Jump the carousel to the saved step once both are ready
   useEffect(() => {
-    if (!emblaApi) return;
-    const onSelect = () => setCurrent(emblaApi.selectedScrollSnap());
-    emblaApi.on("select", onSelect);
-    return () => emblaApi.off("select", onSelect);
-  }, [emblaApi]);
+    if (emblaApi && status === "ready") emblaApi.scrollTo(current, true);
+  }, [emblaApi, status, current]);
 
-  const goBack = useCallback(() => {
+  const goTo = useCallback((index) => {
     setError("");
-    emblaApi?.scrollPrev();
-  }, [emblaApi]);
+    setCurrent(index);
+  }, []);
+
+  const failWith = (err) =>
+    setError(err.response?.data?.message || "Something went wrong. Please try again.");
 
   const handleNext = async () => {
     setError("");
+    const step = STEPS[current];
 
-    if (current === 0) {
-      if (!isValidSubdomainFormat(subdomain)) {
-        setError(
-          "3-30 characters, lowercase letters, numbers, and hyphens only.",
-        );
+    if (step === "account") {
+      if (!fullName.trim() || !email.trim() || !password) {
+        setError("Fill in your name, email, and password.");
         return;
       }
-      setIsSubmitting(true);
-      try {
-        await api.put("/store/subdomain", { subdomain });
-        sessionStorage.setItem("onboarding_subdomain", subdomain);
-        emblaApi?.scrollNext();
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "Something went wrong. Please try again.",
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    if (current === 1) {
-      setIsSubmitting(true);
-      try {
-        await api.put("/store/plan", { plan: "pro" });
-        emblaApi?.scrollNext();
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "Something went wrong. Please try again.",
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    if (current === 2) {
       if (password !== confirmPassword) {
         setError("Passwords do not match");
         return;
       }
       setIsSubmitting(true);
       try {
-        await api.post("/auth/signup", {
-          email,
-          password,
-          full_name: fullName,
-        });
+        const res = await api.post("/auth/signup", { email, password, full_name: fullName });
         sessionStorage.removeItem("onboarding_token");
-        sessionStorage.removeItem("onboarding_subdomain");
-        const protocol =
-          window.location.hostname === "localhost" ? "http" : "https";
-        const host =
-          window.location.hostname === "localhost"
-            ? "localhost:5173"
-            : "syncstock.io";
-        window.location.href = `${protocol}://${host}/dashboard`;
+        if (res.data.data?.needs_verification) {
+          const params = new URLSearchParams({ type: "merchant", email: res.data.data.email });
+          navigate(`/email-verification?${params.toString()}`);
+          return;
+        }
+        goTo(1); // already-verified account: straight on
       } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            "Something went wrong. Please try again.",
-        );
+        failWith(err);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (step === "subdomain") {
+      if (!isValidSubdomainFormat(subdomain)) {
+        setError("3-30 characters, lowercase letters, numbers, and hyphens only.");
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        await api.put("/store/subdomain", { subdomain });
+        goTo(2);
+      } catch (err) {
+        failWith(err);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (step === "plan") {
+      setIsSubmitting(true);
+      try {
+        await api.put("/store/plan", { plan: "pro" });
+        navigate("/dashboard", { replace: true });
+      } catch (err) {
+        failWith(err);
         setIsSubmitting(false);
       }
     }
   };
 
+  if (status !== "ready") {
+    return (
+      <div className="min-h-screen bg-bg text-text flex items-center justify-center px-4">
+        {status === "loading" ? (
+          <Spinner size={24} />
+        ) : (
+          <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 text-center space-y-4">
+            <LuTriangleAlert size={28} className="mx-auto text-danger" aria-hidden="true" />
+            <p className="text-sm text-text-muted">{loadError}</p>
+            <div className="flex gap-2">
+              <Link to="/login?redirect=%2Fonboarding%2Fsetup" className="flex-1">
+                <Button variant="primary" className="w-full">Log in</Button>
+              </Link>
+              <Link to="/onboarding" className="flex-1">
+                <Button variant="secondary" className="w-full">Connect Shopify</Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const globalStep = GLOBAL_STEP_OFFSET + current;
-  const isLast = current === 2;
+  const isLast = STEPS[current] === "plan";
 
   return (
     <div className="min-h-screen bg-bg text-text relative overflow-hidden flex items-center justify-center px-4">
@@ -159,7 +196,7 @@ export default function OnboardingSteps() {
       <div className="relative z-10 w-full max-w-sm space-y-4 rounded-xl border border-border bg-surface p-6">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-text-muted text-xs">
-            <span>Getting started</span>
+            <span>{storeName ? `Setting up ${storeName}` : "Getting started"}</span>
             <span>
               Step {globalStep} of {TOTAL_STEPS}
             </span>
@@ -174,6 +211,34 @@ export default function OnboardingSteps() {
 
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex">
+            {/* Step 2 — account */}
+            <div className="min-w-0 shrink-0 grow-0 basis-full">
+              <div className="flex flex-col items-center gap-3 py-4 text-center">
+                <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
+                  <LuUserPlus size={26} className="text-text" />
+                </div>
+                <div>
+                  <p className="font-semibold">Create your login</p>
+                  <p className="mt-1 text-text-muted text-sm">
+                    Your store is connected. This saves your progress.
+                  </p>
+                </div>
+                <div className="w-full space-y-2.5 mt-2 text-left">
+                  <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
+                  <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+                  <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
+                  <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} />
+                  <p className="text-xs text-text-muted">
+                    By creating an account you agree to the{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">Terms</a>{" "}
+                    and{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">Privacy Policy</a>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 — subdomain */}
             <div className="min-w-0 shrink-0 grow-0 basis-full">
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
@@ -189,11 +254,7 @@ export default function OnboardingSteps() {
                   <input
                     type="text"
                     value={subdomain}
-                    onChange={(e) =>
-                      setSubdomain(
-                        e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                      )
-                    }
+                    onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                     placeholder="yourstore"
                     className="flex-1 min-w-0 bg-transparent px-4 py-3 text-text placeholder:text-text-muted focus:outline-none"
                   />
@@ -210,6 +271,7 @@ export default function OnboardingSteps() {
               </div>
             </div>
 
+            {/* Step 4 — plan & payment (placeholder until billing) */}
             <div className="min-w-0 shrink-0 grow-0 basis-full">
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
@@ -217,72 +279,21 @@ export default function OnboardingSteps() {
                 </div>
                 <div>
                   <p className="font-semibold">Confirm your plan</p>
-                  <p className="mt-1 text-text-muted text-sm">
-                    One plan. Everything included.
-                  </p>
+                  <p className="mt-1 text-text-muted text-sm">One plan. Everything included.</p>
                 </div>
                 <div className="w-full rounded-xl border border-border bg-surface-muted p-4 mt-2 text-left">
                   <div className="flex items-end gap-1 mb-3">
-                    <span className="text-2xl font-extrabold">$40</span>
-                    <span className="text-text-muted text-sm mb-0.5">
-                      /month
-                    </span>
+                    <span className="text-2xl font-extrabold">${PLAN.price}</span>
+                    <span className="text-text-muted text-sm mb-0.5">/month</span>
                   </div>
                   <div className="space-y-2">
-                    {FEATURES.map((f) => (
+                    {PLAN.features.slice(0, 4).map((f) => (
                       <div key={f} className="flex items-start gap-2">
-                        <LuCircleCheck
-                          size={14}
-                          className="text-live mt-0.5 shrink-0"
-                        />
+                        <LuCircleCheck size={14} className="text-live mt-0.5 shrink-0" />
                         <p className="text-xs text-text-muted">{f}</p>
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="min-w-0 shrink-0 grow-0 basis-full">
-              <div className="flex flex-col items-center gap-3 py-4 text-center">
-                <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
-                  <LuUserPlus size={26} className="text-text" />
-                </div>
-                <div>
-                  <p className="font-semibold">Create your login</p>
-                  <p className="mt-1 text-text-muted text-sm">
-                    How you'll manage your store.
-                  </p>
-                </div>
-                <div className="w-full space-y-2.5 mt-2 text-left">
-                  <input
-                    type="text"
-                    placeholder="Full name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Confirm password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none"
-                  />
                 </div>
               </div>
             </div>
@@ -296,20 +307,16 @@ export default function OnboardingSteps() {
         )}
 
         <div className="flex gap-2">
+          {/* Back only between subdomain and plan — the account step is done */}
           <Button
             className="flex-1"
             variant="secondary"
-            disabled={current === 0 || isSubmitting}
-            onClick={goBack}
+            disabled={STEPS[current] !== "plan" || isSubmitting}
+            onClick={() => goTo(1)}
           >
             Back
           </Button>
-          <Button
-            className="flex-1"
-            variant="primary"
-            disabled={isSubmitting}
-            onClick={handleNext}
-          >
+          <Button className="flex-1" variant="primary" disabled={isSubmitting} onClick={handleNext}>
             {isSubmitting ? <Spinner size={18} /> : isLast ? "Finish" : "Next"}
           </Button>
         </div>
