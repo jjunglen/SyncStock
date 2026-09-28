@@ -1,6 +1,7 @@
 type = "web_pixel_extension"
 name = "syncstock-pixel"
 runtime_context = "strict"
+uid = "b77217ed-0d2f-8f06-cc3f-0e2d8c71ac8c30f8be61"
 
 # Attribution only: counts sales that came from a Syncstock alert click.
 # Runs when the shopper allows analytics (or where no consent is needed).

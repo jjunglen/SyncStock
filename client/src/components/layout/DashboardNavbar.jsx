@@ -9,18 +9,23 @@ import {
   LuLogOut,
   LuSun,
   LuMoon,
+  LuShoppingBag,
 } from "react-icons/lu";
 import SignalDot from "../ui/SignalDot.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import CartDrawer from "../dashboard/CartDrawer.jsx";
 import Button from "../ui/Button.jsx";
 import api from "../../lib/api.js";
 import { useTheme } from "../../lib/theme.js";
+import { useCart } from "../../lib/cart.js";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
   const [storeName, setStoreName] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const cartItems = useCart();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -89,6 +94,18 @@ export default function DashboardNavbar() {
             </button>
             <NotificationBell />
             <button
+              onClick={() => setCartOpen(true)}
+              className="relative p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
+              aria-label={`Cart, ${cartItems.length} item${cartItems.length === 1 ? "" : "s"}`}
+            >
+              <LuShoppingBag size={18} />
+              {cartItems.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-primary text-primary-text text-[10px] font-semibold leading-4 text-center">
+                  {cartItems.length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => navigate("/store/profile")}
               className="hidden lg:flex p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
             >
@@ -110,6 +127,8 @@ export default function DashboardNavbar() {
           </div>
         </div>
       </header>
+
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} storeName={storeName} />
 
       <div className="lg:hidden">
         <FloatingMenu items={mobileMenuItems} position="bottom-right" />

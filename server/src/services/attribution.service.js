@@ -13,6 +13,9 @@ const { AlertClick, Purchase, PixelClaim, Inventory } = require("../models/index
 // shopper is NOT proof — someone with alerts can buy for other reasons.
 const CLICK_WINDOW_DAYS = 7;
 const CLICK_ATTRIBUTE = "syncstock_click_id";
+// A multi-item cart tags each item's click: syncstock_click_id,
+// syncstock_click_id_2, syncstock_click_id_3, …
+const CLICK_ATTRIBUTE_RE = /^syncstock_click_id(_\d+)?$/;
 // The pixel reports as checkout completes, so a real claim is minutes
 // from the order — this stops old orders being claimed after the fact
 const CLAIM_MAX_GAP_MS = 60 * 60 * 1000;
@@ -69,7 +72,7 @@ const attributeOrder = async (store, order) => {
   const lineItems = order.line_items || [];
 
   const tagIds = (order.note_attributes || [])
-    .filter((attr) => attr.name === CLICK_ATTRIBUTE)
+    .filter((attr) => CLICK_ATTRIBUTE_RE.test(attr.name || ""))
     .map((attr) => String(attr.value));
   const claims = await PixelClaim.findAll({
     where: { store_id: store.id, shopify_order_id: orderId },

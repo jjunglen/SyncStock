@@ -1,0 +1,18 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "cf70348ce0945f58573c6c01ed082309"
+application_url = "https://syncstock.io"
+embedded = true
+name = "Syncstock"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,write_pixels,read_customer_events"
+optional_scopes = [ ]
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [ "https://api.syncstock.io/api/store/shopify/callback" ]
+
+[webhooks]
+api_version = "2026-07"

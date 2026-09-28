@@ -5,10 +5,13 @@ import {
   LuBell,
   LuChevronLeft,
   LuChevronRight,
+  LuShoppingBag,
+  LuCheck,
 } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
+import { useCart, addToCart, MAX_CART_ITEMS } from "../../lib/cart.js";
 
 function conditionLabel(condition) {
   if (condition === "brand_new") return "Brand New";
@@ -21,6 +24,9 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
   const [alertSet, setAlertSet] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
   const touchStartX = useRef(null);
+  const cartItems = useCart();
+  const inCart = cartItems.some((i) => i.id === item.id);
+  const cartFull = cartItems.length >= MAX_CART_ITEMS;
 
   const images =
     item.image_urls?.length > 0
@@ -180,13 +186,35 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
 
             {isInStock ? (
               <>
-                <Button variant="primary" fullWidth onClick={handleBuyNow}>
-                  <span className="flex items-center justify-center gap-2">
-                    Buy now <LuExternalLink size={16} />
-                  </span>
-                </Button>
+                <div className="flex gap-3">
+                  <Button variant="primary" fullWidth onClick={handleBuyNow}>
+                    <span className="flex items-center justify-center gap-2">
+                      Buy now <LuExternalLink size={16} />
+                    </span>
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    disabled={inCart || cartFull}
+                    onClick={() => addToCart(item)}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      {inCart ? (
+                        <>
+                          <LuCheck size={16} /> In your cart
+                        </>
+                      ) : (
+                        <>
+                          <LuShoppingBag size={16} /> Add to cart
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </div>
                 <p className="text-xs text-text-muted text-center mt-3">
-                  You'll be redirected to complete your purchase
+                  {cartFull && !inCart
+                    ? `Your cart is full (${MAX_CART_ITEMS} items). Check out or remove something first.`
+                    : "Buy this now, or add it to your cart to check out with other items"}
                 </p>
               </>
             ) : alertSet ? (
