@@ -6,6 +6,7 @@ const {
   User,
 } = require("../models/index.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
+const { CLICK_ATTRIBUTE } = require("../services/attribution.service.js");
 
 const trackRedirect = async (req, res) => {
   try {
@@ -50,6 +51,9 @@ const trackRedirect = async (req, res) => {
       user_id: membership?.id || null,
       alert_id: alert_id && alert_id !== "null" ? alert_id : null,
       notification_id: notification_id || null,
+      inventory_id: item.id,
+      shopify_variant_id: item.shopify_variant_id,
+      channel: "buy_now",
       product_name: item.product_name,
       sku: item.sku || null,
       size: item.size || null,
@@ -63,7 +67,12 @@ const trackRedirect = async (req, res) => {
       );
     }
 
-    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?attributes[syncstock_click_id]=${click.id}`;
+    // Shopify cart link: puts the item in the store's cart with our click
+    // tag attached, then opens the cart page (storefront=true) rather than
+    // checkout. The tag stays on that cart while the shopper keeps
+    // browsing the store, so the sale still counts if they check out
+    // later (attribution.service.js); the web pixel also picks it up here.
+    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?storefront=true&attributes[${CLICK_ATTRIBUTE}]=${click.id}`;
 
     return res.redirect(cartUrl);
   } catch (error) {

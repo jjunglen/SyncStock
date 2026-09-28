@@ -11,6 +11,7 @@ const Purchase = require("./Purchase.js");
 const PushSubscription = require("./PushSubscription.js");
 const PendingNotification = require("./PendingNotification.js");
 const StockxImageCache = require("./StockxImageCache.js");
+const PixelClaim = require("./PixelClaim.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -18,6 +19,7 @@ Store.hasMany(Alert, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(NotificationLog, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(AlertClick, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Purchase, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(PixelClaim, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(PushSubscription, {
   foreignKey: "store_id",
   onDelete: "CASCADE",
@@ -33,6 +35,7 @@ Alert.belongsTo(Store, { foreignKey: "store_id" });
 NotificationLog.belongsTo(Store, { foreignKey: "store_id" });
 AlertClick.belongsTo(Store, { foreignKey: "store_id" });
 Purchase.belongsTo(Store, { foreignKey: "store_id" });
+PixelClaim.belongsTo(Store, { foreignKey: "store_id" });
 PushSubscription.belongsTo(Store, { foreignKey: "store_id" });
 PendingNotification.belongsTo(Store, { foreignKey: "store_id" });
 
@@ -86,4 +89,5 @@ module.exports = {
   PushSubscription,
   PendingNotification,
   StockxImageCache,
+  PixelClaim,
 };

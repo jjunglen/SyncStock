@@ -34,7 +34,7 @@ export default function PurchasesPage() {
           <h1 className="font-display text-2xl font-semibold">Purchases</h1>
         </div>
         <p className="text-text-muted text-sm mb-8">
-          Every sale Syncstock has attributed, most recent first.
+          Items bought after a shopper clicked a Syncstock alert, most recent first.
         </p>
 
         {loading ? (

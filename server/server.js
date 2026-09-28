@@ -32,6 +32,10 @@ app.set("trust proxy", 1);
 // subdomains are created dynamically at signup
 const allowedOriginPattern = /^https:\/\/([a-z0-9-]+\.)?syncstock\.io$/;
 
+// The Shopify web pixel reports checkouts from merchants' own store
+// domains, so it has its own open CORS rule (see pixel.routes.js)
+app.use("/api/pixel", require("./src/routes/pixel.routes.js"));
+
 app.use(
   cors({
     origin: (origin, callback) => {

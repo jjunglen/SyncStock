@@ -26,9 +26,23 @@ const AlertClick = sequelize.define(
       type: DataTypes.UUID,
       allowNull: true,
     },
-    product_name: { 
-      type: DataTypes.STRING, 
-      allowNull: true 
+    inventory_id: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+    // The exact Shopify variant clicked — orders are matched on this
+    shopify_variant_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // Where the click came from: buy_now (popup), later email/push/sms
+    channel: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    product_name: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     sku: {
       type: DataTypes.STRING,
@@ -47,6 +61,7 @@ const AlertClick = sequelize.define(
     tableName: "alert_clicks",
     underscored: true,
     timestamps: false,
+    indexes: [{ fields: ["store_id"] }],
   },
 );
 

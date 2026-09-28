@@ -1,0 +1,22 @@
+type = "web_pixel_extension"
+name = "syncstock-pixel"
+runtime_context = "strict"
+
+# Attribution only: counts sales that came from a Syncstock alert click.
+# Runs when the shopper allows analytics (or where no consent is needed).
+[customer_privacy]
+analytics = true
+marketing = false
+preferences = false
+sale_of_data = "disabled"
+
+# Set per store by the Syncstock server when it activates the pixel
+# (activateWebPixel in server/src/controllers/store.controller.js)
+[settings]
+type = "object"
+
+[settings.fields.apiUrl]
+name = "Syncstock API URL"
+description = "Where checkouts from Syncstock clicks are reported"
+type = "single_line_text_field"
+validations = [{ name = "min", value = "1" }]

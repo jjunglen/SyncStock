@@ -1,0 +1,16 @@
+{
+  "name": "syncstock-shopify-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shopify app extensions for Syncstock (the web pixel). Deployed with the Shopify CLI; the app itself runs in ../server.",
+  "workspaces": [
+    "extensions/*"
+  ],
+  "scripts": {
+    "deploy": "shopify app deploy",
+    "config:link": "shopify app config link"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3.0.0"
+  }
+}

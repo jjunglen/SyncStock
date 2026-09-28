@@ -75,6 +75,12 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: false,
     },
+    // The store's activated Syncstock web pixel (set on Shopify connect).
+    // Null means the pixel isn't running, so only cart-tagged sales count.
+    web_pixel_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     status: {
     type: DataTypes.ENUM("pending", "active", "suspended"),
     defaultValue: "pending",

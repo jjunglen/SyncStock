@@ -183,6 +183,69 @@ const initiateShopifyConnect = (req, res) => {
   return res.redirect(installUrl);
 };
 
+// Turns on the Syncstock web pixel for this store — the extension in
+// shopify-app/extensions/syncstock-pixel. It needs the write_pixels and
+// read_customer_events scopes and a deployed app version that includes
+// the extension. Without it, sales still count through the cart tag, so
+// a failure here is logged and never blocks connecting the store.
+const activateWebPixel = async (store, accessToken, shop) => {
+  const settings = JSON.stringify({ apiUrl: process.env.BACKEND_URL });
+  const gql = async (query, variables) => {
+    const resp = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    return resp.json();
+  };
+
+  try {
+    const created = await gql(
+      `mutation ($settings: JSON!) {
+        webPixelCreate(webPixel: { settings: $settings }) {
+          userErrors { code message }
+          webPixel { id }
+        }
+      }`,
+      { settings },
+    );
+    let pixelId = created.data?.webPixelCreate?.webPixel?.id;
+
+    // Already made on an earlier connect — refresh its settings instead
+    if (!pixelId) {
+      const existing = await gql(`{ webPixel { id } }`);
+      const existingId = existing.data?.webPixel?.id;
+      if (existingId) {
+        const updated = await gql(
+          `mutation ($id: ID!, $settings: JSON!) {
+            webPixelUpdate(id: $id, webPixel: { settings: $settings }) {
+              userErrors { code message }
+              webPixel { id }
+            }
+          }`,
+          { id: existingId, settings },
+        );
+        pixelId = updated.data?.webPixelUpdate?.webPixel?.id;
+      }
+    }
+
+    if (pixelId) {
+      await store.update({ web_pixel_id: pixelId });
+      console.log(`Web pixel active for ${shop}`);
+    } else {
+      console.warn(
+        `Web pixel not activated for ${shop}:`,
+        JSON.stringify(created.errors || created.data?.webPixelCreate?.userErrors),
+      );
+    }
+  } catch (error) {
+    console.error(`Web pixel activation failed for ${shop}:`, error.message);
+  }
+};
+
 const handleShopifyCallback = async (req, res) => {
   try {
     const { shop, code, state, hmac } = req.query;
@@ -243,6 +306,7 @@ const handleShopifyCallback = async (req, res) => {
     }
 
     await registerShopifyWebhooks(store, access_token, shop);
+    await activateWebPixel(store, access_token, shop);
     await backfillInventory(store, access_token, shop);
     const onboardingToken = signOnboardingToken(store.id);
 

@@ -1,42 +1,11 @@
-const {
-  sequelize,
-  Inventory,
-  Alert,
-  User,
-  Account,
-  Purchase,
-  AlertClick,
-} = require("../models/index.js");
+const { Inventory } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
 } = require("../services/alert.service.js");
-const { Op } = require("sequelize");
-
-const isItemMatch = (source, item) => {
-  const skuMatch =
-    source.sku &&
-    item.sku &&
-    source.sku.toLowerCase() === item.sku.toLowerCase();
-  if (skuMatch) return true;
-  if (!source.product_name) return false;
-  const sourceWords = source.product_name.toLowerCase().split(" ");
-  const itemName = (item.title || "").toLowerCase();
-  return sourceWords.every((word) => itemName.includes(word));
-};
-
-// A purchase's category comes from the inventory row for the variant
-// bought; items we never synced fall back to sneakers
-const categoryForLineItem = async (store, lineItem) => {
-  if (!lineItem?.variant_id) return "sneakers";
-  const item = await Inventory.findOne({
-    where: { store_id: store.id, shopify_variant_id: String(lineItem.variant_id) },
-    attributes: ["category"],
-  });
-  return item?.category || "sneakers";
-};
+const { attributeOrder } = require("../services/attribution.service.js");
 
 const handleProductCreate = async (req, res) => {
   try {
@@ -119,136 +88,16 @@ const handleProductDelete = async (req, res) => {
   }
 };
 
+// Only sales with proof of a Syncstock click count — see
+// attribution.service.js. The web pixel may report the same order too;
+// whichever arrives second completes the match.
 const handleOrderCreate = async (req, res) => {
   try {
     const store = req.store;
-    const data = JSON.parse(req.body);
+    const order = JSON.parse(req.body);
     res.status(200).json({ received: true });
 
-    const customerEmail = data.email;
-    const shopifyOrderId = String(data.id);
-    const lineItems = data.line_items || [];
-
-    const tags = (data.tags || "").toLowerCase();
-    const sourceName = (data.source_name || "").toLowerCase();
-    if (
-      sourceName === "pos" ||
-      tags.includes("store-owned") ||
-      tags.includes("pos")
-    ) {
-      console.log(`Skipping POS/store orders for ${customerEmail}`);
-      return;
-    }
-
-    const clickAttr = (data.note_attributes || []).find(
-      (attr) => attr.name === "syncstock_click_id",
-    );
-
-    if (clickAttr) {
-      const click = await AlertClick.findOne({
-        where: { id: clickAttr.value, store_id: store.id },
-      });
-
-      if (click) {
-        const matchedItem =
-          lineItems.find(
-            (item) =>
-              click.sku &&
-              item.sku &&
-              item.sku.toLowerCase() === click.sku.toLowerCase(),
-          ) ||
-          lineItems.find((item) =>
-            (item.title || "")
-              .toLowerCase()
-              .includes((click.product_name || "").toLowerCase()),
-          );
-
-        if (matchedItem) {
-          await Purchase.create({
-            store_id: store.id,
-            user_id: click.user_id,
-            alert_id: click.alert_id,
-            shopify_order_id: shopifyOrderId,
-            category: await categoryForLineItem(store, matchedItem),
-            product_name: click.product_name,
-            sku: click.sku,
-            size: click.size,
-            price_paid: parseFloat(matchedItem.price) || null,
-            customer_email: customerEmail,
-            purchased_at: new Date(data.created_at),
-          });
-          console.log(
-            `Purchase attributed via click tag — ${click.product_name} for ${customerEmail} (store ${store.id})`,
-          );
-          return;
-        }
-      }
-    }
-
-    if (!customerEmail) return;
-
-    // Email lives on Account; User is the account's membership at this
-    // store. Case-insensitive since emails are stored as the user typed them.
-    const account = await Account.findOne({
-      where: sequelize.where(
-        sequelize.fn("lower", sequelize.col("email")),
-        customerEmail.toLowerCase(),
-      ),
-    });
-    if (!account) return;
-
-    const user = await User.findOne({
-      where: { store_id: store.id, account_id: account.id },
-    });
-    if (!user) return;
-
-    const ATTRIBUTION_WINDOW_DAYS = 30;
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - ATTRIBUTION_WINDOW_DAYS);
-
-    const userAlerts = await Alert.findAll({
-      where: {
-        store_id: store.id,
-        user_id: user.id,
-        created_at: { [Op.gte]: cutoff },
-      },
-    });
-    const recentClicks = await AlertClick.findAll({
-      where: {
-        store_id: store.id,
-        user_id: user.id,
-        clicked_at: { [Op.gte]: cutoff },
-      },
-    });
-
-    for (const item of lineItems) {
-      const matchedAlert = userAlerts.find((alert) => isItemMatch(alert, item));
-      const matchedClick = recentClicks.find((click) =>
-        isItemMatch(click, item),
-      );
-
-      if (!matchedAlert && !matchedClick) {
-        continue;
-      }
-
-      await Purchase.create({
-        store_id: store.id,
-        user_id: user.id,
-        alert_id: matchedAlert?.id || null,
-        shopify_order_id: shopifyOrderId,
-        category: await categoryForLineItem(store, item),
-        product_name: item.title,
-        sku: item.sku || null,
-        size: item.variant_title?.split(" - ")?.[0] || null,
-        price_paid: parseFloat(item.price) || null,
-        customer_email: customerEmail,
-        purchased_at: new Date(data.created_at),
-      });
-
-      console.log(
-        `Purchase attributed via matching — ${item.title} for ${customerEmail} (store ${store.id})`,
-      );
-    }
+    await attributeOrder(store, order);
   } catch (error) {
     console.error("Order create webhook error:", error.message);
   }
