@@ -3,6 +3,15 @@ const { Resend } = require("resend");
 const { renderEmail, productCard, itemRow, button, escapeHtml } = require("./emailLayout.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { unsubscribeUrl } = require("../utils/unsubscribe.js");
+const { logoUrl, textOnColor } = require("../utils/storeSettings.js");
+
+// A store's branding for its emails (store settings): button colors and
+// logo. Without a brand color, emails keep Syncstock's blue.
+const brandFor = (store) => ({
+  color: store?.brand_color || null,
+  text: store?.brand_color ? textOnColor(store.brand_color) : null,
+  logoUrl: logoUrl(store),
+});
 
 let resend = null;
 
@@ -171,6 +180,7 @@ const sendDigestEmail = async ({ store, account, membershipId, alerts = [], size
   if (parts.length === 0) return;
 
   const both = parts.length === 2;
+  const brand = brandFor(store);
   const [firstKind] = parts[0];
   const first = DIGEST_KINDS[firstKind];
   const allItems = parts.flatMap(([, items]) => items);
@@ -190,7 +200,7 @@ const sendDigestEmail = async ({ store, account, membershipId, alerts = [], size
     parts
       .map(([kind, items]) => `${both ? sectionTitle(DIGEST_KINDS[kind].section) : ""}${rowsFor(items)}`)
       .join("") +
-    `<div style="margin-top: 24px;">${button(ctaHref, allItems.length === 1 ? "View it" : "See your matches")}</div>`;
+    `<div style="margin-top: 24px;">${button(ctaHref, allItems.length === 1 ? "View it" : "See your matches", brand)}</div>`;
 
   const footerText = `${parts.map(([kind]) => DIGEST_KINDS[kind].footer(fromName)).join(" ")} Manage alerts in your profile.`;
   const footer = `${parts.map(([kind]) => DIGEST_KINDS[kind].footer(storeHtml)).join(" ")} Manage alerts in your profile.`;
@@ -210,6 +220,7 @@ const sendDigestEmail = async ({ store, account, membershipId, alerts = [], size
       bodyHtml,
       footer,
       unsubscribeHref,
+      logoUrl: brand.logoUrl,
     }),
     text: plainText({
       greetingText: `Hi${account.full_name ? ` ${account.full_name}` : ""}`,
@@ -268,7 +279,8 @@ const sendPasswordResetEmail = async ({
       preheader: "This link expires in 1 hour",
       heading: "Reset your password",
       intro: `${greeting(account)}, use the button below to choose a new password. This link expires in 1 hour.`,
-      bodyHtml: button(resetUrl, "Reset password"),
+      bodyHtml: button(resetUrl, "Reset password", brandFor(store)),
+      logoUrl: brandFor(store).logoUrl,
       footer: ignoreNote,
     }),
   });
@@ -293,7 +305,8 @@ const sendVerificationEmail = async ({ store, account, verifyUrl, merchant = fal
       preheader: "Confirm your email to finish signing up",
       heading: "Verify your email",
       intro: `${greeting(account)}, confirm this is your email to finish setting up your ${where} account. This link expires in 24 hours.`,
-      bodyHtml: button(verifyUrl, "Verify email"),
+      bodyHtml: button(verifyUrl, "Verify email", merchant ? null : brandFor(store)),
+      logoUrl: merchant ? null : brandFor(store).logoUrl,
       footer: "If you didn't sign up, you can ignore this email.",
     }),
     text: `Confirm this is your email to finish setting up your ${merchant ? "Syncstock" : fromName} account:
@@ -304,7 +317,41 @@ This link expires in 24 hours. If you didn't sign up, you can ignore this email.
   if (error) throw new Error(error.message || "Verification email failed");
 };
 
+// A plain send for one-off emails built elsewhere (weekly report)
+const sendStoreEmail = async ({ fromName, to, subject, html, text }) => {
+  if (!resend) {
+    console.warn(`Skipping email (Resend not configured): ${subject}`);
+    return;
+  }
+  const { error } = await resend.emails.send({
+    from: `${fromName} <${process.env.RESEND_FROM_EMAIL}>`,
+    to,
+    subject,
+    html,
+    text,
+  });
+  if (error) throw new Error(error.message || "Email failed");
+};
+
+// Internal notices for the Syncstock team (e.g. Shopify data requests).
+// Plain text, to OPS_EMAIL (default support@syncstock.io).
+const sendOpsEmail = async ({ subject, text }) => {
+  if (!resend) {
+    console.warn(`Skipping ops email (Resend not configured): ${subject}`);
+    return;
+  }
+  const { error } = await resend.emails.send({
+    from: `Syncstock <${process.env.RESEND_FROM_EMAIL}>`,
+    to: process.env.OPS_EMAIL || "support@syncstock.io",
+    subject,
+    text,
+  });
+  if (error) throw new Error(error.message || "Ops email failed");
+};
+
 module.exports = {
+  sendStoreEmail,
+  sendOpsEmail,
   sendVerificationEmail,
   sendAlertEmail,
   sendPriceDropEmail,

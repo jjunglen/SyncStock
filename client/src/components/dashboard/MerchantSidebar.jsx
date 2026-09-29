@@ -7,6 +7,7 @@ import {
   LuShoppingBag,
   LuUser,
   LuUsers,
+  LuSettings,
   LuChevronDown,
   LuChevronsRight,
 } from "react-icons/lu";
@@ -44,6 +45,12 @@ const NAV_ITEMS = [
     label: "Customers", 
     icon: LuUsers, 
     to: "/customers"
+  },
+  {
+    key: "settings",
+    label: "Store settings",
+    icon: LuSettings,
+    to: "/settings",
   },
 ];
 

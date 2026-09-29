@@ -64,7 +64,12 @@ export default function MerchantDashboard() {
       .catch((err) => console.error("Failed to load customer count:", err));
   }, []);
 
-  const funnelBaseline = funnel?.alerts || 0;
+  // Bars are sized against the biggest number. The stages aren't
+  // subsets of each other (one alert can be clicked many times), so
+  // sizing them against active alerts ran past 100%.
+  const funnelBaseline = funnel
+    ? Math.max(...FUNNEL_STAGES.map((stage) => funnel[stage.key] || 0))
+    : 0;
   const funnelPercent = (value) =>
     funnelBaseline > 0 ? Math.round((value / funnelBaseline) * 100) : 0;
 
@@ -153,8 +158,8 @@ export default function MerchantDashboard() {
               <p className="text-sm text-text-muted">Loading...</p>
             ) : funnelBaseline === 0 ? (
               <p className="text-sm text-text-muted">
-                No active alerts yet — this fills in once customers start
-                tracking shoes.
+                Nothing yet — this fills in once customers start tracking
+                shoes.
               </p>
             ) : (
               <div className="space-y-4">

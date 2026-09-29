@@ -11,6 +11,8 @@ const {
   searchInventory,
   getInventoryInMySizes,
   getCategories,
+  getBrands,
+  getProductSizes,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
@@ -34,6 +36,20 @@ router.get(
   publicLimiter,
   resolveStoreFromSubdomain,
   getCategories,
+);
+router.get(
+  "/brands",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  getBrands,
+);
+router.get(
+  "/:id/sizes",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  getProductSizes,
 );
 router.get(
   "/:id",

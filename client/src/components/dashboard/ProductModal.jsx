@@ -12,6 +12,7 @@ import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
 import { useCart, addToCart, MAX_CART_ITEMS } from "../../lib/cart.js";
+import OtherSizes from "./OtherSizes.jsx";
 
 function conditionLabel(condition) {
   if (condition === "brand_new") return "Brand New";
@@ -19,7 +20,7 @@ function conditionLabel(condition) {
   return null;
 }
 
-export default function ProductModal({ item, onClose, onAlertCreated }) {
+export default function ProductModal({ item, onClose, onAlertCreated, alerts, onOpenItem }) {
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
   const [alertSet, setAlertSet] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
@@ -156,7 +157,7 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
             <div className="flex gap-2 flex-wrap mb-3">
               {conditionLabel(item.condition) && (
                 <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"}`}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-text/5 text-text-muted"}`}
                 >
                   {conditionLabel(item.condition)}
                 </span>
@@ -241,6 +242,13 @@ export default function ProductModal({ item, onClose, onAlertCreated }) {
                 </span>
               </Button>
             )}
+
+            <OtherSizes
+              item={item}
+              alerts={alerts}
+              onOpenItem={onOpenItem}
+              onAlertCreated={onAlertCreated}
+            />
           </div>
         </div>
       </div>

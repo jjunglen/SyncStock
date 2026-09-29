@@ -47,12 +47,15 @@ const lightOverrides = (prefix) => `
   ${prefix} .ss-rule { border-color: ${LIGHT.border} !important; }
 `;
 
-const button = (href, label) => `
-  <a href="${escapeHtml(href)}" style="display: inline-block; background: ${ACCENT}; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">${escapeHtml(label)}</a>`;
+// brand: the store's colors ({ color, text } — see brandFor in
+// email.service.js); without one, Syncstock's blue
+const button = (href, label, brand) => `
+  <a href="${escapeHtml(href)}" style="display: inline-block; background: ${brand?.color || ACCENT}; color: ${brand?.text || "#ffffff"}; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">${escapeHtml(label)}</a>`;
 
 // preheader: the preview line inboxes show next to the subject
 // unsubscribeHref: adds a visible "Unsubscribe" link after the footer
-const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer, unsubscribeHref }) => `<!DOCTYPE html>
+// logoUrl: the store's logo, on a white tile above the heading
+const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer, unsubscribeHref, logoUrl }) => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -73,6 +76,11 @@ const renderEmail = ({ preheader = "", heading, intro, bodyHtml = "", footer, un
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="ss-body" style="max-width: 600px; background: ${DARK.body}; border: 1px solid ${DARK.border}; border-radius: 12px;">
           <tr>
             <td style="padding: 32px; font-family: Arial, Helvetica, sans-serif;">
+              ${
+                logoUrl
+                  ? `<div style="display: inline-block; background: #ffffff; border-radius: 8px; padding: 8px 12px; margin-bottom: 20px;"><img src="${escapeHtml(logoUrl)}" alt="" height="36" style="display: block; height: 36px; width: auto; max-width: 180px;" /></div>`
+                  : ""
+              }
               <h1 class="ss-text" style="margin: 0 0 8px; font-size: 24px; color: ${DARK.text};">${heading}</h1>
               <p class="ss-muted" style="margin: 0 0 24px; font-size: 15px; line-height: 1.5; color: ${DARK.muted};">${intro}</p>
               ${bodyHtml}

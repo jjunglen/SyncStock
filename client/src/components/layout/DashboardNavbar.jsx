@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   LuBell,
@@ -11,7 +11,7 @@ import {
   LuMoon,
   LuShoppingBag,
 } from "react-icons/lu";
-import SignalDot from "../ui/SignalDot.jsx";
+import StoreBrandMark from "../store/StoreBrandMark.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import CartDrawer from "../dashboard/CartDrawer.jsx";
@@ -19,21 +19,16 @@ import Button from "../ui/Button.jsx";
 import api from "../../lib/api.js";
 import { useTheme } from "../../lib/theme.js";
 import { useCart } from "../../lib/cart.js";
+import { useStoreInfo } from "../../lib/storeInfo.js";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
-  const [storeName, setStoreName] = useState("");
+  const store = useStoreInfo();
+  const storeName = store?.name || "";
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const cartItems = useCart();
   const { theme, toggleTheme } = useTheme();
-
-  useEffect(() => {
-    api
-      .get("/store")
-      .then((res) => setStoreName(res.data.data.name))
-      .catch(() => {});
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -78,10 +73,7 @@ export default function DashboardNavbar() {
       <header className="fixed top-0 left-0 w-full z-40 bg-bg/90 backdrop-blur border-b border-border">
         <div className="max-w-6xl mx-auto px-4 md:px-10 h-16 flex items-center justify-between">
           <Link to="/store/dashboard" className="flex items-center gap-2">
-            <SignalDot tone="live" size="md" />
-            <span className="font-display font-semibold text-sm">
-              {storeName || "Store"}
-            </span>
+            <StoreBrandMark name={storeName || "Store"} logoUrl={store?.logo_url} />
           </Link>
 
           <div className="flex items-center gap-1.5 md:gap-3">

@@ -4,6 +4,7 @@ import { LuSearch, LuCircleCheck, LuCircleX } from "react-icons/lu";
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import api from "../../lib/api.js";
+import { CONDITION_OPTIONS } from "../../lib/alertOptions.js";
 
 const sizeOptions = [
   "3.5M/5W",
@@ -41,6 +42,7 @@ export default function TrackShoe() {
   const [searching, setSearching] = useState(false);
   const [size, setSize] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [condition, setCondition] = useState("either");
   const [emailNotif, setEmailNotif] = useState(true);
   const [inAppNotif, setInAppNotif] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +92,7 @@ export default function TrackShoe() {
         sku: selectedShoe.styleId,
         size,
         max_price: maxPrice ? parseFloat(maxPrice) : null,
+        condition_preference: condition,
         notify_email: emailNotif,
         notify_inapp: inAppNotif,
         stockx_product_id: selectedShoe.productId,
@@ -259,7 +262,7 @@ export default function TrackShoe() {
                   Set your alert preferences
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
                   <div>
                     <label className="text-xs text-text-muted block mb-1.5">
                       Size
@@ -288,6 +291,22 @@ export default function TrackShoe() {
                       placeholder="e.g. 350"
                       className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none"
                     />
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-muted block mb-1.5">
+                      Condition
+                    </label>
+                    <select
+                      value={condition}
+                      onChange={(e) => setCondition(e.target.value)}
+                      className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none"
+                    >
+                      {CONDITION_OPTIONS.map((o) => (
+                        <option value={o.value} key={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

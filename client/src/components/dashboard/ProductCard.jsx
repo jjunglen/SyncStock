@@ -24,7 +24,7 @@ export default function ProductCard({ item }) {
           )}
           {conditionLabel(item.condition) && (
             <span
-              className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-live text-white" : "bg-black/70 text-white"}`}
+              className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-black/70 text-white"}`}
             >
               {conditionLabel(item.condition)}
             </span>
@@ -61,7 +61,7 @@ export default function ProductCard({ item }) {
         )}
         {conditionLabel(item.condition) && (
           <span
-            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${item.condition === "brand_new" ? "bg-live text-white" : "bg-black/60 text-white"}`}
+            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-black/60 text-white"}`}
           >
             {conditionLabel(item.condition)}
           </span>

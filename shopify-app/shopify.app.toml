@@ -16,3 +16,14 @@ redirect_urls = [ "https://api.syncstock.io/api/store/shopify/callback" ]
 
 [webhooks]
 api_version = "2026-07"
+
+# Sent for every store that installs Syncstock (no per-store setup).
+# Handled in server/src/routes/webhook.routes.js.
+[[webhooks.subscriptions]]
+topics = [ "app/uninstalled" ]
+uri = "https://api.syncstock.io/api/webhooks/shopify/app/uninstalled"
+
+# Shopify's required privacy webhooks (compliance.controller.js)
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "https://api.syncstock.io/api/webhooks/shopify/compliance"

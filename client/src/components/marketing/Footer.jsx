@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { FaFacebook, FaXTwitter, FaInstagram, FaLinkedin } from "react-icons/fa6";
+import { LEGAL } from "../../lib/legal.js";
 
 const QUICK_LINKS = [
 { label: "Home", href: "/" },
@@ -57,7 +58,12 @@ return (
                 );
             })}
             </div>
-            <p className="text-sm text-text-muted">support@syncstock.io</p>
+            <a
+              href={`mailto:${LEGAL.contactEmail}`}
+              className="text-sm text-text-muted hover:text-text transition-colors"
+            >
+              {LEGAL.contactEmail}
+            </a>
         </div>
         </div>
 

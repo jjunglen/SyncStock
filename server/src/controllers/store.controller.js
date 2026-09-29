@@ -3,6 +3,8 @@ const { Op } = require("sequelize");
 const { Store, Inventory, User, Account } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
+const { detectBrand } = require("../utils/brand.js");
+const { enabledCategories, logoUrl, textOnColor } = require("../utils/storeSettings.js");
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
@@ -126,6 +128,7 @@ const backfillInventory = async (store, accessToken, shop) => {
             shopify_variant_id: String(variant.id),
             category,
             product_name: product.title,
+            brand: detectBrand(product.title, product.vendor, store.name),
             sku: variant.sku || null,
             size: normalizeSize(size, category),
             condition,
@@ -302,7 +305,14 @@ const handleShopifyCallback = async (req, res) => {
         onboarding_step: "account",
       });
     } else {
-      await store.update({ shopify_access_token: access_token });
+      await store.update({
+        shopify_access_token: access_token,
+        // Reinstalled after an uninstall: back online where they left off
+        ...(store.uninstalled_at && {
+          uninstalled_at: null,
+          status: store.onboarding_step === "complete" ? "active" : "pending",
+        }),
+      });
     }
 
     await registerShopifyWebhooks(store, access_token, shop);
@@ -465,6 +475,11 @@ const getStore = async (req, res) => {
       subdomain: req.store.subdomain,
       plan: req.store.plan,
       status: req.store.status,
+      // Branding + categories for the shopper site
+      logo_url: logoUrl(req.store),
+      brand_color: req.store.brand_color || null,
+      brand_text_color: req.store.brand_color ? textOnColor(req.store.brand_color) : null,
+      enabled_categories: enabledCategories(req.store),
     },
   });
 };

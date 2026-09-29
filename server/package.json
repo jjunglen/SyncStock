@@ -8,6 +8,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@sentry/node": "^10.75.3",
     "bcryptjs": "^3.0.3",
     "cookie": "^2.0.1",
     "cookie-parser": "^1.4.7",

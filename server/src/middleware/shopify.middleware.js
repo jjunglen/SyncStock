@@ -1,20 +1,12 @@
 const crypto = require("crypto");
 
-// Verifies an incoming webhook actually came from Shopify.
-const verifyShopifyWebhook = (req, res, next) => {
+// Verifies an incoming webhook actually came from Shopify: signed with
+// the app's secret over the raw body. Shopify's App Store review checks
+// that a bad signature gets a 401.
+const verifyShopifyHmac = (req, res, next) => {
   try {
-    if (!req.store) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: "Store not resolved before webhook verification",
-        });
-    }
-
     const shopifySig = req.headers["x-shopify-hmac-sha256"];
-
-    if (!shopifySig) {
+    if (!shopifySig || !Buffer.isBuffer(req.body)) {
       return res
         .status(401)
         .json({ success: false, message: "Missing Shopify signature" });
@@ -45,4 +37,15 @@ const verifyShopifyWebhook = (req, res, next) => {
   }
 };
 
-module.exports = { verifyShopifyWebhook };
+// Store webhooks: the store must be resolved first (tenant middleware)
+const verifyShopifyWebhook = (req, res, next) => {
+  if (!req.store) {
+    return res.status(401).json({
+      success: false,
+      message: "Store not resolved before webhook verification",
+    });
+  }
+  return verifyShopifyHmac(req, res, next);
+};
+
+module.exports = { verifyShopifyWebhook, verifyShopifyHmac };

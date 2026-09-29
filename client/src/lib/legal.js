@@ -1,13 +1,14 @@
 // Details the Privacy Policy, Terms, and Cookie Policy fill in.
-// TODO before launch: replace every [bracketed] value, then have a
-// lawyer review all three pages — they're a starting draft, not legal advice.
+// TODO before launch: have a lawyer review all three pages — they're a
+// starting draft, not legal advice. mailingAddress is left out of the
+// pages while empty; add one when there's a business address.
 export const LEGAL = {
-  company: "[Company legal name]",
+  company: "Syncstock LLC",
   brand: "Syncstock",
   site: "syncstock.io",
-  contactEmail: "support@syncstock.io",
-  mailingAddress: "[Mailing address]",
-  apiHost: "[API hosting provider]",
-  governingLaw: "[State]",
-  effectiveDate: "[Effective date]",
+  contactEmail: "hello@syncstock.io",
+  mailingAddress: "",
+  apiHost: "Railway",
+  governingLaw: "Texas",
+  effectiveDate: "September 28, 2026",
 };

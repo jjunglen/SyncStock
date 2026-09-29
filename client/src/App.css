@@ -21,6 +21,10 @@
   --color-danger: #ef4444;
   --color-warn: #f5a623;
   --color-live: #22c55e;
+  /* Highlights like the "Brand New" badge: green by default, the
+     merchant's brand color when they set one (lib/storeInfo.js) */
+  --color-accent: #22c55e;
+  --color-accent-text: #ffffff;
 
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;

@@ -5,12 +5,12 @@ import {
   LuChevronDown,
   LuLayoutDashboard,
   LuBell,
-  LuTrash2,
   LuPlus,
 } from "react-icons/lu";
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import ProductCard from "../../components/dashboard/ProductCard.jsx";
 import ProductModal from "../../components/dashboard/ProductModal.jsx";
+import AlertCard from "../../components/dashboard/AlertCard.jsx";
 import Button from "../../components/ui/Button.jsx";
 import {
   ContainerToggle,
@@ -26,6 +26,33 @@ const TABS = [
 ];
 
 const PAGE_SIZE = 24;
+
+// Price filter options — the laboratory's items run $8 to $1,500,
+// most around $90
+const PRICE_RANGES = [
+  { key: "", label: "Any price" },
+  { key: "0-100", label: "Under $100", max: 100 },
+  { key: "100-200", label: "$100 – $200", min: 100, max: 200 },
+  { key: "200-300", label: "$200 – $300", min: 200, max: 300 },
+  { key: "300-500", label: "$300 – $500", min: 300, max: 500 },
+  { key: "500-", label: "$500+", min: 500 },
+];
+
+const SORTS = [
+  { value: "newest", label: "Newest" },
+  { value: "price_asc", label: "Price: low to high" },
+  { value: "price_desc", label: "Price: high to low" },
+];
+
+// Adds the brand and price filters and sort to an inventory request
+const addFilters = (params, brand, priceKey, sort) => {
+  if (brand) params.set("brand", brand);
+  if (sort && sort !== "newest") params.set("sort", sort);
+  const range = PRICE_RANGES.find((r) => r.key === priceKey);
+  if (range?.min != null) params.set("min_price", String(range.min));
+  if (range?.max != null) params.set("max_price", String(range.max));
+  return params;
+};
 
 export default function CustomerDashboard() {
   const location = useLocation();
@@ -53,6 +80,13 @@ export default function CustomerDashboard() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedSize, setSelectedSize] = useState("All sizes");
 
+  // Brand + price filters apply to both In stock and Browse
+  const [brandFilter, setBrandFilter] = useState("");
+  const [priceFilter, setPriceFilter] = useState("");
+  const [brandOptions, setBrandOptions] = useState([]);
+  const [sort, setSort] = useState("newest");
+  const filtersActive = !!(brandFilter || priceFilter);
+
   const [alerts, setAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
 
@@ -77,6 +111,29 @@ export default function CustomerDashboard() {
     setInStockPage(1);
     setBrowsePage(1);
     setSelectedSize("All sizes");
+    setBrandFilter("");
+    setPriceFilter("");
+  };
+
+  // A filter change starts both lists from page 1
+  const changeBrand = (value) => {
+    setBrandFilter(value);
+    setInStockPage(1);
+    setBrowsePage(1);
+  };
+  const changePrice = (value) => {
+    setPriceFilter(value);
+    setInStockPage(1);
+    setBrowsePage(1);
+  };
+  const changeSort = (value) => {
+    setSort(value);
+    setInStockPage(1);
+    setBrowsePage(1);
+  };
+  const clearFilters = () => {
+    changeBrand("");
+    changePrice("");
   };
 
   useEffect(() => {
@@ -86,10 +143,16 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load account:", err));
   }, []);
 
-  const fetchInStock = useCallback((page, cat) => {
+  const fetchInStock = useCallback((page, cat, brand, price, order) => {
     setLoadingInStock(true);
+    const params = addFilters(
+      new URLSearchParams({ category: cat, page: String(page), limit: String(PAGE_SIZE) }),
+      brand,
+      price,
+      order,
+    );
     api
-      .get(`/inventory/my-sizes?category=${cat}&page=${page}&limit=${PAGE_SIZE}`)
+      .get(`/inventory/my-sizes?${params.toString()}`)
       .then((res) => {
         setInStockItems(res.data.data || []);
         setInStockMeta(res.data.meta || null);
@@ -99,10 +162,21 @@ export default function CustomerDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchInStock(inStockPage, category);
-  }, [inStockPage, category, fetchInStock]);
+    fetchInStock(inStockPage, category, brandFilter, priceFilter, sort);
+  }, [inStockPage, category, brandFilter, priceFilter, sort, fetchInStock]);
 
-  const fetchBrowse = useCallback((page, query, size, cat) => {
+  // Brands to offer: in your sizes on In stock, everything on Browse
+  useEffect(() => {
+    if (tab === "alerts") return;
+    const params = new URLSearchParams({ category });
+    if (tab === "instock") params.set("scope", "my-sizes");
+    api
+      .get(`/inventory/brands?${params.toString()}`)
+      .then((res) => setBrandOptions(res.data.data || []))
+      .catch((err) => console.error("Failed to load brands:", err));
+  }, [tab, category]);
+
+  const fetchBrowse = useCallback((page, query, size, cat, brand, price, order) => {
     setLoadingBrowse(true);
     const params = new URLSearchParams({
       category: cat,
@@ -111,6 +185,7 @@ export default function CustomerDashboard() {
     });
     if (query) params.set("q", query);
     if (size && size !== "All sizes") params.set("size", size);
+    addFilters(params, brand, price, order);
 
     api
       .get(`/inventory/search?${params.toString()}`)
@@ -137,16 +212,28 @@ export default function CustomerDashboard() {
   // triggers exactly one fetch — Previous/Next just changes browsePage
   // and this picks it up the same way a filter change does.
   useEffect(() => {
-    fetchBrowse(browsePage, debouncedQuery, selectedSize, category);
-  }, [browsePage, debouncedQuery, selectedSize, category, fetchBrowse]);
+    fetchBrowse(browsePage, debouncedQuery, selectedSize, category, brandFilter, priceFilter, sort);
+  }, [browsePage, debouncedQuery, selectedSize, category, brandFilter, priceFilter, sort, fetchBrowse]);
 
-  useEffect(() => {
+  const loadAlerts = useCallback(() => {
     api
       .get("/alerts")
       .then((res) => setAlerts(res.data.data.alerts || []))
       .catch((err) => console.error("Failed to load alerts:", err))
       .finally(() => setLoadingAlerts(false));
   }, []);
+
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
+
+  // "Need a different size?" in the popup opens that size's listing
+  const openItem = (id) => {
+    api
+      .get(`/inventory/${id}`)
+      .then((res) => setSelectedItem(res.data.data))
+      .catch((err) => console.error("Failed to load item:", err));
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -220,6 +307,79 @@ export default function CustomerDashboard() {
     </div>
   );
 
+  const selectClass =
+    "w-full appearance-none text-sm border border-border bg-surface text-text-muted pl-4 pr-9 py-2.5 rounded-lg focus:outline-none cursor-pointer";
+
+  // The chosen brand stays listed even if this tab has none of it
+  const brandChoices =
+    brandFilter && !brandOptions.some((b) => b.brand === brandFilter)
+      ? [{ brand: brandFilter, count: 0 }, ...brandOptions]
+      : brandOptions;
+
+  // On phones the dropdowns stretch to share each row; from sm up they
+  // sit at their natural width
+  const filterWidth = "flex-1 min-w-[8.5rem] sm:flex-none sm:min-w-0";
+
+  const filterSelect = (label, value, onChange, options) => (
+    <div className={`relative ${filterWidth}`}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className={`${selectClass} ${value ? "text-text border-text/30" : ""}`}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <LuChevronDown
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+        size={14}
+      />
+    </div>
+  );
+
+  const brandAndPriceFilters = (
+    <>
+      {filterSelect("Brand", brandFilter, changeBrand, [
+        { value: "", label: "All brands" },
+        ...brandChoices.map((b) => ({
+          value: b.brand,
+          label: b.count ? `${b.brand} (${b.count})` : b.brand,
+        })),
+      ])}
+      {filterSelect(
+        "Price",
+        priceFilter,
+        changePrice,
+        PRICE_RANGES.map((r) => ({ value: r.key, label: r.label })),
+      )}
+      {filterSelect("Sort", sort === "newest" ? "" : sort, (v) => changeSort(v || "newest"), [
+        { value: "", label: "Sort: Newest" },
+        ...SORTS.slice(1).map((o) => ({ value: o.value, label: o.label })),
+      ])}
+      {filtersActive && (
+        <button
+          onClick={clearFilters}
+          className="text-sm text-text-muted hover:text-text underline whitespace-nowrap"
+        >
+          Clear filters
+        </button>
+      )}
+    </>
+  );
+
+  const noMatches = (
+    <div className="text-center py-16">
+      <p className="text-text-muted text-sm mb-3">Nothing matches these filters</p>
+      <button onClick={clearFilters} className="text-sm text-text underline">
+        Clear filters
+      </button>
+    </div>
+  );
+
   const sizeFilter = categorySizes.length > 0 && (
     <div className="relative">
       <select
@@ -246,7 +406,14 @@ export default function CustomerDashboard() {
       <DashboardNavbar />
 
       {selectedItem && (
-        <ProductModal item={selectedItem} onClose={closeModal} />
+        <ProductModal
+          key={selectedItem.id}
+          item={selectedItem}
+          onClose={closeModal}
+          alerts={alerts}
+          onAlertCreated={loadAlerts}
+          onOpenItem={openItem}
+        />
       )}
 
       <div className="pt-16">
@@ -330,8 +497,14 @@ export default function CustomerDashboard() {
                 )}
               </div>
 
+              <div className="flex items-center gap-3 mb-6 flex-wrap">
+                {brandAndPriceFilters}
+              </div>
+
               {loadingInStock ? (
                 <p className="text-text-muted text-sm">Loading...</p>
+              ) : inStockItems.length === 0 && filtersActive ? (
+                noMatches
               ) : inStockItems.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="text-text-muted text-sm mb-2">
@@ -421,12 +594,15 @@ export default function CustomerDashboard() {
                   />
                 </div>
                 {sizeFilter && (
-                  <div className={showSwitcher ? "lg:hidden" : ""}>{sizeFilter}</div>
+                  <div className={`${filterWidth} ${showSwitcher ? "lg:hidden" : ""}`}>{sizeFilter}</div>
                 )}
+                {brandAndPriceFilters}
               </div>
 
               {loadingBrowse ? (
                 <p className="text-text-muted text-sm">Loading...</p>
+              ) : browseItems.length === 0 && filtersActive ? (
+                noMatches
               ) : browseItems.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="text-text-muted text-sm">No results found</p>
@@ -507,35 +683,16 @@ export default function CustomerDashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                   {alerts.map((alert) => (
-                    <div
+                    <AlertCard
                       key={alert.id}
-                      className="flex items-center justify-between gap-3 bg-surface border border-border rounded-xl p-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-text truncate">
-                          {alert.product_name}
-                        </p>
-                        <p className="text-xs text-text-muted">{alert.size}</p>
-                        {alert.max_price && (
-                          <p className="text-xs text-text-muted">
-                            Max ${parseFloat(alert.max_price).toFixed(0)}
-                          </p>
-                        )}
-                        <span
-                          className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${alert.active ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"}`}
-                        >
-                          {alert.active ? "Active" : "Paused"}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteAlert(alert.id)}
-                        className="text-text-muted hover:text-danger transition-colors shrink-0"
-                      >
-                        <LuTrash2 size={18} />
-                      </button>
-                    </div>
+                      alert={alert}
+                      onDelete={handleDeleteAlert}
+                      onUpdated={(updated) =>
+                        setAlerts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+                      }
+                    />
                   ))}
                 </div>
               )}

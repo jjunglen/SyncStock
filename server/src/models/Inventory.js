@@ -31,6 +31,9 @@ const Inventory = sequelize.define(
       allowNull: false,
     },
     sku: { type: DataTypes.STRING, allowNull: true },
+    // For the Brand filter — worked out from the title and vendor by
+    // utils/brand.js, since Shopify's vendor field is inconsistent
+    brand: { type: DataTypes.STRING, allowNull: true },
     size: { type: DataTypes.STRING, allowNull: true },
     condition: { type: DataTypes.STRING, allowNull: true },
     box_status: { type: DataTypes.STRING, allowNull: true },

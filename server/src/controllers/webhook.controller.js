@@ -1,6 +1,7 @@
 const { Inventory } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
+const { detectBrand } = require("../utils/brand.js");
 const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
@@ -27,6 +28,7 @@ const handleProductCreate = async (req, res) => {
         shopify_variant_id: String(variant.id),
         category,
         product_name: data.title,
+        brand: detectBrand(data.title, data.vendor, store.name),
         sku: variant.sku || null,
         size: normalizeSize(size, category),
         condition: condition,
@@ -131,6 +133,7 @@ const handleProductUpdate = async (req, res) => {
         shopify_variant_id: String(variant.id),
         category,
         product_name: data.title,
+        brand: detectBrand(data.title, data.vendor, store.name),
         sku: variant.sku || null,
         size: normalizeSize(size, category),
         condition: condition,

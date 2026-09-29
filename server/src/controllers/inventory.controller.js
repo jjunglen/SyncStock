@@ -1,16 +1,44 @@
 const { Op, fn, col } = require("sequelize");
 const { Inventory } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
+const { enabledCategories } = require("../utils/storeSettings.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
-// Listed items must be in stock and have a photo — Shopify products
-// with no images (merch, books) would show as empty cards
-const listable = (storeId) => ({
-  store_id: storeId,
-  available: { [Op.gt]: 0 },
-  image_url: { [Op.ne]: null },
-});
+// Listed items must be in stock, have a photo (Shopify products with no
+// images — merch, books — would show as empty cards), and be in a
+// category the merchant shows (store settings). Asking for a hidden
+// category finds nothing.
+const listable = (store, category) => {
+  const shown = enabledCategories(store);
+  return {
+    store_id: store.id,
+    available: { [Op.gt]: 0 },
+    image_url: { [Op.ne]: null },
+    category: category
+      ? shown.includes(category)
+        ? category
+        : { [Op.in]: [] }
+      : { [Op.in]: shown },
+  };
+};
+
+// Brand and price filters, shared by Browse and In stock
+const isPrice = (value) => /^\d+(\.\d{1,2})?$/.test(String(value));
+const applyFilters = (where, { brand, min_price, max_price }) => {
+  if (brand) where.brand = String(brand);
+  if (min_price && isPrice(min_price)) where.price = { ...where.price, [Op.gte]: min_price };
+  if (max_price && isPrice(max_price)) where.price = { ...where.price, [Op.lte]: max_price };
+  return where;
+};
+
+// ?sort= for Browse and In stock; anything else falls back to newest
+const SORTS = {
+  newest: [["created_at", "DESC"]],
+  price_asc: [["price", "ASC NULLS LAST"], ["created_at", "DESC"]],
+  price_desc: [["price", "DESC NULLS LAST"], ["created_at", "DESC"]],
+};
+const sortOrder = (sort) => SORTS[sort] || SORTS.newest;
 
 const invalidCategory = (res) =>
   res.status(400).json({ success: false, message: "Invalid category" });
@@ -27,7 +55,7 @@ const getInventory = async (req, res) => {
     const limit = Math.min(getPagination(req.query).limit, PREVIEW_LIMIT);
 
     const { count, rows } = await Inventory.findAndCountAll({
-      where: listable(req.store.id),
+      where: listable(req.store),
       order: [["created_at", "DESC"]],
       limit,
       offset,
@@ -68,18 +96,14 @@ const getInventoryItem = async (req, res) => {
   }
 };
 
-// GET /api/inventory/search?q=jordan&size=10M/11.5W&category=sneakers&max_price=300&page=1&limit=20
+// GET /api/inventory/search?q=jordan&size=10M/11.5W&category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
 const searchInventory = async (req, res) => {
   try {
-    const { q, size, category, min_price, max_price } = req.query;
+    const { q, size, category } = req.query;
     const { page, limit, offset } = getPagination(req.query);
 
-    const where = listable(req.store.id);
-
-    if (category) {
-      if (!CATEGORIES.includes(category)) return invalidCategory(res);
-      where.category = category;
-    }
+    if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
+    const where = listable(req.store, category);
 
     if (q) {
       where[Op.or] = [
@@ -92,17 +116,11 @@ const searchInventory = async (req, res) => {
       where.size = size;
     }
 
-    if (min_price) {
-      where.price = { ...where.price, [Op.gte]: min_price };
-    }
-
-    if (max_price) {
-      where.price = { ...where.price, [Op.lte]: max_price };
-    }
+    applyFilters(where, req.query);
 
     const { count, rows } = await Inventory.findAndCountAll({
       where,
-      order: [["created_at", "DESC"]],
+      order: sortOrder(req.query.sort),
       limit,
       offset,
     });
@@ -118,7 +136,14 @@ const searchInventory = async (req, res) => {
   }
 };
 
-// GET /api/inventory/my-sizes?category=sneakers&page=1&limit=20
+// The listed items in the shopper's saved sizes (trading cards: all)
+const mySizesWhere = (store, sizes, category) => {
+  const where = listable(store, category);
+  if (category !== "trading_cards") where.size = { [Op.in]: sizes || [] };
+  return where;
+};
+
+// GET /api/inventory/my-sizes?category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
 const getInventoryInMySizes = async (req, res) => {
   try {
     if (!req.account) {
@@ -144,13 +169,11 @@ const getInventoryInMySizes = async (req, res) => {
 
     const { page, limit, offset } = getPagination(req.query);
 
-    const where = listable(req.store.id);
-    if (!sizeless) where.size = { [Op.in]: sizes };
-    if (category) where.category = category;
+    const where = applyFilters(mySizesWhere(req.store, sizes, category), req.query);
 
     const { count, rows } = await Inventory.findAndCountAll({
       where,
-      order: [["created_at", "DESC"]],
+      order: sortOrder(req.query.sort),
       limit,
       offset,
     });
@@ -173,7 +196,7 @@ const getInventoryInMySizes = async (req, res) => {
 const getCategories = async (req, res) => {
   try {
     const rows = await Inventory.findAll({
-      where: listable(req.store.id),
+      where: listable(req.store),
       attributes: ["category", [fn("COUNT", col("id")), "count"]],
       group: ["category"],
       raw: true,
@@ -192,7 +215,62 @@ const getCategories = async (req, res) => {
   }
 };
 
+// GET /api/inventory/brands?category=sneakers&scope=my-sizes — brands
+// with listed items, most items first, for the Brand filter. scope
+// my-sizes counts only the shopper's sizes (the In stock tab).
+const getBrands = async (req, res) => {
+  try {
+    const { category, scope } = req.query;
+    if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
+
+    const where =
+      scope === "my-sizes"
+        ? mySizesWhere(req.store, req.account.sizes, category)
+        : listable(req.store, category);
+    where.brand = { [Op.ne]: null };
+
+    const rows = await Inventory.findAll({
+      where,
+      attributes: ["brand", [fn("COUNT", col("id")), "count"]],
+      group: ["brand"],
+      order: [[fn("COUNT", col("id")), "DESC"], ["brand", "ASC"]],
+      raw: true,
+    });
+    return res.status(200).json({
+      success: true,
+      data: rows.map((r) => ({ brand: r.brand, count: Number(r.count) })),
+    });
+  } catch (error) {
+    console.error("Get brands error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to fetch brands" });
+  }
+};
+
+// GET /api/inventory/:id/sizes — every listed size of the same product,
+// so the popup can offer "in stock in 10" or an alert for a missing size
+const getProductSizes = async (req, res) => {
+  try {
+    const item = await Inventory.findOne({
+      where: { id: req.params.id, store_id: req.store.id },
+      attributes: ["shopify_product_id"],
+    });
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Inventory item not found" });
+    }
+    const rows = await Inventory.findAll({
+      where: { ...listable(req.store), shopify_product_id: item.shopify_product_id },
+      attributes: ["id", "size", "price", "condition"],
+    });
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Get product sizes error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to fetch sizes" });
+  }
+};
+
 module.exports = {
+  getBrands,
+  getProductSizes,
   getCategories,
   getInventory,
   getInventoryItem,

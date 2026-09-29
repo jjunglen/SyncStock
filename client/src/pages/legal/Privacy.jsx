@@ -179,7 +179,7 @@ export default function Privacy() {
 
       <h2>Contact us</h2>
       <p>
-        {LEGAL.company}, {LEGAL.mailingAddress}. Email: {mail}.
+        {LEGAL.company}{LEGAL.mailingAddress && `, ${LEGAL.mailingAddress}`}. Email: {mail}.
       </p>
     </LegalPage>
   );

@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Landing from "./pages/Landing.jsx";
 import PricingPage from "./pages/Pricing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
@@ -12,6 +13,7 @@ import SourcingPage from "./components/dashboard/SourcingPage.jsx";
 import PurchasesPage from "./pages/dashboard/PurchasesPage.jsx";
 import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
 import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
+import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
 import TrackShoe from "./pages/dashboard/TrackShoe.jsx";
@@ -23,9 +25,23 @@ import Privacy from "./pages/legal/Privacy.jsx";
 import Terms from "./pages/legal/Terms.jsx";
 import Cookies from "./pages/legal/Cookies.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
+import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
 
 function App() {
   const subdomain = getSubdomain();
+  const { pathname } = useLocation();
+  // The store's brand color on the shopper site — a store subdomain, or
+  // locally the /store pages. Merchant pages keep Syncstock's colors.
+  const branded =
+    !!subdomain || (import.meta.env.DEV && !!import.meta.env.VITE_DEV_STORE && pathname.startsWith("/store"));
+
+  useEffect(() => {
+    if (!branded) {
+      applyBranding(null);
+      return;
+    }
+    getStoreInfo().then(applyBranding).catch(() => {});
+  }, [branded]);
 
   return (
     <Routes>
@@ -57,6 +73,7 @@ function App() {
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute requireMerchant><AccountSettings /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
       <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />
       <Route path="/store/track" element={<ProtectedRoute loginPath="/store/login"><TrackShoe /></ProtectedRoute>} />
       <Route path="/store/profile" element={<ProtectedRoute loginPath="/store/login"><CustomerProfile /></ProtectedRoute>} />

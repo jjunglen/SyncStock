@@ -4,9 +4,26 @@ const {
   sendNotification,
   sendPriceDropNotification,
 } = require("./notification.service.js");
+const { isCategoryEnabled } = require("../utils/storeSettings.js");
+
+// An alert's own limits: its max price, and new vs pre-owned. Items
+// with no known condition match either choice.
+const meetsPreferences = (alert, inventory) => {
+  if (alert.max_price && parseFloat(inventory.price) > parseFloat(alert.max_price)) {
+    return false;
+  }
+  const wanted = alert.condition_preference;
+  const actual = inventory.condition;
+  if (wanted && wanted !== "either" && ["brand_new", "pre_owned"].includes(actual)) {
+    return wanted === actual;
+  }
+  return true;
+};
 
 const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
   try {
+    // Categories the merchant hides don't send alerts either
+    if (!isCategoryEnabled(store, inventory.category)) return;
     const matchingAlerts = await Alert.findAll({
       where: {
         store_id: store.id,
@@ -18,13 +35,7 @@ const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
 
     for (const alert of matchingAlerts) {
       if (notifiedUsers.has(alert.user_id)) continue;
-
-      if (
-        alert.max_price &&
-        parseFloat(inventory.price) > parseFloat(alert.max_price)
-      ) {
-        continue;
-      }
+      if (!meetsPreferences(alert, inventory)) continue;
 
       const sent = await sendNotification({ store, alert, inventory });
       if (sent) {
@@ -40,6 +51,7 @@ const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
 
 const checkPriceDropAlerts = async (store, inventory, notifiedUsers) => {
   try {
+    if (!isCategoryEnabled(store, inventory.category)) return;
     const matchingAlerts = await Alert.findAll({
       where: {
         store_id: store.id,
@@ -51,13 +63,7 @@ const checkPriceDropAlerts = async (store, inventory, notifiedUsers) => {
 
     for (const alert of matchingAlerts) {
       if (notifiedUsers.has(alert.user_id)) continue;
-
-      if (
-        alert.max_price &&
-        parseFloat(inventory.price) > parseFloat(alert.max_price)
-      ) {
-        continue;
-      }
+      if (!meetsPreferences(alert, inventory)) continue;
 
       const sent = await sendPriceDropNotification({ store, alert, inventory });
       if (sent) {

@@ -67,6 +67,9 @@ const getAlert = async (req, res) => {
   }
 };
 
+// "New or pre-owned" choices on an alert (Alert.condition_preference)
+const CONDITIONS = ["either", "brand_new", "pre_owned"];
+
 const createAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
@@ -82,7 +85,12 @@ const createAlert = async (req, res) => {
       notify_inapp,
       stockx_product_id,
       stockx_url_key,
+      condition_preference = "either",
     } = req.body;
+
+    if (!CONDITIONS.includes(condition_preference)) {
+      return res.status(400).json({ success: false, message: "Invalid condition" });
+    }
 
     if (!ALERT_CATEGORIES.includes(category)) {
       return res.status(400).json({ success: false, message: "Invalid category" });
@@ -126,6 +134,7 @@ const createAlert = async (req, res) => {
       size: size || null,
       sku: sku || null,
       max_price: max_price || null,
+      condition_preference,
       notify_email: notify_email ?? true,
       notify_inapp: notify_inapp ?? true,
       stockx_product_id: stockx_product_id || null,
@@ -166,7 +175,11 @@ const updateAlert = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    const { size, max_price, notify_email, notify_inapp, active } = req.body;
+    const { size, max_price, notify_email, notify_inapp, active, condition_preference } = req.body;
+
+    if (condition_preference && !CONDITIONS.includes(condition_preference)) {
+      return res.status(400).json({ success: false, message: "Invalid condition" });
+    }
 
     if (size && !isValidSize(size)) {
       return res
@@ -180,7 +193,9 @@ const updateAlert = async (req, res) => {
 
     await alert.update({
       size: size ?? alert.size,
-      max_price: max_price ?? alert.max_price,
+      // Sending max_price empty/null removes the limit
+      max_price: "max_price" in req.body ? max_price || null : alert.max_price,
+      condition_preference: condition_preference ?? alert.condition_preference,
       notify_email: notify_email ?? alert.notify_email,
       notify_inapp: notify_inapp ?? alert.notify_inapp,
       active: active ?? alert.active,

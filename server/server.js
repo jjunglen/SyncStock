@@ -1,3 +1,5 @@
+// Must stay first: error alerts need to load before everything else
+const Sentry = require("./instrument.js");
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -8,6 +10,7 @@ const { sequelize, connectDB } = require("./src/config/database.js");
 const {
   flushPendingNotifications,
 } = require("./src/services/digest.service.js");
+const { sendWeeklyReports } = require("./src/services/weeklyReport.service.js");
 require("./src/models/index.js");
 const authRoutes = require("./src/routes/auth.routes.js");
 const googleAuthRoutes = require("./src/routes/google.auth.routes.js");
@@ -76,6 +79,14 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       console.error("Digest flush error:", err.message),
     );
   });
+  // Mondays 9am Central: "most wanted sizes" email to each store's admins
+  cron.schedule(
+    "0 9 * * 1",
+    () => {
+      sendWeeklyReports().catch((err) => console.error("Weekly report error:", err.message));
+    },
+    { timezone: "America/Chicago" },
+  );
 } else {
   console.log("Digest sender off (not production). Set RUN_DIGEST=true to enable.");
 }
@@ -113,6 +124,9 @@ app.get("/health", (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
+
+// Unhandled route errors go to Sentry (does nothing without SENTRY_DSN)
+Sentry.setupExpressErrorHandler(app);
 
 app.use((err, req, res, next) => {
   const status = err.status || 500;

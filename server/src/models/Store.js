@@ -81,6 +81,45 @@ const Store = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // Set by the app/uninstalled webhook (store goes offline); cleared
+    // when they reinstall. shop/redact deletes the store 48 hours after.
+    uninstalled_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Which categories shoppers see (utils/storeSettings.js). Hidden
+    // categories drop out of the shopper site and never send alerts.
+    enabled_categories: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      allowNull: false,
+      defaultValue: ["sneakers", "clothing"],
+    },
+    // Branding: a small logo image (served by GET /api/store/logo/:id)
+    // and an accent color for buttons on the shopper site and emails.
+    // logo_data is left out of normal queries — see defaultScope.
+    logo_data: {
+      type: DataTypes.BLOB,
+      allowNull: true,
+    },
+    logo_mime: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    logo_updated_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    brand_color: {
+      type: DataTypes.STRING(7),
+      allowNull: true,
+      validate: { is: /^#[0-9a-f]{6}$/i },
+    },
+    // Monday "most wanted sizes" email to the store's admins
+    weekly_report: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     status: {
     type: DataTypes.ENUM("pending", "active", "suspended"),
     defaultValue: "pending",
@@ -95,6 +134,9 @@ const Store = sequelize.define(
     tableName: "stores",
     timestamps: true,
     underscored: true,
+    // Stores are looked up on almost every request; don't drag the logo
+    // image along. Read it with Store.unscoped() where it's needed.
+    defaultScope: { attributes: { exclude: ["logo_data"] } },
 },
 );
 

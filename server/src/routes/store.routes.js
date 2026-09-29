@@ -18,6 +18,15 @@ const {
   getCustomers,
   removeCustomer,
 } = require("../controllers/store.controller.js");
+const {
+  getSettings,
+  updateSettings,
+  uploadLogo,
+  deleteLogo,
+  serveLogo,
+} = require("../controllers/storeSettings.controller.js");
+
+const admin = [authenticateAccount, resolveStoreFromAdminMembership];
 
 // No store resolution on these — nothing exists yet to resolve.
 router.post("/check-domain", checkDomain);
@@ -33,6 +42,16 @@ router.put("/subdomain", requireOnboardingOwner, updateSubdomain);
 router.put("/plan", requireOnboardingOwner, selectPlan);
 
 router.get("/", resolveStoreFromSubdomain, getStore);
+
+// Store settings (merchant): categories shown, branding, weekly email.
+// The logo is sent as the raw image file (the app-wide JSON parser
+// ignores image bodies), capped a little above the 300 KB limit so the
+// controller can explain the limit itself.
+router.get("/settings", ...admin, getSettings);
+router.put("/settings", ...admin, updateSettings);
+router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);
+router.delete("/logo", ...admin, deleteLogo);
+router.get("/logo/:id", serveLogo);
 
 router.get("/customers", authenticateAccount, resolveStoreFromAdminMembership, getCustomers);
 router.delete("/customers/:id", authenticateAccount, resolveStoreFromAdminMembership, removeCustomer);
