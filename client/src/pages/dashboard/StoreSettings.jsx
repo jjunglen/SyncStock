@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import api from "../../lib/api.js";
+import { getMyStore } from "../../lib/myStore.js";
 import { CATEGORY_META } from "../../lib/categories.js";
 
 const MAX_LOGO_BYTES = 300 * 1024;
@@ -36,12 +37,12 @@ export default function StoreSettings() {
   const fileInput = useRef(null);
 
   useEffect(() => {
-    Promise.all([api.get("/store/settings"), api.get("/store").catch(() => null)])
+    Promise.all([api.get("/store/settings"), getMyStore().catch(() => null)])
       .then(([settingsRes, storeRes]) => {
         const data = settingsRes.data.data;
         setSettings(data);
         if (data.brand_color) setColor(data.brand_color);
-        setStore(storeRes?.data.data || null);
+        setStore(storeRes || null);
       })
       .catch(() => setError("Failed to load store settings"))
       .finally(() => setLoading(false));
@@ -108,7 +109,7 @@ export default function StoreSettings() {
 
   return (
     <div className="flex min-h-screen w-full bg-bg text-text">
-      <MerchantSidebar storeName={store?.name} storeSubdomain={store?.subdomain} />
+      <MerchantSidebar />
 
       <div className="flex-1 p-6 overflow-auto max-w-xl">
         <div className="flex items-center gap-3 mb-8">

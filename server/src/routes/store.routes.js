@@ -17,6 +17,7 @@ const {
   getStore,
   getCustomers,
   removeCustomer,
+  getMyStore,
 } = require("../controllers/store.controller.js");
 const {
   getSettings,
@@ -47,6 +48,7 @@ router.get("/", resolveStoreFromSubdomain, getStore);
 // The logo is sent as the raw image file (the app-wide JSON parser
 // ignores image bodies), capped a little above the 300 KB limit so the
 // controller can explain the limit itself.
+router.get("/mine", ...admin, getMyStore);
 router.get("/settings", ...admin, getSettings);
 router.put("/settings", ...admin, updateSettings);
 router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);

@@ -51,6 +51,9 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
     "products/update",
     "products/delete",
     "orders/create",
+    // Takes the store offline when the merchant uninstalls (can't go in
+    // shopify.app.toml with the app's own install flow)
+    "app/uninstalled",
   ];
 
   const existingResp = await fetch(
@@ -484,6 +487,21 @@ const getStore = async (req, res) => {
   });
 };
 
+// GET /api/store/mine — the logged-in merchant's own store, found from
+// their login rather than the web address (the merchant dashboard runs on
+// syncstock.io, which has no store subdomain for GET /store to read)
+const getMyStore = (req, res) =>
+  res.status(200).json({
+    success: true,
+    data: {
+      id: req.store.id,
+      name: req.store.name,
+      subdomain: req.store.subdomain,
+      plan: req.store.plan,
+      status: req.store.status,
+    },
+  });
+
 // Lists customers (role: "user", never the admin themselves) with
 // optional search by email or name
 const getCustomers = async (req, res) => {
@@ -561,6 +579,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  getMyStore,
   initiateShopifyConnect,
   handleShopifyCallback,
   checkDomain,

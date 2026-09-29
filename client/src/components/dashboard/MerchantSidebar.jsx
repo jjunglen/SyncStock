@@ -12,6 +12,7 @@ import {
   LuChevronsRight,
 } from "react-icons/lu";
 import SignalDot from "../ui/SignalDot.jsx";
+import { useMyStore, storefrontUrl } from "../../lib/myStore.js";
 
 const NAV_ITEMS = [
   {
@@ -107,7 +108,9 @@ function NavOption({ item, isSelected, onClick, open }) {
   );
 }
 
-export default function MerchantSidebar({ storeName, storeSubdomain }) {
+export default function MerchantSidebar() {
+  const store = useMyStore();
+  const storeName = store?.name;
   const [savedOpen, setSavedOpen] = useState(readSavedOpen);
   const isMobile = useIsMobile();
   const open = savedOpen && !isMobile;
@@ -123,14 +126,8 @@ export default function MerchantSidebar({ storeName, storeSubdomain }) {
   const handleClick = (item) => {
     if (item.disabled) return;
     if (item.external) {
-      if (window.location.hostname === "localhost") {
-        window.open("http://localhost:5173/store/dashboard", "_blank");
-      } else {
-        window.open(
-          `https://${storeSubdomain}.syncstock.io/store/dashboard`,
-          "_blank",
-        );
-      }
+      // Still loading the store — nothing to open yet
+      if (store?.subdomain) window.open(storefrontUrl(store.subdomain), "_blank");
       return;
     }
     navigate(item.to);

@@ -4,6 +4,7 @@ import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import api from "../../lib/api.js";
+import { getMyStore } from "../../lib/myStore.js";
 
 export default function AccountSettings() {
   const [profile, setProfile] = useState(null);
@@ -16,12 +17,12 @@ export default function AccountSettings() {
   const [savedMessage, setSavedMessage] = useState("");
 
   useEffect(() => {
-    Promise.all([api.get("/users/profile"), api.get("/store")])
+    Promise.all([api.get("/users/profile"), getMyStore()])
       .then(([profileRes, storeRes]) => {
         setProfile(profileRes.data.data);
         setFullName(profileRes.data.data.full_name || "");
         setEmail(profileRes.data.data.email || "");
-        setStore(storeRes.data.data);
+        setStore(storeRes);
       })
       .catch(() => setError("Failed to load account details"))
       .finally(() => setLoading(false));
@@ -47,7 +48,7 @@ export default function AccountSettings() {
   if (loading) {
     return (
       <div className="flex min-h-screen w-full bg-bg text-text">
-        <MerchantSidebar storeName={store?.name} />
+        <MerchantSidebar />
         <div className="flex-1 p-6"><Spinner size={20} /></div>
       </div>
     );
@@ -55,7 +56,7 @@ export default function AccountSettings() {
 
   return (
     <div className="flex min-h-screen w-full bg-bg text-text">
-      <MerchantSidebar storeName={store?.name} storeSubdomain={store?.subdomain} />
+      <MerchantSidebar />
 
       <div className="flex-1 p-6 overflow-auto max-w-xl">
         <div className="flex items-center gap-3 mb-8">
