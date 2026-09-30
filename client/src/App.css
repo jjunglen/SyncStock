@@ -177,3 +177,15 @@ body {
 @media (min-width: 640px) {
   .edge-blur { width: 96px; }
 }
+
+/* iPhone Safari zooms into any text field smaller than 16px when it's
+   tapped. On touch screens, fields use 16px so the page stays put;
+   desktop keeps the smaller size. (Turning zoom off in the viewport tag
+   would also block pinch-zoom, which people rely on to read.) */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
