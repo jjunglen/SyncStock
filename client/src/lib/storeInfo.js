@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "./api.js";
+import { brandShades } from "./brandColors.js";
 
 // The current store's public info (GET /store): name, logo, brand color,
 // categories shown. Fetched once per page load and shared, since the
@@ -34,19 +35,27 @@ export function useStoreInfo() {
 }
 
 // The merchant's brand color becomes the shopper site's main color
-// (buttons) and accent (highlights like the "Brand New" badge) in both
-// light and dark mode, with black or white text picked by the server
-// for contrast.
+// (buttons) and accent (highlights like the "Brand New" badge). Each theme
+// gets its own shade so it's always visible (lib/brandColors.js); App.css
+// picks the shade for the current theme from these variables.
+const BRAND_VARS = [
+  "--brand-dark",
+  "--brand-dark-text",
+  "--brand-light",
+  "--brand-light-text",
+];
+
 export const applyBranding = (info) => {
-  const root = document.documentElement.style;
-  if (info?.brand_color) {
-    root.setProperty("--color-primary", info.brand_color);
-    root.setProperty("--color-primary-text", info.brand_text_color || "#ffffff");
-    root.setProperty("--color-accent", info.brand_color);
-    root.setProperty("--color-accent-text", info.brand_text_color || "#ffffff");
+  const root = document.documentElement;
+  const shades = brandShades(info?.brand_color);
+  if (shades) {
+    root.style.setProperty("--brand-dark", shades.dark.color);
+    root.style.setProperty("--brand-dark-text", shades.dark.text);
+    root.style.setProperty("--brand-light", shades.light.color);
+    root.style.setProperty("--brand-light-text", shades.light.text);
+    root.dataset.brand = "";
   } else {
-    for (const name of ["--color-primary", "--color-primary-text", "--color-accent", "--color-accent-text"]) {
-      root.removeProperty(name);
-    }
+    for (const name of BRAND_VARS) root.style.removeProperty(name);
+    delete root.dataset.brand;
   }
 };

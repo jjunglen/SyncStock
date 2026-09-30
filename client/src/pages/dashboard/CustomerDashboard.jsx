@@ -288,7 +288,7 @@ export default function CustomerDashboard() {
     <div
       role="tablist"
       aria-label="Category"
-      className={`flex ${vertical ? "flex-col" : ""} border border-border rounded-lg overflow-hidden bg-surface`}
+      className={`flex ${vertical ? "flex-col" : ""} gap-1 p-1 border border-text/15 rounded-lg bg-surface-muted`}
     >
       {categories.map((c) => (
         <button
@@ -296,14 +296,16 @@ export default function CustomerDashboard() {
           role="tab"
           aria-selected={category === c.key}
           onClick={() => changeCategory(c.key)}
-          className={`flex items-center gap-2 text-sm px-3 py-2.5 transition-colors ${vertical ? "justify-between text-left" : "flex-1 justify-center text-center leading-tight"} ${
+          className={`flex items-center gap-2 text-sm px-3 py-2 rounded-md transition-colors ${vertical ? "justify-between text-left" : "flex-1 justify-center text-center leading-tight"} ${
             category === c.key
-              ? "bg-primary/10 text-text font-medium"
-              : "text-text-muted hover:text-text hover:bg-text/5"
+              ? "bg-primary text-primary-text font-semibold shadow-sm"
+              : "text-text hover:bg-text/10"
           }`}
         >
           {CATEGORY_META[c.key]?.label || c.key}
-          {vertical && <span className="text-xs text-text-muted">{c.count}</span>}
+          {vertical && (
+            <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{c.count}</span>
+          )}
         </button>
       ))}
     </div>

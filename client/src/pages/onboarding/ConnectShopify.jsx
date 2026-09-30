@@ -7,7 +7,12 @@ import api from "../../lib/api.js";
 
 export default function ConnectShopify() {
   const [shopDomain, setShopDomain] = useState("");
-  const [error, setError] = useState("");
+  // ?error=beta — sent back here because signups are closed
+  const [error, setError] = useState(() =>
+    new URLSearchParams(window.location.search).get("error") === "beta"
+      ? "Syncstock is in private beta. Email hello@syncstock.io to get your store on the list."
+      : "",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {

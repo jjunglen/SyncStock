@@ -7,6 +7,7 @@ import Switch from "../../components/ui/Switch.jsx";
 import api from "../../lib/api.js";
 import { getMyStore } from "../../lib/myStore.js";
 import { CATEGORY_META } from "../../lib/categories.js";
+import { brandShades } from "../../lib/brandColors.js";
 
 const MAX_LOGO_BYTES = 300 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -224,6 +225,18 @@ export default function StoreSettings() {
                 />
               </div>
 
+              {validColor && (() => {
+                const shades = brandShades(color);
+                const changed = [
+                  shades.dark.color !== color.toLowerCase() && "dark",
+                  shades.light.color !== color.toLowerCase() && "light",
+                ].filter(Boolean);
+                return changed.length > 0 ? (
+                  <p className="text-xs text-text-muted mt-3">
+                    This color is adjusted slightly in {changed.join(" and ")} mode so buttons stay easy to see.
+                  </p>
+                ) : null;
+              })()}
               <p className="text-xs text-text-muted mt-5 mb-2">
                 How it looks on your store{(settings.brand_color || "#378add") === color.toLowerCase() ? "" : " (not saved yet)"}
               </p>
@@ -232,7 +245,10 @@ export default function StoreSettings() {
                   { name: "Light", bg: "#ffffff", surface: "#f4f4f5", text: "#0a0a0a", muted: "#52525b", border: "#e4e4e7" },
                   { name: "Dark", bg: "#0a0a0a", surface: "#161616", text: "#fafafa", muted: "#a1a1a1", border: "#262626" },
                 ].map((theme) => {
-                  const accent = validColor ? color : "#378add";
+                  // The same per-theme shade shoppers see (lib/brandColors.js)
+                  const shades = brandShades(validColor ? color : "#378add");
+                  const shade = theme.name === "Dark" ? shades.dark : shades.light;
+                  const accent = shade.color;
                   return (
                     <div
                       key={theme.name}
@@ -253,14 +269,14 @@ export default function StoreSettings() {
                       <div className="rounded-md p-2.5" style={{ background: theme.surface }}>
                         <span
                           className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mb-2"
-                          style={{ background: accent, color: textOn(accent) }}
+                          style={{ background: accent, color: shade.text }}
                         >
                           Brand New
                         </span>
                         <p className="text-xs font-medium mb-2">Air Jordan 4 Retro</p>
                         <span
                           className="block text-center text-xs font-medium rounded-md py-1.5"
-                          style={{ background: accent, color: textOn(accent) }}
+                          style={{ background: accent, color: shade.text }}
                         >
                           Buy now
                         </span>
@@ -316,11 +332,4 @@ export default function StoreSettings() {
       </div>
     </div>
   );
-}
-
-// Black or white text on the preview, whichever reads better
-function textOn(hex) {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.4 ? "#0a0a0a" : "#ffffff";
 }

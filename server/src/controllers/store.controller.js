@@ -174,12 +174,31 @@ const backfillInventory = async (store, accessToken, shop) => {
   }
 };
 
-const initiateShopifyConnect = (req, res) => {
+// Private beta: only stores already on Syncstock (The Laboratory) can
+// connect, plus any listed in BETA_SHOP_DOMAINS (comma-separated
+// x.myshopify.com). MERCHANT_SIGNUPS_OPEN=true opens it to everyone.
+const BETA_CLOSED_MESSAGE =
+  "Syncstock is in private beta. Email hello@syncstock.io to get your store on the list.";
+
+const canConnect = async (shop) => {
+  if (process.env.MERCHANT_SIGNUPS_OPEN === "true") return true;
+  const invited = (process.env.BETA_SHOP_DOMAINS || "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+  if (invited.includes(shop.toLowerCase())) return true;
+  return !!(await Store.findOne({ where: { shopify_domain: shop }, attributes: ["id"] }));
+};
+
+const initiateShopifyConnect = async (req, res) => {
   const { shop } = req.query;
   if (!shop || !shop.endsWith(".myshopify.com")) {
     return res
       .status(400)
       .json({ success: false, message: "Valid shop domain required" });
+  }
+  if (!(await canConnect(shop))) {
+    return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=beta`);
   }
 
   const state = crypto.randomBytes(16).toString("hex");
@@ -363,6 +382,9 @@ const checkDomain = async (req, res) => {
     }
 
     const store = await Store.findOne({ where: { shopify_domain: shop } });
+    if (!store && !(await canConnect(shop))) {
+      return res.status(403).json({ success: false, message: BETA_CLOSED_MESSAGE });
+    }
 
     return res.status(200).json({
       success: true,

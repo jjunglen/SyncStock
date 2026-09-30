@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuSearch, LuCircleCheck, LuCircleX, LuFootprints } from "react-icons/lu";
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
@@ -25,6 +25,16 @@ export default function TrackShoe() {
   const [mySizes, setMySizes] = useState([]);
 
   const navigate = useNavigate();
+  const formRef = useRef(null);
+
+  // On phones the form sits below the results — bring it into view once
+  // a shoe is picked (after it renders). Side by side on larger screens.
+  const showFormOnPhones = () => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    requestAnimationFrame(() =>
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  };
 
   useEffect(() => {
     api
@@ -175,6 +185,7 @@ export default function TrackShoe() {
                     key={shoe.productId}
                     onClick={() => {
                       setSelectedShoe(shoe);
+                      showFormOnPhones();
                       setSuccess(false);
                       setError("");
                       if (mySizes.length > 0 && !size) setSize(mySizes[0]);
@@ -225,7 +236,10 @@ export default function TrackShoe() {
             )}
           </div>
 
-          <div className="w-full border-t md:border-t-0 border-border md:w-1/2 md:pl-8 mt-8 md:mt-0">
+          <div
+            ref={formRef}
+            className="w-full border-t md:border-t-0 border-border md:w-1/2 md:pl-8 mt-8 md:mt-0 scroll-mt-20"
+          >
             {selectedShoe ? (
               <div className="mt-6 md:mt-0 space-y-6">
                 {/* The shoe: photo above the title */}
@@ -265,7 +279,7 @@ export default function TrackShoe() {
 
                 <div>
                   <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Condition</p>
-                  <div role="radiogroup" aria-label="Condition" className="grid grid-cols-3 border border-border rounded-xl overflow-hidden bg-surface">
+                  <div role="radiogroup" aria-label="Condition" className="grid grid-cols-3 gap-1 p-1 border border-text/15 rounded-xl bg-surface-muted">
                     {CONDITION_OPTIONS.map((o) => (
                       <button
                         key={o.value}
@@ -273,10 +287,10 @@ export default function TrackShoe() {
                         role="radio"
                         aria-checked={condition === o.value}
                         onClick={() => setCondition(o.value)}
-                        className={`px-2 py-2.5 text-xs sm:text-sm leading-tight transition-colors ${
+                        className={`px-2 py-2 rounded-lg text-xs sm:text-sm leading-tight transition-colors ${
                           condition === o.value
-                            ? "bg-primary/10 text-text font-medium"
-                            : "text-text-muted hover:text-text hover:bg-text/5"
+                            ? "bg-primary text-primary-text font-semibold shadow-sm"
+                            : "text-text hover:bg-text/10"
                         }`}
                       >
                         {o.label}
