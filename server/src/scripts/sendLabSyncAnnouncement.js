@@ -24,6 +24,10 @@ const SITE = "https://laboratory.syncstock.io";
 const LOG = path.join(__dirname, "../../.labsync-announcement-sent.json");
 const SKIP = ["j.junglen@gmail.com", "thelabdtx@gmail.com"]; // the owner's own accounts
 const BATCH = 100; // Resend's batch limit
+// Typo domains that can never be delivered (they'd only bounce, which
+// hurts the sending address restock alerts use too)
+const TYPO_DOMAIN = /@(gmail\.(con|co|cm|om)|gmial\.com|gmai\.com|gamil\.com|yaho\.com|yahoo\.con|hotmial\.com|icloud\.con|outlok\.com)$/i;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -85,7 +89,9 @@ const recipients = async (store) => {
   });
   const [rows] = await labsync.query(`SELECT lower(email) AS email FROM users`);
   await labsync.close();
-  const emails = rows.map((r) => r.email).filter((e) => !SKIP.includes(e));
+  const typos = rows.map((r) => r.email).filter((e) => TYPO_DOMAIN.test(e));
+  if (typos.length) console.log(`Skipping undeliverable typo addresses: ${typos.join(", ")}`);
+  const emails = rows.map((r) => r.email).filter((e) => !SKIP.includes(e) && !TYPO_DOMAIN.test(e));
 
   const members = await User.findAll({
     where: { store_id: store.id },
@@ -150,27 +156,42 @@ const run = async () => {
   const todo = list.filter((r) => !sent.has(r.email.toLowerCase()));
   console.log(`Sending to ${todo.length} (${list.length - todo.length} already sent)`);
 
+  const message = (r) => ({
+    from,
+    to: r.email,
+    ...buildEmail(store, r),
+    headers: {
+      "List-Unsubscribe": `<${r.unsubscribeHref}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+  const markSent = (list) => {
+    list.forEach((r) => sent.add(r.email.toLowerCase()));
+    fs.writeFileSync(LOG, JSON.stringify([...sent], null, 1));
+  };
+  const skipped = [];
+
   for (let i = 0; i < todo.length; i += BATCH) {
     const batch = todo.slice(i, i + BATCH);
-    const { error } = await resend.batch.send(
-      batch.map((r) => ({
-        from,
-        to: r.email,
-        ...buildEmail(store, r),
-        headers: {
-          "List-Unsubscribe": `<${r.unsubscribeHref}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
-      })),
-    );
-    if (error) {
-      console.error(`Batch ${i / BATCH + 1} failed: ${error.message} — re-run to retry the rest`);
-      break;
+    const { error } = await resend.batch.send(batch.map(message));
+    if (!error) {
+      markSent(batch);
+      console.log(`  sent ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
+      continue;
     }
-    batch.forEach((r) => sent.add(r.email.toLowerCase()));
-    fs.writeFileSync(LOG, JSON.stringify([...sent], null, 1));
-    console.log(`  sent ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
+    // One bad address rejects a whole batch — send this batch one by one
+    // (under Resend's 2-per-second limit) so it only skips that person
+    console.log(`  batch ${i / BATCH + 1} rejected (${error.message}) — sending one at a time`);
+    for (const r of batch) {
+      const one = await resend.emails.send(message(r));
+      if (one.error) skipped.push(`${r.email} (${one.error.message})`);
+      else markSent([r]);
+      await wait(600);
+    }
+    console.log(`  done ${Math.min(i + BATCH, todo.length)}/${todo.length}`);
   }
+  console.log(`Sent: ${sent.size} total.${skipped.length ? ` Skipped ${skipped.length}:` : ""}`);
+  skipped.forEach((s) => console.log(`  - ${s}`));
   process.exit(0);
 };
 
