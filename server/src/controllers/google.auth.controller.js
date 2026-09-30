@@ -1,4 +1,4 @@
-const { Account, Store } = require("../models/index.js");
+const { sequelize, Account, Store } = require("../models/index.js");
 const { signToken } = require("../utils/jwt.js");
 const { storeBaseUrl, safeRedirectPath } = require("../utils/storeUrl.js");
 const { ensureMembership } = require("./auth.controller.js");
@@ -41,7 +41,14 @@ const googleCallback = async (req, res) => {
             return redirectToLogin(req, res, "invalid_store");
         }
 
-        let account = await Account.findOne({ where: { email } });
+        // Any capitalization — Google sends emails lowercase, but accounts
+        // can be stored as typed (e.g. imported from LabSync)
+        let account = await Account.findOne({
+            where: sequelize.where(sequelize.fn("lower", sequelize.col("email")), email.toLowerCase()),
+        });
+        // Imported Google accounts carry a placeholder id ("labsync:…")
+        // until their first Google sign-in here
+        const placeholderId = account?.auth_id?.startsWith("labsync:");
 
         if (!account) {
             account = await Account.create({
@@ -55,10 +62,10 @@ const googleCallback = async (req, res) => {
             // Google has confirmed this email — counts as verifying it
             await account.update({
                 email_verified: true,
-                auth_id: account.auth_id || id,
+                auth_id: placeholderId ? id : account.auth_id || id,
                 avatar_url: account.avatar_url || avatarUrl,
             });
-        } else if (!account.auth_id) {
+        } else if (!account.auth_id || placeholderId) {
           // Existing email/password account signing in with Google for
             await account.update({
                 auth_id: id,
