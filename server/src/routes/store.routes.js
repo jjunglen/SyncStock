@@ -18,6 +18,7 @@ const {
   getCustomers,
   removeCustomer,
   getMyStore,
+  billingCallback,
 } = require("../controllers/store.controller.js");
 const {
   getSettings,
@@ -41,6 +42,8 @@ router.get("/shopify/callback", handleShopifyCallback);
 router.get("/onboarding", resolveOnboardingStore, getOnboarding);
 router.put("/subdomain", requireOnboardingOwner, updateSubdomain);
 router.put("/plan", requireOnboardingOwner, selectPlan);
+// Shopify sends merchants back here after approving billing
+router.get("/billing/callback", billingCallback);
 
 router.get("/", resolveStoreFromSubdomain, getStore);
 

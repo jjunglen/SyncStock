@@ -114,6 +114,21 @@ const Store = sequelize.define(
       allowNull: true,
       validate: { is: /^#[0-9a-f]{6}$/i },
     },
+    // Shopify billing (billing.service.js): exempt (flagship store),
+    // pending, active, cancelled, declined, expired or frozen
+    billing_status: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    shopify_subscription_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    // First paid activation — a store only gets the free trial once
+    billing_started_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     // Monday "most wanted sizes" email to the store's admins
     weekly_report: {
       type: DataTypes.BOOLEAN,

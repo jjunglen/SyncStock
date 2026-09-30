@@ -32,6 +32,9 @@ export default function PricingPage() {
                 <span className="text-4xl font-extrabold">${PLAN.price}</span>
                 <span className="text-text-muted text-sm mb-1">/month</span>
               </div>
+              <p className="mt-1 text-sm text-text-muted">
+                {PLAN.trialDays}-day free trial · billed through Shopify
+              </p>
             </div>
 
             <div className="space-y-3 mb-8">

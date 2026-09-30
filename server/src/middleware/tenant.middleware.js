@@ -3,13 +3,17 @@ const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
 const { findSessionAccount } = require("../utils/session.js");
 
+const NOT_STORES = ["www", "api"];
+
 const extractSubdomain = (hostname) => {
   if (hostname === "localhost" || hostname.startsWith("127.0.0.1")) {
     return null;
   }
   const parts = hostname.split(".");
   if (parts.length < 3) return null;
-  if (parts[0] === "www") return null;
+  // Not stores: the marketing site and the API's own host
+  // (api.syncstock.io was being read as a store called "api")
+  if (NOT_STORES.includes(parts[0])) return null;
   return parts[0];
 };
 
@@ -232,7 +236,22 @@ const resolveStoreFromAdminMembership = async (req, res, next) => {
   }
 };
 
+// For endpoints both shoppers and merchants use (e.g. /users/profile):
+// on a store's site, the store in the address; on the merchant dashboard
+// (syncstock.io, no store in the address), the store the merchant owns.
+// Needs authenticateAccount first.
+const resolveStoreFromSubdomainOrAdmin = (req, res, next) => {
+  const named =
+    req.headers["x-store-subdomain"] ||
+    extractSubdomain(req.hostname) ||
+    (process.env.NODE_ENV !== "production" && (req.headers["x-dev-store"] || req.query.store));
+  return named
+    ? resolveStoreFromSubdomain(req, res, next)
+    : resolveStoreFromAdminMembership(req, res, next);
+};
+
 module.exports = {
+  resolveStoreFromSubdomainOrAdmin,
   resolveStoreFromSubdomain,
   resolveStoreFromShopifyDomain,
   attachAccountIfPresent,

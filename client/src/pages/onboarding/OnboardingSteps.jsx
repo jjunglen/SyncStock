@@ -46,7 +46,13 @@ export default function OnboardingSteps() {
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [loadError, setLoadError] = useState("");
   const [storeName, setStoreName] = useState("");
-  const [error, setError] = useState("");
+  // Shopify sends merchants back here if they declined billing, or it failed
+  const [error, setError] = useState(() => {
+    const billing = new URLSearchParams(window.location.search).get("billing");
+    if (billing === "declined") return "Billing wasn't approved in Shopify. Finish again to approve it and go live.";
+    if (billing === "error") return "We couldn't confirm billing with Shopify. Try again.";
+    return "";
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [subdomain, setSubdomain] = useState("");
@@ -152,7 +158,14 @@ export default function OnboardingSteps() {
     if (step === "plan") {
       setIsSubmitting(true);
       try {
-        await api.put("/store/plan", { plan: "pro" });
+        const res = await api.put("/store/plan", { plan: "pro" });
+        const approvalUrl = res.data.data?.confirmation_url;
+        // Paying stores approve the subscription in Shopify, which sends
+        // them back to the dashboard once it's active
+        if (approvalUrl) {
+          window.location.assign(approvalUrl);
+          return;
+        }
         navigate("/dashboard", { replace: true });
       } catch (err) {
         failWith(err);
@@ -271,7 +284,7 @@ export default function OnboardingSteps() {
               </div>
             </div>
 
-            {/* Step 4 — plan & payment (placeholder until billing) */}
+            {/* Step 4 — plan & payment (approved in Shopify) */}
             <div className="min-w-0 shrink-0 grow-0 basis-full">
               <div className="flex flex-col items-center gap-3 py-4 text-center">
                 <div className="flex size-14 items-center justify-center rounded-full bg-primary/10">
@@ -279,7 +292,9 @@ export default function OnboardingSteps() {
                 </div>
                 <div>
                   <p className="font-semibold">Confirm your plan</p>
-                  <p className="mt-1 text-text-muted text-sm">One plan. Everything included.</p>
+                  <p className="mt-1 text-text-muted text-sm">
+                    {PLAN.trialDays}-day free trial, then ${PLAN.price}/month.
+                  </p>
                 </div>
                 <div className="w-full rounded-xl border border-border bg-surface-muted p-4 mt-2 text-left">
                   <div className="flex items-end gap-1 mb-3">
@@ -287,6 +302,10 @@ export default function OnboardingSteps() {
                     <span className="text-text-muted text-sm mb-0.5">/month</span>
                   </div>
                   <div className="space-y-2">
+                    <p className="text-xs text-text-muted pb-1">
+                      Billed through Shopify on your regular invoice. Cancel anytime by
+                      uninstalling Syncstock.
+                    </p>
                     {PLAN.features.slice(0, 4).map((f) => (
                       <div key={f} className="flex items-start gap-2">
                         <LuCircleCheck size={14} className="text-live mt-0.5 shrink-0" />
@@ -317,7 +336,7 @@ export default function OnboardingSteps() {
             Back
           </Button>
           <Button className="flex-1" variant="primary" disabled={isSubmitting} onClick={handleNext}>
-            {isSubmitting ? <Spinner size={18} /> : isLast ? "Finish" : "Next"}
+            {isSubmitting ? <Spinner size={18} /> : isLast ? "Start free trial" : "Next"}
           </Button>
         </div>
       </div>

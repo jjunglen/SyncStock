@@ -5,6 +5,11 @@ const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
 const { enabledCategories, logoUrl, textOnColor } = require("../utils/storeSettings.js");
+const {
+  isBillingExempt,
+  createSubscription,
+  subscriptionStatus,
+} = require("../services/billing.service.js");
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
@@ -54,6 +59,8 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
     // Takes the store offline when the merchant uninstalls (can't go in
     // shopify.app.toml with the app's own install flow)
     "app/uninstalled",
+    // Subscription cancelled / payment problems (billing.controller.js)
+    "app_subscriptions/update",
   ];
 
   const existingResp = await fetch(
@@ -308,14 +315,20 @@ const handleShopifyCallback = async (req, res) => {
         onboarding_step: "account",
       });
     } else {
-      await store.update({
-        shopify_access_token: access_token,
-        // Reinstalled after an uninstall: back online where they left off
-        ...(store.uninstalled_at && {
+      await store.update({ shopify_access_token: access_token });
+      // Reinstalled after an uninstall. Shopify cancelled their
+      // subscription on uninstall, so paying stores pick their plan again
+      // (no second trial); the flagship store goes straight back online.
+      if (store.uninstalled_at) {
+        const exempt = await isBillingExempt(store);
+        const finished = store.onboarding_step === "complete";
+        await store.update({
           uninstalled_at: null,
-          status: store.onboarding_step === "complete" ? "active" : "pending",
-        }),
-      });
+          ...(finished && exempt
+            ? { status: "active" }
+            : { status: "pending", onboarding_step: finished ? "plan" : store.onboarding_step }),
+        });
+      }
     }
 
     await registerShopifyWebhooks(store, access_token, shop);
@@ -427,6 +440,11 @@ const getOnboarding = async (req, res) => {
   });
 };
 
+// PUT /api/store/plan — the last onboarding step. The flagship store
+// (billing-exempt) goes live straight away. Everyone else gets a Shopify
+// subscription to approve: the reply has confirmation_url, the browser
+// goes there, and the store goes live in billingCallback once Shopify
+// confirms it's active.
 const selectPlan = async (req, res) => {
   try {
     const { plan } = req.body;
@@ -439,28 +457,63 @@ const selectPlan = async (req, res) => {
         .json({ success: false, message: "Store not resolved" });
     }
 
-    // Last step (payment is a placeholder until billing is built):
-    // the store goes live here
-    await req.store.update({
-      plan,
-      sms_enabled: plan === "pro",
-      onboarding_step: "complete",
-      status: "active",
-    });
+    if (await isBillingExempt(req.store)) {
+      await req.store.update({
+        plan: "internal",
+        billing_status: "exempt",
+        sms_enabled: true,
+        onboarding_step: "complete",
+        status: "active",
+      });
+      return res.status(200).json({
+        success: true,
+        data: { plan: req.store.plan, status: req.store.status, confirmation_url: null },
+      });
+    }
 
+    const { confirmationUrl, subscriptionId } = await createSubscription(req.store);
+    await req.store.update({ shopify_subscription_id: subscriptionId, billing_status: "pending" });
     return res.status(200).json({
       success: true,
-      data: {
-        plan: req.store.plan,
-        status: req.store.status,
-        sms_enabled: req.store.sms_enabled,
-      },
+      data: { plan: "pro", status: req.store.status, confirmation_url: confirmationUrl },
     });
   } catch (error) {
     console.error("Select plan error:", error.message);
     return res
       .status(500)
-      .json({ success: false, message: "Failed to set plan" });
+      .json({ success: false, message: "Couldn't start billing with Shopify. Try again." });
+  }
+};
+
+// GET /api/store/billing/callback?store=<id> — Shopify sends the merchant
+// here after they approve or decline. The result is read from Shopify,
+// not from this link, so visiting it by hand changes nothing.
+const billingCallback = async (req, res) => {
+  const setupUrl = (reason) => `${process.env.FRONTEND_URL}/onboarding/setup?billing=${reason}`;
+  try {
+    const store = /^[0-9a-f-]{36}$/i.test(req.query.store || "")
+      ? await Store.findByPk(req.query.store)
+      : null;
+    if (!store?.shopify_subscription_id) return res.redirect(setupUrl("error"));
+
+    const status = await subscriptionStatus(store, store.shopify_subscription_id);
+    if (status !== "ACTIVE") {
+      await store.update({ billing_status: (status || "declined").toLowerCase() });
+      return res.redirect(setupUrl("declined"));
+    }
+
+    await store.update({
+      plan: "pro",
+      billing_status: "active",
+      billing_started_at: store.billing_started_at || new Date(),
+      sms_enabled: true,
+      onboarding_step: "complete",
+      status: "active",
+    });
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+  } catch (error) {
+    console.error("Billing callback error:", error.message);
+    return res.redirect(setupUrl("error"));
   }
 };
 
@@ -499,6 +552,7 @@ const getMyStore = (req, res) =>
       subdomain: req.store.subdomain,
       plan: req.store.plan,
       status: req.store.status,
+      billing_status: req.store.billing_status,
     },
   });
 
@@ -579,6 +633,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  billingCallback,
   getMyStore,
   initiateShopifyConnect,
   handleShopifyCallback,

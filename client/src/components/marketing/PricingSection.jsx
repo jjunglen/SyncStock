@@ -33,6 +33,9 @@ export default function PricingSection() {
             <span className="text-6xl font-bold">{PLAN.price}</span>
             <span className="text-sm text-text-muted">/month</span>
           </div>
+          <p className="relative -mt-2 text-sm text-text-muted">
+            {PLAN.trialDays}-day free trial · billed through Shopify
+          </p>
           <Link to="/onboarding" className="relative">
             <Button variant="primary" size="lg" className="w-full">
               Connect your Shopify store

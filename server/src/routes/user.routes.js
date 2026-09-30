@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const {
-  resolveStoreFromSubdomain,
+  resolveStoreFromSubdomainOrAdmin,
 } = require("../middleware/tenant.middleware.js");
 const { authenticateAccount } = require("../middleware/auth.middleware.js");
 const {
@@ -10,7 +10,8 @@ const {
   deleteAccount,
 } = require("../controllers/user.controller.js");
 
-router.use(resolveStoreFromSubdomain, authenticateAccount);
+// Shoppers use these on a store's site; merchants on the dashboard
+router.use(authenticateAccount, resolveStoreFromSubdomainOrAdmin);
 
 router.get("/profile", getProfile);
 router.put("/profile", updateProfile);

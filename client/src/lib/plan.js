@@ -2,6 +2,8 @@
 export const PLAN = {
   name: "Pro",
   price: 40,
+  // Must match PLAN.trialDays in server/src/services/billing.service.js
+  trialDays: 7,
   info: "Everything included, for any Shopify store",
   features: [
     "Automatic Shopify sync — including your existing catalog",

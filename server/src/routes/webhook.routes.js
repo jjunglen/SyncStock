@@ -17,6 +17,7 @@ const {
   handleComplianceWebhook,
   handleAppUninstalled,
 } = require("../controllers/compliance.controller.js");
+const { handleSubscriptionUpdate } = require("../controllers/billing.controller.js");
 
 // Shopify's privacy webhooks can arrive after the store is gone, so they
 // only need a valid signature, not a store. Registered before the
@@ -32,5 +33,6 @@ router.post("/products/update", handleProductUpdate);
 router.post("/products/delete", handleProductDelete);
 router.post("/orders/create", handleOrderCreate);
 router.post("/app/uninstalled", handleAppUninstalled);
+router.post("/app_subscriptions/update", handleSubscriptionUpdate);
 
 module.exports = router;

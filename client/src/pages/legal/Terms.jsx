@@ -90,8 +90,9 @@ export default function Terms() {
       <p>
         The {PLAN.name} plan costs ${PLAN.price} per month, plus any
         applicable taxes, unless a different price is shown when you sign up.
-        Fees are billed in advance and aren't refundable except where the law
-        requires. We'll give you at least 30 days' notice before changing
+        New stores get a {PLAN.trialDays}-day free trial. Fees are billed in
+        advance through your Shopify account, on your Shopify invoice, and
+        aren't refundable except where the law requires. We'll give you at least 30 days' notice before changing
         your price. You can cancel at any time, and cancellation takes effect
         at the end of your current billing period.
       </p>
