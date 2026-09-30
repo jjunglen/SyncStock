@@ -143,7 +143,7 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load account:", err));
   }, []);
 
-  const fetchInStock = useCallback((page, cat, brand, price, order) => {
+  const fetchInStock = useCallback((page, cat, brand, price, order, query) => {
     setLoadingInStock(true);
     const params = addFilters(
       new URLSearchParams({ category: cat, page: String(page), limit: String(PAGE_SIZE) }),
@@ -151,6 +151,7 @@ export default function CustomerDashboard() {
       price,
       order,
     );
+    if (query) params.set("q", query);
     api
       .get(`/inventory/my-sizes?${params.toString()}`)
       .then((res) => {
@@ -162,8 +163,8 @@ export default function CustomerDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchInStock(inStockPage, category, brandFilter, priceFilter, sort);
-  }, [inStockPage, category, brandFilter, priceFilter, sort, fetchInStock]);
+    fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery);
+  }, [inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, fetchInStock]);
 
   // Brands to offer: in your sizes on In stock, everything on Browse
   useEffect(() => {
@@ -206,6 +207,7 @@ export default function CustomerDashboard() {
   // A real filter change (query or size) always resets to page 1
   useEffect(() => {
     setBrowsePage(1);
+    setInStockPage(1);
   }, [debouncedQuery, selectedSize]);
 
   // Single source of truth: any change to page, query, or size
@@ -371,6 +373,43 @@ export default function CustomerDashboard() {
     </>
   );
 
+  // One search box for both tabs (it keeps its text when switching)
+  const searchBox = (placeholder) => (
+    <div className="relative flex-1 min-w-[200px]">
+      <LuSearch
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+        size={16}
+      />
+      <input
+        type="search"
+        value={browseQuery}
+        onChange={(e) => setBrowseQuery(e.target.value)}
+        placeholder={placeholder}
+        aria-label="Search"
+        className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-text/10"
+      />
+    </div>
+  );
+
+  // The server found no exact matches and returned the closest ones
+  const closeMatchNote = (meta) =>
+    meta?.match === "close" && debouncedQuery ? (
+      <p className="text-sm text-text-muted mb-4">
+        No exact matches for <span className="text-text">“{debouncedQuery}”</span>. Showing close matches.
+      </p>
+    ) : null;
+
+  const noSearchResults = (
+    <div className="text-center py-16">
+      <p className="text-text-muted text-sm mb-3">
+        Nothing matches <span className="text-text">“{debouncedQuery}”</span>
+      </p>
+      <button onClick={() => setBrowseQuery("")} className="text-sm text-text underline">
+        Clear search
+      </button>
+    </div>
+  );
+
   const noMatches = (
     <div className="text-center py-16">
       <p className="text-text-muted text-sm mb-3">Nothing matches these filters</p>
@@ -498,11 +537,16 @@ export default function CustomerDashboard() {
               </div>
 
               <div className="flex items-center gap-3 mb-6 flex-wrap">
+                {searchBox("Search your sizes")}
                 {brandAndPriceFilters}
               </div>
 
+              {!loadingInStock && closeMatchNote(inStockMeta)}
+
               {loadingInStock ? (
                 <p className="text-text-muted text-sm">Loading...</p>
+              ) : inStockItems.length === 0 && debouncedQuery ? (
+                noSearchResults
               ) : inStockItems.length === 0 && filtersActive ? (
                 noMatches
               ) : inStockItems.length === 0 ? (
@@ -580,27 +624,19 @@ export default function CustomerDashboard() {
               </div>
 
               <div className="flex items-center gap-3 mb-6 flex-wrap">
-                <div className="relative flex-1 min-w-[200px]">
-                  <LuSearch
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-                    size={16}
-                  />
-                  <input
-                    type="text"
-                    value={browseQuery}
-                    onChange={(e) => setBrowseQuery(e.target.value)}
-                    placeholder="Search inventory"
-                    className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-text/10"
-                  />
-                </div>
+                {searchBox("Search inventory")}
                 {sizeFilter && (
                   <div className={`${filterWidth} ${showSwitcher ? "lg:hidden" : ""}`}>{sizeFilter}</div>
                 )}
                 {brandAndPriceFilters}
               </div>
 
+              {!loadingBrowse && closeMatchNote(browseMeta)}
+
               {loadingBrowse ? (
                 <p className="text-text-muted text-sm">Loading...</p>
+              ) : browseItems.length === 0 && debouncedQuery ? (
+                noSearchResults
               ) : browseItems.length === 0 && filtersActive ? (
                 noMatches
               ) : browseItems.length === 0 ? (
@@ -683,7 +719,7 @@ export default function CustomerDashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                   {alerts.map((alert) => (
                     <AlertCard
                       key={alert.id}

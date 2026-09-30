@@ -1,50 +1,24 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LuSearch, LuCircleCheck, LuCircleX } from "react-icons/lu";
+import { LuSearch, LuCircleCheck, LuCircleX, LuFootprints } from "react-icons/lu";
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import api from "../../lib/api.js";
 import { CONDITION_OPTIONS } from "../../lib/alertOptions.js";
-
-const sizeOptions = [
-  "3.5M/5W",
-  "4M/5.5W",
-  "4.5M/6W",
-  "5M/6.5W",
-  "5.5M/7W",
-  "6M/7.5W",
-  "6.5M/8W",
-  "7M/8.5W",
-  "7.5M/9W",
-  "8M/9.5W",
-  "8.5M/10W",
-  "9M/10.5W",
-  "9.5M/11W",
-  "10M/11.5W",
-  "10.5M/12W",
-  "11M/12.5W",
-  "11.5M/13W",
-  "12M/13.5W",
-  "12.5M/14W",
-  "13M/14.5W",
-  "13.5M/15W",
-  "14M/15.5W",
-  "14.5M/16W",
-  "15M",
-  "16M",
-  "17M",
-];
+import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
+import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
+import SizePicker from "../../components/dashboard/SizePicker.jsx";
+import Switch from "../../components/ui/Switch.jsx";
 
 export default function TrackShoe() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [selectedShoe, setSelectedShoe] = useState(null);
   const [searching, setSearching] = useState(false);
-  const [size, setSize] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [size, setSize] = useState(null);
+  const [priceRange, setPriceRange] = useState([PRICE_MIN, PRICE_MAX]);
   const [condition, setCondition] = useState("either");
   const [emailNotif, setEmailNotif] = useState(true);
-  const [inAppNotif, setInAppNotif] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -91,19 +65,22 @@ export default function TrackShoe() {
         product_name: selectedShoe.title,
         sku: selectedShoe.styleId,
         size,
-        max_price: maxPrice ? parseFloat(maxPrice) : null,
+        ...pricesFromRange(priceRange),
         condition_preference: condition,
         notify_email: emailNotif,
-        notify_inapp: inAppNotif,
+        // The phone app is coming soon; website notifications stay on
+        notify_inapp: true,
         stockx_product_id: selectedShoe.productId,
         stockx_url_key: selectedShoe.urlKey,
+        image_url: selectedShoe.image_url || null,
       });
 
       setSuccess(true);
       setSelectedShoe(null);
       setQuery("");
-      setSize("");
-      setMaxPrice("");
+      setSize(null);
+      setPriceRange([PRICE_MIN, PRICE_MAX]);
+      setCondition("either");
       setResults([]);
     } catch (err) {
       setError(
@@ -218,7 +195,9 @@ export default function TrackShoe() {
                         }}
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-lg bg-surface-muted shrink-0" />
+                      <div className="w-16 h-16 rounded-lg bg-surface-muted shrink-0 flex items-center justify-center">
+                        <LuFootprints size={20} className="text-text-muted/60" aria-hidden="true" />
+                      </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
@@ -248,98 +227,93 @@ export default function TrackShoe() {
 
           <div className="w-full border-t md:border-t-0 border-border md:w-1/2 md:pl-8 mt-8 md:mt-0">
             {selectedShoe ? (
-              <>
-                <div className="bg-surface mt-6 md:mt-0 border border-border rounded-xl p-4 mb-6">
-                  <p className="text-sm font-medium mb-1">
-                    {selectedShoe.title}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    {selectedShoe.styleId}
-                  </p>
-                </div>
-
-                <p className="text-sm font-medium mb-4">
-                  Set your alert preferences
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-                  <div>
-                    <label className="text-xs text-text-muted block mb-1.5">
-                      Size
-                    </label>
-                    <select
-                      value={size}
-                      onChange={(e) => setSize(e.target.value)}
-                      className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none"
-                    >
-                      <option value="">Select your size</option>
-                      {sizeOptions.map((s) => (
-                        <option value={s} key={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+              <div className="mt-6 md:mt-0 space-y-6">
+                {/* The shoe: photo above the title */}
+                <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                  <div className="bg-white h-48 md:h-56 flex items-center justify-center">
+                    {selectedShoe.image_url ? (
+                      <img
+                        src={selectedShoe.image_url}
+                        alt={selectedShoe.title}
+                        className="h-full w-full object-contain p-4"
+                      />
+                    ) : (
+                      <LuFootprints size={40} className="text-neutral-300" aria-hidden="true" />
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs text-text-muted block mb-1.5">
-                      Max price (optional)
-                    </label>
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
-                      placeholder="e.g. 350"
-                      className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-text-muted block mb-1.5">
-                      Condition
-                    </label>
-                    <select
-                      value={condition}
-                      onChange={(e) => setCondition(e.target.value)}
-                      className="w-full bg-surface-muted border border-border rounded-lg px-3 py-2.5 text-sm text-text focus:outline-none"
-                    >
-                      {CONDITION_OPTIONS.map((o) => (
-                        <option value={o.value} key={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="p-4">
+                    <p className="text-base font-semibold">{selectedShoe.title}</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      {[
+                        selectedShoe.styleId,
+                        selectedShoe.productAttributes?.colorway,
+                        selectedShoe.productAttributes?.retailPrice &&
+                          `Retail $${selectedShoe.productAttributes.retailPrice}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex gap-6 mb-5">
-                  <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={emailNotif}
-                      onChange={(e) => setEmailNotif(e.target.checked)}
-                    />
-                    Email
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={inAppNotif}
-                      onChange={(e) => setInAppNotif(e.target.checked)}
-                    />
-                    In-app
-                  </label>
+                <div>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Size</p>
+                  <SizePicker value={size} onChange={setSize} mySizes={mySizes} />
+                </div>
+
+                <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
+
+                <div>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Condition</p>
+                  <div role="radiogroup" aria-label="Condition" className="grid grid-cols-3 border border-border rounded-xl overflow-hidden bg-surface">
+                    {CONDITION_OPTIONS.map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={condition === o.value}
+                        onClick={() => setCondition(o.value)}
+                        className={`px-2 py-2.5 text-xs sm:text-sm leading-tight transition-colors ${
+                          condition === o.value
+                            ? "bg-primary/10 text-text font-medium"
+                            : "text-text-muted hover:text-text hover:bg-text/5"
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Notify me by</p>
+                  <div className="border border-border rounded-xl bg-surface divide-y divide-border">
+                    <label className="flex items-center justify-between gap-4 px-4 py-3 cursor-pointer">
+                      <span className="text-sm">Email</span>
+                      <Switch size="sm" checked={emailNotif} onChange={setEmailNotif} label="Email notifications" />
+                    </label>
+                    <div className="flex items-center justify-between gap-4 px-4 py-3">
+                      <span className="text-sm text-text-muted">
+                        In app <span className="text-xs">(coming soon…)</span>
+                      </span>
+                      <Switch size="sm" checked={false} onChange={() => {}} disabled label="In app notifications, coming soon" />
+                    </div>
+                  </div>
                 </div>
 
                 <Button
                   variant="primary"
+                  size="lg"
                   fullWidth
                   disabled={!size || submitting}
                   onClick={handleSubmit}
                 >
-                  {submitting ? "Creating alert..." : "Set alert"}
+                  {submitting ? "Creating alert..." : size ? `Set alert for size ${size}` : "Choose a size to set an alert"}
                 </Button>
-              </>
+              </div>
             ) : (
               <div className="text-center py-16">
+                <LuFootprints size={28} className="mx-auto mb-3 text-text-muted/60" aria-hidden="true" />
                 <p className="text-text-muted text-sm">
                   Select a shoe from the results to set an alert
                 </p>

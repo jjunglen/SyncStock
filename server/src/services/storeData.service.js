@@ -125,7 +125,7 @@ const collectCustomerData = async (store, email) => {
 
   const alerts = await Alert.findAll({
     where: { user_id: membership.id },
-    attributes: ["product_name", "size", "max_price", "condition_preference", "active", "created_at"],
+    attributes: ["product_name", "size", "min_price", "max_price", "condition_preference", "active", "created_at"],
     raw: true,
   });
   const notifications = await NotificationLog.count({ where: { user_id: membership.id } });

@@ -14,20 +14,25 @@ const transitionProps = {
 // One group of sizes per category the store carries that has sizes
 // (sneakers, clothing — trading cards have none). Falls back to
 // sneaker sizes if the store's categories can't be loaded.
-export default function SizeSelector({ selected, onChange }) {
-  const [groups, setGroups] = useState(["sneakers"]);
+//   categories — show just these categories (skips the lookup)
+//   sizes      — show just this list of sizes, no groups
+export default function SizeSelector({ selected, onChange, categories, sizes: onlySizes }) {
+  const [loadedGroups, setLoadedGroups] = useState(["sneakers"]);
+  const groups = categories || loadedGroups;
+  const fixed = !!(categories || onlySizes);
 
   useEffect(() => {
+    if (fixed) return;
     api
       .get("/inventory/categories")
       .then((res) => {
         const sized = (res.data.data || [])
           .map((c) => c.key)
           .filter((key) => SIZES_BY_CATEGORY[key]?.length > 0);
-        if (sized.length > 0) setGroups(sized);
+        if (sized.length > 0) setLoadedGroups(sized);
       })
       .catch(() => {});
-  }, []);
+  }, [fixed]);
 
   const toggleSize = (size) => {
     onChange(
@@ -106,6 +111,7 @@ export default function SizeSelector({ selected, onChange }) {
     </motion.div>
   );
 
+  if (onlySizes) return renderGroup(onlySizes);
   if (groups.length === 1) return renderGroup(SIZES_BY_CATEGORY[groups[0]]);
 
   return (

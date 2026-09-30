@@ -54,6 +54,7 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
         category: item.category,
         size: picked,
         sku: item.sku || null,
+        image_url: item.image_urls?.[0] || item.image_url || null,
         notify_email: true,
         notify_inapp: true,
       });

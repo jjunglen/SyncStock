@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const rateLimit = require("express-rate-limit");
 const { authenticateAccount } = require("../middleware/auth.middleware.js");
+const { attachStoreIfPresent } = require("../middleware/tenant.middleware.js");
 const {
   searchCatalog,
   handleOAuthCallback,
@@ -19,7 +20,9 @@ const searchLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-router.get("/search", authenticateAccount, searchLimiter, searchCatalog);
+// The store (from the site the shopper is on) lets its own photos fill in
+// where StockX has none
+router.get("/search", authenticateAccount, searchLimiter, attachStoreIfPresent, searchCatalog);
 
 // Getting a new StockX refresh token (visit /api/stockx/auth, sign in to
 // StockX, copy the token into STOCKX_REFRESH_TOKEN). Off unless

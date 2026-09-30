@@ -20,6 +20,9 @@ const Alert = sequelize.define(
     product_name: { type: DataTypes.STRING, allowNull: false },
     sku: { type: DataTypes.STRING, allowNull: true },
     stockx_url_key: { type: DataTypes.STRING, allowNull: true },
+    // The shoe's photo for the alert card — StockX's or the store's own
+    // (only those hosts are accepted; see alert.controller.js)
+    image_url: { type: DataTypes.TEXT, allowNull: true },
     size: { type: DataTypes.STRING, allowNull: true },
     condition_preference: {
       type: DataTypes.ENUM("brand_new", "pre_owned", "either"),
@@ -34,6 +37,8 @@ const Alert = sequelize.define(
       allowNull: true,
       defaultValue: {},
     },
+    // Price range the shopper will buy in; either end can be open (null)
+    min_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     max_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     notify_email: { type: DataTypes.BOOLEAN, defaultValue: true },
     notify_inapp: { type: DataTypes.BOOLEAN, defaultValue: true },

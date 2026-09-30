@@ -8,9 +8,10 @@ const StockxImageCache = sequelize.define(
       type: DataTypes.TEXT,
       primaryKey: true,
     },
+    // null = no photo found (tried again after a week — stockxImages.service.js)
     image_url: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
     },
   },
   {

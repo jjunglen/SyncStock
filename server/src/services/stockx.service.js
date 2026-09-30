@@ -1,6 +1,6 @@
 require("dotenv").config();
 const fetch = require("node-fetch");
-const { StockxImageCache } = require("../models/index.js");
+const { withStockxImages } = require("./stockxImages.service.js");
 
 const STOCKX_BASE_URL = "https://api.stockx.com/v2";
 
@@ -34,13 +34,6 @@ const getAccessToken = async () => {
   tokenExpiresAt = Date.now() + 55 * 60 * 1000;
 
   return cachedToken;
-};
-
-const urlKeyToImageName = (urlKey) => {
-  return urlKey
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join("-");
 };
 
 // Recent searches are reused for 10 minutes — every store's shoppers share
@@ -83,25 +76,8 @@ const fetchStockXSearch = async (query, pageSize) => {
     throw new Error(data.message || "Stockx search failed");
   }
 
-  const products = data.products || [];
-
-  const urlKeys = products.map((product) => product.urlKey);
-  const cached = await StockxImageCache.findAll({
-    where: { url_key: urlKeys },
-  });
-
-  const cacheMap = {};
-  cached.forEach((c) => {
-    cacheMap[c.url_key] = c.image_url;
-  });
-
-  return products.map((product) => ({
-    ...product,
-    image_url:
-      cacheMap[product.urlKey] ||
-      `https://images.stockx.com/images/${urlKeyToImageName(product.urlKey)}-Product.jpg?fit=fill&bg=FFFFFF&w=400&h=300&fm=webp&auto=compress&q=90`,
-    image_cached: !!cacheMap[product.urlKey],
-  }));
+  // Photos are checked and remembered in stockxImages.service.js
+  return withStockxImages(data.products || []);
 };
 
 module.exports = { searchStockX };

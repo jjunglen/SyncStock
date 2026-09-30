@@ -6,12 +6,12 @@ const {
 } = require("./notification.service.js");
 const { isCategoryEnabled } = require("../utils/storeSettings.js");
 
-// An alert's own limits: its max price, and new vs pre-owned. Items
+// An alert's own limits: its price range, and new vs pre-owned. Items
 // with no known condition match either choice.
 const meetsPreferences = (alert, inventory) => {
-  if (alert.max_price && parseFloat(inventory.price) > parseFloat(alert.max_price)) {
-    return false;
-  }
+  const price = parseFloat(inventory.price);
+  if (alert.max_price && price > parseFloat(alert.max_price)) return false;
+  if (alert.min_price && price < parseFloat(alert.min_price)) return false;
   const wanted = alert.condition_preference;
   const actual = inventory.condition;
   if (wanted && wanted !== "either" && ["brand_new", "pre_owned"].includes(actual)) {

@@ -77,6 +77,7 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
         category: item.category,
         size: item.size,
         sku: item.sku || null,
+        image_url: item.image_urls?.[0] || item.image_url || null,
         notify_email: true,
         notify_inapp: true,
       });

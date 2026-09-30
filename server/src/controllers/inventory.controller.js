@@ -2,6 +2,7 @@ const { Op, fn, col } = require("sequelize");
 const { Inventory } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories } = require("../utils/storeSettings.js");
+const { searchInventoryItems } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
@@ -105,21 +106,16 @@ const searchInventory = async (req, res) => {
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
     const where = listable(req.store, category);
 
-    if (q) {
-      where[Op.or] = [
-        { product_name: { [Op.iLike]: `%${q}%` } },
-        { sku: { [Op.iLike]: `%${q}%` } },
-      ];
-    }
-
     if (size) {
       where.size = size;
     }
 
     applyFilters(where, req.query);
 
-    const { count, rows } = await Inventory.findAndCountAll({
+    // Word-by-word search, then close matches (utils/inventorySearch.js)
+    const { count, rows, match } = await searchInventoryItems(Inventory, {
       where,
+      q,
       order: sortOrder(req.query.sort),
       limit,
       offset,
@@ -128,7 +124,7 @@ const searchInventory = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: rows,
-      meta: buildMeta(count, page, limit),
+      meta: { ...buildMeta(count, page, limit), match },
     });
   } catch (error) {
     console.error("Search inventory error:", error.message);
@@ -143,7 +139,7 @@ const mySizesWhere = (store, sizes, category) => {
   return where;
 };
 
-// GET /api/inventory/my-sizes?category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
+// GET /api/inventory/my-sizes?q=jordan&category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
 const getInventoryInMySizes = async (req, res) => {
   try {
     if (!req.account) {
@@ -171,8 +167,9 @@ const getInventoryInMySizes = async (req, res) => {
 
     const where = applyFilters(mySizesWhere(req.store, sizes, category), req.query);
 
-    const { count, rows } = await Inventory.findAndCountAll({
+    const { count, rows, match } = await searchInventoryItems(Inventory, {
       where,
+      q: req.query.q,
       order: sortOrder(req.query.sort),
       limit,
       offset,
@@ -181,7 +178,7 @@ const getInventoryInMySizes = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: rows,
-      meta: buildMeta(count, page, limit),
+      meta: { ...buildMeta(count, page, limit), match },
     });
   } catch (error) {
     console.error("Get inventory in my sizes error:", error.message);

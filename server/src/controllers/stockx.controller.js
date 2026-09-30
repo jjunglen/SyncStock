@@ -1,4 +1,5 @@
 const { searchStockX } = require("../services/stockx.service.js");
+const { withStorePhotos } = require("../services/stockxImages.service.js");
 const fetch = require("node-fetch");
 
 const getAuthUrl = (req, res) => {
@@ -80,7 +81,9 @@ const searchCatalog = async (req, res) => {
         .json({ success: false, message: "StockX search isn't set up yet" });
     }
 
-    const results = await searchStockX(q);
+    // StockX photos are shared by every store; the store's own photos
+    // only fill gaps for its own shoppers
+    const results = await withStorePhotos(await searchStockX(q), req.store);
 
     return res.status(200).json({ success: true, data: results });
   } catch (error) {
@@ -89,25 +92,4 @@ const searchCatalog = async (req, res) => {
   }
 };
 
-const cacheImage = async (req, res) => {
-  try {
-    const { url_key, image_url } = req.body;
-    if (!url_key || !image_url) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing url_key or image_url" });
-    }
-
-    const { StockxImageCache } = require("../models/index.js");
-    await StockxImageCache.upsert({ url_key, image_url });
-
-    return res.status(200).json({ success: true, message: "Image cached" });
-  } catch (error) {
-    console.error("Cache image error:", error.message);
-    return res
-      .status(500)
-      .json({ success: false, message: "Failed to cache image" });
-  }
-};
-
-module.exports = { searchCatalog, handleOAuthCallback, getAuthUrl, cacheImage };
+module.exports = { searchCatalog, handleOAuthCallback, getAuthUrl };

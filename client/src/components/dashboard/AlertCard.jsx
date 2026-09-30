@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuTrash2, LuFootprints } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import Switch from "../ui/Switch.jsx";
 import api from "../../lib/api.js";
 import { CONDITION_OPTIONS, conditionLabel } from "../../lib/alertOptions.js";
+import PriceRangeSlider from "../ui/PriceRangeSlider.jsx";
+import { rangeFromPrices, pricesFromRange, priceRangeLabel } from "../../lib/priceRange.js";
 
-// One alert on the "Your alerts" tab: switch notifications on/off, edit its max price
-// and new-or-pre-owned setting, or delete it.
+// One alert on the "Your alerts" tab: switch notifications on/off, edit its
+// price range and new-or-pre-owned setting, or delete it.
 export default function AlertCard({ alert, onDelete, onUpdated }) {
   const [editing, setEditing] = useState(false);
-  const [maxPrice, setMaxPrice] = useState(alert.max_price ? String(parseFloat(alert.max_price)) : "");
+  const [priceRange, setPriceRange] = useState(() => rangeFromPrices(alert.min_price, alert.max_price));
   const [condition, setCondition] = useState(alert.condition_preference || "either");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // A photo that fails to load shows the placeholder instead
+  const [imageFailed, setImageFailed] = useState(false);
 
   const save = async (changes) => {
     setSaving(true);
@@ -31,12 +35,12 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
   };
 
   const handleSave = async () => {
-    const ok = await save({ max_price: maxPrice || null, condition_preference: condition });
+    const ok = await save({ ...pricesFromRange(priceRange), condition_preference: condition });
     if (ok) setEditing(false);
   };
 
   const handleCancel = () => {
-    setMaxPrice(alert.max_price ? String(parseFloat(alert.max_price)) : "");
+    setPriceRange(rangeFromPrices(alert.min_price, alert.max_price));
     setCondition(alert.condition_preference || "either");
     setError("");
     setEditing(false);
@@ -46,20 +50,40 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
     "w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none";
 
   return (
-    <div className="bg-surface border border-border rounded-xl p-4">
+    <div className="bg-surface border border-border rounded-xl overflow-hidden">
+      {/* The shoe's photo on a white tile (photos are shot on white) */}
+      <div className={`relative bg-white h-40 flex items-center justify-center transition-opacity ${alert.active ? "" : "opacity-60"}`}>
+        {alert.image_url && !imageFailed ? (
+          <img
+            src={alert.image_url}
+            alt={alert.product_name}
+            loading="lazy"
+            className="h-full w-full object-contain p-3"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <LuFootprints size={32} className="text-neutral-300" aria-hidden="true" />
+        )}
+        {alert.size && (
+          <span className="absolute top-2 left-2 text-[11px] font-medium px-2 py-0.5 rounded-full bg-black/70 text-white">
+            {alert.size}
+          </span>
+        )}
+      </div>
+
+      <div className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className={`min-w-0 transition-opacity ${alert.active ? "" : "opacity-60"}`}>
-          <p className="text-sm font-medium text-text truncate">{alert.product_name}</p>
-          <p className="text-xs text-text-muted">
+          <p className="text-sm font-medium text-text line-clamp-2">{alert.product_name}</p>
+          <p className="text-xs text-text-muted mt-0.5">
             {[
-              alert.size,
-              alert.max_price && `Max $${parseFloat(alert.max_price).toFixed(0)}`,
+              priceRangeLabel(alert.min_price, alert.max_price),
               alert.condition_preference && alert.condition_preference !== "either"
                 ? conditionLabel(alert.condition_preference)
                 : null,
             ]
               .filter(Boolean)
-              .join(" · ")}
+              .join(" · ") || "Any price · Brand New or Pre-Owned"}
           </p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -97,18 +121,8 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
       </label>
 
       {editing && (
-        <div className="mt-4 space-y-3 border-t border-border pt-4">
-          <div>
-            <label className="text-xs text-text-muted block mb-1.5">Max price (leave empty for any)</label>
-            <input
-              type="number"
-              min="1"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              placeholder="Any price"
-              className={inputClass}
-            />
-          </div>
+        <div className="mt-4 space-y-4 border-t border-border pt-4">
+          <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
           <div>
             <label className="text-xs text-text-muted block mb-1.5">Condition</label>
             <select value={condition} onChange={(e) => setCondition(e.target.value)} className={inputClass}>
@@ -130,6 +144,7 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
         </div>
       )}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+      </div>
     </div>
   );
 }
