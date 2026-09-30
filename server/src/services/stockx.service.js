@@ -43,7 +43,26 @@ const urlKeyToImageName = (urlKey) => {
     .join("-");
 };
 
+// Recent searches are reused for 10 minutes — every store's shoppers share
+// one StockX key, and popular searches ("jordan 4") repeat a lot
+const SEARCH_CACHE_MS = 10 * 60 * 1000;
+const SEARCH_CACHE_MAX = 500;
+const searchCache = new Map();
+
 const searchStockX = async (query, pageSize = 10) => {
+  const key = `${query.trim().toLowerCase().replace(/\s+/g, " ")}|${pageSize}`;
+  const hit = searchCache.get(key);
+  if (hit && Date.now() - hit.at < SEARCH_CACHE_MS) return hit.results;
+
+  const results = await fetchStockXSearch(query, pageSize);
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    searchCache.delete(searchCache.keys().next().value); // drop the oldest
+  }
+  searchCache.set(key, { at: Date.now(), results });
+  return results;
+};
+
+const fetchStockXSearch = async (query, pageSize) => {
   const token = await getAccessToken();
 
   const response = await fetch(

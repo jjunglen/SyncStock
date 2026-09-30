@@ -59,18 +59,25 @@ const handleOAuthCallback = async (req, res) => {
     }
   } catch (error) {
     console.error("StockX OAuth callback error:", error.message);
-    res.status(500).send(`<h2>Server error: ${error.message}</h2>`);
+    res.status(500).send("<h2>Server error — check the server logs</h2>");
   }
 };
 
+const STOCKX_VARS = ["STOCKX_CLIENT_ID", "STOCKX_CLIENT_SECRET", "STOCKX_API_KEY", "STOCKX_REFRESH_TOKEN"];
+
 const searchCatalog = async (req, res) => {
   try {
-    const { q } = req.query;
+    const q = String(req.query.q || "").trim();
 
-    if (!q) {
+    if (q.length < 2 || q.length > 80) {
       return res
         .status(400)
-        .json({ success: false, message: "Missing search query" });
+        .json({ success: false, message: "Search for 2 to 80 characters" });
+    }
+    if (STOCKX_VARS.some((name) => !process.env[name])) {
+      return res
+        .status(503)
+        .json({ success: false, message: "StockX search isn't set up yet" });
     }
 
     const results = await searchStockX(q);
