@@ -7,6 +7,7 @@ const {
     verifyEmailLoginToken,
 } = require("../utils/jwt.js");
 const crypto = require("crypto");
+const { signupSource } = require("../utils/signupSource.js");
 const {
     sendPasswordResetEmail,
     sendVerificationEmail,
@@ -44,7 +45,7 @@ const {
   issuedBeforeCutoff,
 } = require("../utils/session.js");
 
-const ensureMembership = async (account, store) => {
+const ensureMembership = async (account, store, source = null) => {
   let membership = await User.findOne({
     where: { account_id: account.id, store_id: store.id },
   });
@@ -57,6 +58,7 @@ const ensureMembership = async (account, store) => {
         account_id: account.id,
         store_id: store.id,
         role: isFirstDuringOnboarding ? "admin" : "user",
+        signup_source: isFirstDuringOnboarding ? null : source,
 
     });
 
@@ -115,7 +117,7 @@ const signup = async (req, res) => {
         }
 
         const merchant = isMerchantSignup(req.store);
-        await ensureMembership(account, req.store);
+        await ensureMembership(account, req.store, signupSource(req));
 
         // Unverified (new, or signed up before and never verified): send the
         // link instead of logging in. /email-verification comes next.
@@ -163,7 +165,7 @@ const login = async (req, res) => {
         if (needsVerification(account)) return res.status(403).json(NOT_VERIFIED);
 
         if (req.store) {
-          await ensureMembership(account, req.store);
+          await ensureMembership(account, req.store, signupSource(req));
         }
 
         const token = signToken(account);

@@ -8,13 +8,55 @@ import { PRICE_MIN, PRICE_MAX } from "../../lib/priceRange.js";
 // Two-handle price range, adapted from the "Slider 06" design (radix
 // slider + animated numbers) to this app's colors and components.
 // value: [low, high] (see lib/priceRange.js). The top of the scale means
-// "no maximum" and shows as "$1,000+"; the bottom means "no minimum". Hovering outside the
+// "no maximum" and shows as "$1,000+"; the bottom means "no minimum".
+// Prices can be dragged or typed (Min / Max boxes). Hovering outside the
 // selected range previews where a handle would land.
 const STEP = 10;
 const LABELS = [0, 250, 500, 750, 1000];
 
 const clampToStep = (v) => Math.max(PRICE_MIN, Math.min(PRICE_MAX, Math.round(v / STEP) * STEP));
 const toPct = (v) => ((v - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+
+// A typed price: digits only, whole dollars. Empty means "no limit".
+const parsePrice = (text) => {
+  const digits = String(text).replace(/[^0-9]/g, "");
+  return digits === "" ? null : Number(digits);
+};
+
+// Min / Max boxes for typing an exact price instead of dragging. While
+// typing, the box shows what's typed; the slider follows each valid
+// number. Leaving the box tidies it (swaps if min > max, etc.).
+function PriceInput({ label, value, placeholder, onType, onDone }) {
+  const [text, setText] = useState(null); // null = not being edited
+  const shown = text ?? (value === null ? "" : String(value));
+  return (
+    <label className="flex-1 min-w-0">
+      <span className="block text-[11px] font-medium text-text-muted mb-1">{label}</span>
+      <span className="flex items-center rounded-lg border border-border bg-surface-muted focus-within:border-text/30 focus-within:ring-2 focus-within:ring-primary/20">
+        <span className="pl-3 text-sm text-text-muted" aria-hidden="true">$</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          value={shown}
+          placeholder={placeholder}
+          aria-label={`${label} price`}
+          onChange={(e) => {
+            const cleaned = e.target.value.replace(/[^0-9]/g, "").slice(0, 5);
+            setText(cleaned);
+            onType(parsePrice(cleaned));
+          }}
+          onBlur={() => {
+            setText(null);
+            onDone();
+          }}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="w-full min-w-0 bg-transparent px-1.5 py-2 text-sm tabular-nums text-text placeholder:text-text-muted focus:outline-none"
+        />
+      </span>
+    </label>
+  );
+}
 
 export default function PriceRangeSlider({ value, onChange, label = "Price range" }) {
   const [preview, setPreview] = useState(null);
@@ -69,6 +111,25 @@ export default function PriceRangeSlider({ value, onChange, label = "Price range
         </Button>
       </div>
 
+      {/* Type an exact price instead of dragging */}
+      <div className="flex items-end gap-2">
+        <PriceInput
+          label="Min"
+          value={low > PRICE_MIN ? low : null}
+          placeholder="0"
+          onType={(n) => onChange([Math.min(n ?? PRICE_MIN, PRICE_MAX), high])}
+          onDone={() => low > high && onChange([high, low])}
+        />
+        <span className="pb-2.5 text-text-muted" aria-hidden="true">–</span>
+        <PriceInput
+          label="Max"
+          value={high < PRICE_MAX ? high : null}
+          placeholder="No max"
+          onType={(n) => onChange([low, n === null || n >= PRICE_MAX ? PRICE_MAX : n])}
+          onDone={() => low > high && onChange([high, low])}
+        />
+      </div>
+
       <div className="space-y-2">
         <div
           ref={rootRef}
@@ -77,7 +138,8 @@ export default function PriceRangeSlider({ value, onChange, label = "Price range
           onMouseLeave={() => setPreview(null)}
         >
           <SliderPrimitive.Root
-            value={value}
+            // In order even mid-typing (e.g. Max briefly below Min)
+            value={[Math.min(low, high), Math.max(low, high)]}
             onValueChange={onChange}
             min={PRICE_MIN}
             max={PRICE_MAX}

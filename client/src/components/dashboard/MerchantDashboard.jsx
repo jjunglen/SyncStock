@@ -31,6 +31,8 @@ export default function MerchantDashboard() {
   const [revenue, setRevenue] = useState(null);
   const [funnel, setFunnel] = useState(null);
   const [customerCount, setCustomerCount] = useState(null);
+  // Signups and clicks from the "Restock alerts" blocks on the Shopify site
+  const [fromWebsite, setFromWebsite] = useState(null);
 
   useEffect(() => {
     api
@@ -65,7 +67,10 @@ export default function MerchantDashboard() {
   useEffect(() => {
     api
       .get("/analytics/customer-count")
-      .then((res) => setCustomerCount(res.data.data.count))
+      .then((res) => {
+        setCustomerCount(res.data.data.count);
+        setFromWebsite(res.data.data);
+      })
       .catch((err) => console.error("Failed to load customer count:", err));
   }, []);
 
@@ -105,7 +110,11 @@ export default function MerchantDashboard() {
             label="Active customers"
             value={customerCount === null ? "…" : customerCount}
             to="/customers"
-            hint="See customers"
+            hint={
+              fromWebsite?.website_clicks
+                ? `${fromWebsite.from_website} joined from your website (${fromWebsite.website_clicks} clicks)`
+                : "See customers"
+            }
           />
           <StatCard
             icon={LuBellRing}

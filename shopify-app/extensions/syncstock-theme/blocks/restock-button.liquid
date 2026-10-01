@@ -1,0 +1,47 @@
+{%- comment -%}
+  Floating "Restock alerts" button on every page — an app embed the
+  merchant switches on once (Theme settings → App embeds). Same link as
+  the section; it doesn't depend on any product, so listing tools that
+  add and delete products (e.g. Copyt) never break it.
+{%- endcomment -%}
+{%- liquid
+  assign syncstock_url = 'https://api.syncstock.io/api/store/go?src=floating&shop=' | append: shop.permanent_domain
+-%}
+<a
+  class="syncstock-float syncstock-float--{{ block.settings.position }}{% if block.settings.hide_on_mobile %} syncstock-float--desktop-only{% endif %}"
+  href="{{ syncstock_url }}"
+  aria-label="{{ block.settings.label | escape }}"
+>
+  <svg class="syncstock-float__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+  </svg>
+  <span>{{ block.settings.label | escape }}</span>
+</a>
+
+{% schema %}
+{
+  "name": "Restock alerts button",
+  "target": "body",
+  "stylesheet": "syncstock.css",
+  "settings": [
+    { "type": "text", "id": "label", "label": "Label", "default": "Restock alerts" },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Position",
+      "options": [
+        { "value": "right", "label": "Bottom right" },
+        { "value": "left", "label": "Bottom left" }
+      ],
+      "default": "right"
+    },
+    { "type": "color", "id": "background", "label": "Button color", "default": "#111111" },
+    { "type": "color", "id": "text_color", "label": "Text color", "default": "#ffffff" },
+    { "type": "checkbox", "id": "hide_on_mobile", "label": "Hide on phones", "default": false }
+  ]
+}
+{% endschema %}
+
+<style>
+  .syncstock-float { background: {{ block.settings.background }}; color: {{ block.settings.text_color }}; }
+</style>

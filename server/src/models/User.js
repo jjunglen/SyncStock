@@ -38,6 +38,12 @@ const User = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // Where they joined from: "shopify_banner" / "shopify_floating" (the
+    // merchant's own website, utils/signupSource.js), or null
+    signup_source: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+    },
     // Store-specific: admin at one store, regular user elsewhere.
     role: {
       type: DataTypes.ENUM("user", "admin"),

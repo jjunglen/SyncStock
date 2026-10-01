@@ -1,0 +1,60 @@
+{%- comment -%}
+  "Never miss a restock" — a section merchants add in the theme editor.
+  The button goes to api.syncstock.io/api/store/go, which finds this
+  store's SyncStock site from the Shopify domain (no setup needed) and
+  tags the visit so signups from it show on the merchant dashboard.
+  Uses the theme's own button and heading styles where it has them.
+{%- endcomment -%}
+{%- liquid
+  assign syncstock_url = 'https://api.syncstock.io/api/store/go?src=banner&shop=' | append: shop.permanent_domain
+-%}
+<div class="syncstock-banner syncstock-banner--{{ block.settings.alignment }}" {{ block.shopify_attributes }}>
+  <div class="syncstock-banner__inner">
+    {%- if block.settings.heading != blank -%}
+      <h2 class="syncstock-banner__heading h2">{{ block.settings.heading | escape }}</h2>
+    {%- endif -%}
+    {%- if block.settings.text != blank -%}
+      <p class="syncstock-banner__text">{{ block.settings.text | escape }}</p>
+    {%- endif -%}
+    <a
+      class="button button--primary syncstock-banner__button"
+      href="{{ syncstock_url }}"
+      {% if block.settings.new_tab %}target="_blank" rel="noopener"{% endif %}
+    >
+      {{- block.settings.button_label | default: 'Get restock alerts' | escape -}}
+    </a>
+    {%- if block.settings.note != blank -%}
+      <p class="syncstock-banner__note">{{ block.settings.note | escape }}</p>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Restock alerts",
+  "target": "section",
+  "stylesheet": "syncstock.css",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Never miss a restock" },
+    {
+      "type": "textarea",
+      "id": "text",
+      "label": "Text",
+      "default": "Save your sizes and the pairs you're hunting. We'll email or text you the minute they hit the store."
+    },
+    { "type": "text", "id": "button_label", "label": "Button label", "default": "Get restock alerts" },
+    { "type": "text", "id": "note", "label": "Small print", "default": "Free · Takes 30 seconds" },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "Alignment",
+      "options": [
+        { "value": "center", "label": "Center" },
+        { "value": "left", "label": "Left" }
+      ],
+      "default": "center"
+    },
+    { "type": "checkbox", "id": "new_tab", "label": "Open in a new tab", "default": false }
+  ]
+}
+{% endschema %}

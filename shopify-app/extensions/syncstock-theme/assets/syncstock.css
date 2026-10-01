@@ -1,0 +1,67 @@
+/* SyncStock theme blocks. Kept light so the theme's own fonts, colors
+   and button styles show through; only layout and fallbacks here. */
+.syncstock-banner {
+  padding: 48px 20px;
+}
+.syncstock-banner__inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.syncstock-banner--center .syncstock-banner__inner {
+  text-align: center;
+}
+.syncstock-banner__heading {
+  margin: 0 0 8px;
+}
+.syncstock-banner__text {
+  margin: 0 0 20px;
+  opacity: 0.8;
+}
+/* Fallback if the theme has no .button styles */
+.syncstock-banner__button {
+  display: inline-block;
+  text-decoration: none;
+}
+.syncstock-banner__note {
+  margin: 12px 0 0;
+  font-size: 0.85em;
+  opacity: 0.65;
+}
+
+.syncstock-float {
+  position: fixed;
+  bottom: 20px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease;
+}
+.syncstock-float:hover {
+  transform: translateY(-2px);
+}
+.syncstock-float--right {
+  right: 20px;
+}
+.syncstock-float--left {
+  left: 20px;
+}
+.syncstock-float__icon {
+  flex-shrink: 0;
+}
+@media (max-width: 749px) {
+  .syncstock-float {
+    bottom: 16px;
+    padding: 10px 14px;
+  }
+  .syncstock-float--right { right: 16px; }
+  .syncstock-float--left { left: 16px; }
+  .syncstock-float--desktop-only { display: none; }
+}

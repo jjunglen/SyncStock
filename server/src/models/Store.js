@@ -129,6 +129,12 @@ const Store = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    // Clicks on the "Restock alerts" blocks on the merchant's Shopify site
+    widget_clicks: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
     // Monday "most wanted sizes" email to the store's admins
     weekly_report: {
       type: DataTypes.BOOLEAN,

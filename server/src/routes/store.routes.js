@@ -19,6 +19,7 @@ const {
   removeCustomer,
   getMyStore,
   billingCallback,
+  goToStore,
 } = require("../controllers/store.controller.js");
 const {
   getSettings,
@@ -44,6 +45,8 @@ router.put("/subdomain", requireOnboardingOwner, updateSubdomain);
 router.put("/plan", requireOnboardingOwner, selectPlan);
 // Shopify sends merchants back here after approving billing
 router.get("/billing/callback", billingCallback);
+// The "Restock alerts" blocks on merchants' own Shopify sites link here
+router.get("/go", goToStore);
 
 router.get("/", resolveStoreFromSubdomain, getStore);
 

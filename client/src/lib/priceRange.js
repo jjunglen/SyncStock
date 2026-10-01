@@ -3,13 +3,12 @@
 // The top of the scale means "no maximum", the bottom "no minimum".
 export const PRICE_MIN = 0;
 export const PRICE_MAX = 1000;
-const STEP = 10;
-
-const clampToStep = (v) => Math.max(PRICE_MIN, Math.min(PRICE_MAX, Math.round(v / STEP) * STEP));
+// Typed prices are kept exact ($245 stays $245); only the scale's ends clamp
+const clampToScale = (v) => Math.max(PRICE_MIN, Math.min(PRICE_MAX, Math.round(v)));
 
 export const rangeFromPrices = (min, max) => [
-  min ? clampToStep(Number(min)) : PRICE_MIN,
-  max && Number(max) < PRICE_MAX ? clampToStep(Number(max)) : PRICE_MAX,
+  min ? clampToScale(Number(min)) : PRICE_MIN,
+  max && Number(max) < PRICE_MAX ? clampToScale(Number(max)) : PRICE_MAX,
 ];
 
 export const pricesFromRange = ([low, high]) => ({

@@ -2,6 +2,7 @@ const { sequelize } = require("../config/database.js");
 const { QueryTypes } = require("sequelize");
 const { Alert, NotificationLog, AlertClick, Purchase, User } = require("../models/index.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
+const { SOURCES } = require("../utils/signupSource.js");
 
 const getSourcingDemand = async (req, res) => {
   try {
@@ -82,8 +83,14 @@ const getFunnel = async (req, res) => {
 
 const getCustomerCount = async (req, res) => {
   try {
-    const count = await User.count({ where: { store_id: req.store.id } });
-    return res.status(200).json({ success: true, data: { count } });
+    const [count, fromWebsite] = await Promise.all([
+      User.count({ where: { store_id: req.store.id } }),
+      User.count({ where: { store_id: req.store.id, signup_source: SOURCES } }),
+    ]);
+    return res.status(200).json({
+      success: true,
+      data: { count, from_website: fromWebsite, website_clicks: req.store.widget_clicks || 0 },
+    });
   } catch (error) {
     console.error("Get customer count error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to fetch customer count" });

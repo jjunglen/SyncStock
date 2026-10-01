@@ -1,0 +1,7 @@
+# Blocks merchants add in the Shopify theme editor (no code):
+#   - "Restock alerts" section (blocks/restock-banner.liquid)
+#   - floating "Restock alerts" button, an app embed (blocks/restock-button.liquid)
+# Both link to the store's SyncStock site through api.syncstock.io/api/store/go,
+# which finds the store from its Shopify domain and tags the visit.
+name = "syncstock-theme"
+type = "theme"

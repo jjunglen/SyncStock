@@ -2,6 +2,7 @@ const { sequelize, Account, Store } = require("../models/index.js");
 const { signToken } = require("../utils/jwt.js");
 const { storeBaseUrl, safeRedirectPath } = require("../utils/storeUrl.js");
 const { ensureMembership } = require("./auth.controller.js");
+const { signupSource } = require("../utils/signupSource.js");
 const { setSessionCookie } = require("../utils/session.js");
 
 // Which store this login started from and the page to return to
@@ -73,7 +74,7 @@ const googleCallback = async (req, res) => {
             });
         }
         
-        await ensureMembership(account, store);
+        await ensureMembership(account, store, signupSource(req));
 
         const token = signToken(account);
         setSessionCookie(res, token);

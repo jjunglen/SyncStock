@@ -5,6 +5,8 @@ const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
 const { enabledCategories, logoUrl, textOnColor } = require("../utils/storeSettings.js");
+const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
+const { storeBaseUrl } = require("../utils/storeUrl.js");
 const {
   isBillingExempt,
   createSubscription,
@@ -562,6 +564,32 @@ const getStore = async (req, res) => {
   });
 };
 
+// GET /api/store/go?shop=x.myshopify.com&src=banner|floating — the
+// "Restock alerts" blocks on a merchant's own Shopify site link here.
+// Finds the store from its Shopify domain (so the blocks need no setup),
+// counts the click, remembers where the shopper came from for 30 days
+// (so a signup is credited to the website), and opens the store's
+// SyncStock site. Unknown or offline stores go to syncstock.io.
+const goToStore = async (req, res) => {
+  try {
+    const shop = String(req.query.shop || "").toLowerCase();
+    const store = shop.endsWith(".myshopify.com")
+      ? await Store.findOne({ where: { shopify_domain: shop } })
+      : null;
+    if (!store || store.status !== "active") return res.redirect(process.env.FRONTEND_URL);
+
+    const source = `shopify_${req.query.src}`;
+    if (SOURCES.includes(source)) {
+      res.cookie(REF_COOKIE, source, refCookieOptions());
+      await store.increment("widget_clicks");
+    }
+    return res.redirect(`${storeBaseUrl(store)}/`);
+  } catch (error) {
+    console.error("Store go-link error:", error.message);
+    return res.redirect(process.env.FRONTEND_URL);
+  }
+};
+
 // GET /api/store/mine — the logged-in merchant's own store, found from
 // their login rather than the web address (the merchant dashboard runs on
 // syncstock.io, which has no store subdomain for GET /store to read)
@@ -655,6 +683,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  goToStore,
   billingCallback,
   getMyStore,
   initiateShopifyConnect,
