@@ -79,6 +79,18 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       console.error("Digest flush error:", err.message),
     );
   });
+  // Every 6 hours: StockX price check for stores that have it (flagship)
+  cron.schedule("0 */6 * * *", async () => {
+    try {
+      const { Store } = require("./src/models/index.js");
+      const { runPriceCheck, isPriceCheckEnabled } = require("./src/services/priceCheck.service.js");
+      for (const store of await Store.findAll({ where: { status: "active" } })) {
+        if (isPriceCheckEnabled(store)) await runPriceCheck(store);
+      }
+    } catch (err) {
+      console.error("Price check cron error:", err.message);
+    }
+  });
   // Mondays 9am Central: "most wanted sizes" email to each store's admins
   cron.schedule(
     "0 9 * * 1",

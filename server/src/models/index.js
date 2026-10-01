@@ -12,6 +12,7 @@ const PushSubscription = require("./PushSubscription.js");
 const PendingNotification = require("./PendingNotification.js");
 const StockxImageCache = require("./StockxImageCache.js");
 const PixelClaim = require("./PixelClaim.js");
+const StockxPriceCheck = require("./StockxPriceCheck.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -20,6 +21,7 @@ Store.hasMany(NotificationLog, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(AlertClick, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Purchase, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(PixelClaim, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(StockxPriceCheck, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(PushSubscription, {
   foreignKey: "store_id",
   onDelete: "CASCADE",
@@ -90,4 +92,5 @@ module.exports = {
   PendingNotification,
   StockxImageCache,
   PixelClaim,
+  StockxPriceCheck,
 };

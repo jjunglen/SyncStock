@@ -14,6 +14,7 @@ import PurchasesPage from "./pages/dashboard/PurchasesPage.jsx";
 import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
 import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
 import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
+import PriceCheckPage from "./pages/dashboard/PriceCheckPage.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
 import TrackShoe from "./pages/dashboard/TrackShoe.jsx";
@@ -73,6 +74,7 @@ function App() {
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute requireMerchant><AccountSettings /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
+      <Route path="/price-check" element={<ProtectedRoute requireMerchant><PriceCheckPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
       <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />
       <Route path="/store/track" element={<ProtectedRoute loginPath="/store/login"><TrackShoe /></ProtectedRoute>} />

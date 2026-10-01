@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   LuLayoutDashboard,
   LuTrendingUp,
+  LuScale,
   LuStore,
   LuShoppingBag,
   LuUser,
@@ -22,6 +23,8 @@ const NAV_ITEMS = [
     to: "/dashboard",
   },
   { key: "sourcing", label: "Sourcing", icon: LuTrendingUp, to: "/sourcing" },
+  // StockX comparison — flagship store only for now (plan "internal")
+  { key: "price-check", label: "Price check", icon: LuScale, to: "/price-check", flagshipOnly: true },
   {
     key: "purchases",
     label: "Purchases",
@@ -155,7 +158,7 @@ export default function MerchantSidebar() {
       </div>
 
       <div className="space-y-1">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter((item) => !item.flagshipOnly || store?.plan === "internal").map((item) => (
           <NavOption
             key={item.key}
             item={item}

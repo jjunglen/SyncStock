@@ -5,3 +5,4 @@
 # which finds the store from its Shopify domain and tags the visit.
 name = "syncstock-theme"
 type = "theme"
+uid = "268fbe6d-bace-18d4-a34c-1c2de2ebc2237a744f32"

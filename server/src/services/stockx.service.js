@@ -80,4 +80,4 @@ const fetchStockXSearch = async (query, pageSize) => {
   return withStockxImages(data.products || []);
 };
 
-module.exports = { searchStockX };
+module.exports = { searchStockX, getAccessToken, STOCKX_BASE_URL };
