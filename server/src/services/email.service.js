@@ -4,6 +4,7 @@ const { renderEmail, productCard, itemRow, button, escapeHtml } = require("./ema
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { unsubscribeUrl } = require("../utils/unsubscribe.js");
 const { logoUrl, textOnColor } = require("../utils/storeSettings.js");
+const { signedLinker } = require("../utils/emailLink.js");
 
 // A store's branding for its emails (store settings): button colors and
 // logo. Without a brand color, emails keep Syncstock's blue.
@@ -163,11 +164,16 @@ const plainText = ({ greetingText, intro, parts, both, ctaHref, footer, unsubscr
     `Unsubscribe from alert emails: ${unsubscribeHref}`,
   ].join("\n");
 
-const sendDigestEmail = async ({ store, account, membershipId, alerts = [], sizes = [] }) => {
+const sendDigestEmail = async ({ store, account, membershipId, alerts: alertItems = [], sizes: sizeItems = [] }) => {
   if (!resend) {
     console.warn("Skipping email - Resend not configured");
     return;
   }
+
+  // Every link signs the shopper in when tapped (utils/emailLink.js)
+  const signed = signedLinker(store, account.id);
+  const alerts = alertItems.map((i) => ({ ...i, shopify_url: signed(i.shopify_url) }));
+  const sizes = sizeItems.map((i) => ({ ...i, shopify_url: signed(i.shopify_url) }));
 
   const fromEmail =
     store.notification_from_email || process.env.RESEND_FROM_EMAIL;
@@ -195,7 +201,7 @@ const sendDigestEmail = async ({ store, account, membershipId, alerts = [], size
   // One main button: straight to the item if there's one, else the dashboard
   const ctaHref = allItems.length === 1
     ? allItems[0].shopify_url
-    : `${storeBaseUrl(store)}/store/dashboard`;
+    : signed(`${storeBaseUrl(store)}/store/dashboard`);
   const bodyHtml =
     parts
       .map(([kind, items]) => `${both ? sectionTitle(DIGEST_KINDS[kind].section) : ""}${rowsFor(items)}`)

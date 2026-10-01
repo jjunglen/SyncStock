@@ -6,7 +6,7 @@ const {
   resolveStoreForOnboarding,
   attachStoreIfPresent,
 } = require("../middleware/tenant.middleware.js");
-const { authenticateAccount } = require("../middleware/auth.middleware.js");
+const { authenticateAccount, requireFullLogin } = require("../middleware/auth.middleware.js");
 const {
   signup,
   login,
@@ -17,6 +17,8 @@ const {
   getMe,
   forgotPassword,
   resetPassword,
+  emailLinkLogin,
+  logoutEverywhere,
 } = require("../controllers/auth.controller.js");
 
 // resolveStoreFromSubdomain run first everywhere - established which store before anything checks who's logged in
@@ -28,6 +30,9 @@ router.post("/merchant/login", authLimiter, merchantLogin);
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification", authLimiter, attachStoreIfPresent, resendVerification);
 router.post("/logout", logout);
+router.post("/logout-everywhere", authenticateAccount, requireFullLogin, logoutEverywhere);
+// Sign-in links in alert emails (auth.controller.js emailLinkLogin)
+router.get("/email-link", emailLinkLogin);
 router.get("/me", attachStoreIfPresent, authenticateAccount, getMe);
 router.post("/forgot-password", authLimiter, resolveStoreFromSubdomain, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);

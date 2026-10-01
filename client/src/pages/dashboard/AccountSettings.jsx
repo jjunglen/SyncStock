@@ -4,6 +4,7 @@ import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import api from "../../lib/api.js";
+import LogoutEverywhere from "../../components/auth/LogoutEverywhere.jsx";
 import { getMyStore } from "../../lib/myStore.js";
 
 export default function AccountSettings() {
@@ -130,6 +131,8 @@ export default function AccountSettings() {
             Subdomain can only be changed during onboarding. Contact support for changes after launch.
           </p>
         </div>
+
+        <LogoutEverywhere />
       </div>
     </div>
   );

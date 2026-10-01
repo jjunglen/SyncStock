@@ -1,7 +1,7 @@
 const { Op } = require("sequelize");
 const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
-const { findSessionAccount } = require("../utils/session.js");
+const { findSessionAccount, renewSession } = require("../utils/session.js");
 
 const NOT_STORES = ["www", "api"];
 
@@ -71,9 +71,11 @@ const resolveStoreFromShopifyDomain = async (req, res, next) => {
 
 const attachAccountIfPresent = async (req, res, next) => {
   try {
-    const { account } = await findSessionAccount(req, Account);
+    const { account, session } = await findSessionAccount(req, Account);
     if (!account) return next();
     req.account = account;
+    req.sessionVia = session?.via || null;
+    renewSession(res, account, session);
     if (req.store) {
       req.membership = await User.findOne({
         where: { account_id: account.id, store_id: req.store.id },
@@ -210,6 +212,14 @@ const resolveStoreFromAdminMembership = async (req, res, next) => {
   try {
     if (!req.account) {
       return res.status(401).json({ success: false, message: "Not logged in" });
+    }
+    // Merchant pages need a real login, never one from an alert-email link
+    if (req.sessionVia === "email-link") {
+      return res.status(403).json({
+        success: false,
+        code: "FULL_LOGIN_REQUIRED",
+        message: "Log in with your password or Google to manage your store.",
+      });
     }
 
     const membership = await User.findOne({

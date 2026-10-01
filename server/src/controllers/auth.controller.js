@@ -4,6 +4,7 @@ const {
     signToken,
     signEmailVerifyToken,
     verifyEmailVerifyToken,
+    verifyEmailLoginToken,
 } = require("../utils/jwt.js");
 const crypto = require("crypto");
 const {
@@ -36,7 +37,12 @@ const sendVerificationLink = async (account, { store = null, merchant = false, r
 // their account; anywhere else it's a shopper
 const isMerchantSignup = (store) => !!store && store.onboarding_step === "account";
 
-const { setSessionCookie, clearSessionCookies } = require("../utils/session.js");
+const {
+  setSessionCookie,
+  clearSessionCookies,
+  findSessionAccount,
+  issuedBeforeCutoff,
+} = require("../utils/session.js");
 
 const ensureMembership = async (account, store) => {
   let membership = await User.findOne({
@@ -225,6 +231,49 @@ const merchantLogin = async (req, res) => {
 // GET /api/auth/verify-email?token=... — the link in the verification
 // email. Marks the email verified, logs them in, and sends them on:
 // merchants back into onboarding, shoppers to their store (sizes first).
+// GET /api/auth/email-link?t=…&to=/store/dashboard?item=…
+// A link from an alert email: logs that shopper in on this device, then
+// opens the page. Shoppers only — never an account that owns a store. A bad
+// or expired link still opens the page, which asks them to log in.
+// Reaching the email also proves they own the address, so it counts as
+// verifying it.
+const emailLinkLogin = async (req, res) => {
+  try {
+    const link = verifyEmailLoginToken(req.query.t);
+    const store = link ? await Store.findByPk(link.store_id) : null;
+    const path = safeRedirectPath(req.query.to) || "/store/dashboard";
+    if (!link || !store) {
+      return res.redirect(store ? `${storeBaseUrl(store)}${path}` : process.env.FRONTEND_URL);
+    }
+    const destination = `${storeBaseUrl(store)}${path}`;
+
+    // Already logged in as this shopper here — keep that (fuller) login
+    const { account: current } = await findSessionAccount(req, Account);
+    if (current?.id === link.id) return res.redirect(destination);
+
+    const found = await Account.findByPk(link.id);
+    // Links sent before a password reset / "log out everywhere" are dead
+    const account = found && !issuedBeforeCutoff(link, found) ? found : null;
+    const membership = account
+      ? await User.findOne({ where: { account_id: account.id, store_id: store.id } })
+      : null;
+    // A login covers the whole account, so anyone who owns a store (at
+    // any store, not just this one) must log in normally — a forwarded
+    // shopping email must never open a merchant dashboard
+    const ownsAStore = account
+      ? await User.count({ where: { account_id: account.id, role: "admin" } })
+      : 0;
+    if (!membership || ownsAStore) return res.redirect(destination);
+
+    if (!account.email_verified) await account.update({ email_verified: true });
+    setSessionCookie(res, signToken(account, { via: "email-link" }));
+    return res.redirect(destination);
+  } catch (error) {
+    console.error("Email link login error:", error.message);
+    return res.redirect(process.env.FRONTEND_URL);
+  }
+};
+
 const verifyEmail = async (req, res) => {
     const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
     const claims = verifyEmailVerifyToken(req.query.token);
@@ -280,6 +329,20 @@ const resendVerification = async (req, res) => {
         success: true,
         message: "If that account needs verifying, a new link is on its way.",
     });
+};
+
+// POST /api/auth/logout-everywhere — logs this account out on every other
+// device (and kills any alert-email sign-in links), keeping this one
+const logoutEverywhere = async (req, res) => {
+  try {
+    await req.account.update({ sessions_valid_after: new Date() });
+    // This device gets a fresh login, issued at the cutoff so it still counts
+    setSessionCookie(res, signToken(req.account));
+    return res.status(200).json({ success: true, message: "Logged out of all other devices" });
+  } catch (error) {
+    console.error("Logout everywhere error:", error.message);
+    return res.status(500).json({ success: false, message: "Couldn't log out other devices" });
+  }
 };
 
 const logout = async (req, res) => {
@@ -425,6 +488,8 @@ const resetPassword = async (req, res) => {
       password: hashPassword,
       reset_token: null,
       reset_token_expires: null,
+      // Anyone logged in with the old password is logged out
+      sessions_valid_after: new Date(),
     });
     return res
       .status(200)
@@ -438,6 +503,8 @@ const resetPassword = async (req, res) => {
 };
 
 module.exports = {
+    logoutEverywhere,
+    emailLinkLogin,
   signup,
   login,
   merchantLogin,

@@ -30,6 +30,12 @@ const Account = sequelize.define(
       allowNull: true,
 
     },
+    // Logins (and alert-email sign-in links) issued before this moment no
+    // longer work — set by a password reset and "Log out of all devices"
+    sessions_valid_after: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     password: {
       type: DataTypes.STRING,
       allowNull: true,

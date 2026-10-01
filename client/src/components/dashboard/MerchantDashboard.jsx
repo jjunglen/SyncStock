@@ -6,17 +6,22 @@ import {
   LuPackage,
   LuBellRing,
   LuShoppingBag,
-  LuBell,
+  LuChevronRight,
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
 
+// `to`: the page with the details behind that number
 const FUNNEL_STAGES = [
-  { key: "alerts", label: "Active alerts" },
+  { key: "alerts", label: "Active alerts", to: "/sourcing" },
   { key: "notified", label: "Notified" },
   { key: "clicked", label: "Clicked" },
-  { key: "purchased", label: "Purchased" },
+  { key: "purchased", label: "Purchased", to: "/purchases" },
 ];
+
+// Shared look for rows that open another page
+const ROW_LINK =
+  "flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-lg border-b border-border last:border-0 hover:bg-text/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
 export default function MerchantDashboard() {
   const [sourcing, setSourcing] = useState([]);
@@ -85,9 +90,6 @@ export default function MerchantDashboard() {
               Here's how your store is performing.
             </p>
           </div>
-          <button className="relative p-2 rounded-lg bg-surface border border-border text-text-muted hover:text-text transition-colors">
-            <LuBell size={18} />
-          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -95,31 +97,44 @@ export default function MerchantDashboard() {
             icon={LuTrendingUp}
             label="Revenue attributed"
             value={revenue ? `$${revenue.total_revenue.toFixed(2)}` : "…"}
+            to="/purchases"
+            hint="See purchases"
           />
           <StatCard
             icon={LuUsers}
             label="Active customers"
             value={customerCount === null ? "…" : customerCount}
+            to="/customers"
+            hint="See customers"
           />
           <StatCard
             icon={LuBellRing}
             label="Notifications sent"
             value={funnel ? funnel.notified : "…"}
+            onClick={() =>
+              document.getElementById("funnel")?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            hint="See the funnel"
           />
           <StatCard
             icon={LuPackage}
             label="Products tracked"
             value={loadingSourcing ? "…" : sourcing.length}
+            to="/sourcing"
+            hint="See sourcing"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2 rounded-xl border border-border bg-surface p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold">What to source next</h3>
-              <span className="text-xs text-text-muted">
-                By active customer demand
-              </span>
+              <div>
+                <h3 className="font-semibold">What to source next</h3>
+                <span className="text-xs text-text-muted">By active customer demand</span>
+              </div>
+              <Link to="/sourcing" className="text-xs text-text-muted hover:text-text transition-colors">
+                View all →
+              </Link>
             </div>
             {loadingSourcing ? (
               <p className="text-sm text-text-muted">Loading...</p>
@@ -127,10 +142,11 @@ export default function MerchantDashboard() {
               <p className="text-sm text-text-muted">No active alerts yet.</p>
             ) : (
               <div className="space-y-1">
-                {sourcing.map((item) => (
-                  <div
+                {sourcing.slice(0, 8).map((item) => (
+                  <Link
+                    to="/sourcing"
                     key={`${item.product_key}-${item.size}`}
-                    className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                    className={ROW_LINK}
                   >
                     <div>
                       <p className="text-sm font-medium">{item.product_name}</p>
@@ -145,14 +161,15 @@ export default function MerchantDashboard() {
                       <span className="text-sm font-semibold">
                         {item.demand_count} waiting
                       </span>
+                      <LuChevronRight size={14} className="text-text-muted" aria-hidden="true" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-surface p-6">
+          <div id="funnel" className="rounded-xl border border-border bg-surface p-6 scroll-mt-6">
             <h3 className="font-semibold mb-4">Notification funnel</h3>
             {!funnel ? (
               <p className="text-sm text-text-muted">Loading...</p>
@@ -166,9 +183,13 @@ export default function MerchantDashboard() {
                 {FUNNEL_STAGES.map((stage) => (
                   <div key={stage.key}>
                     <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-sm text-text-muted">
-                        {stage.label}
-                      </span>
+                      {stage.to ? (
+                        <Link to={stage.to} className="text-sm text-text-muted hover:text-text underline-offset-4 hover:underline">
+                          {stage.label}
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-text-muted">{stage.label}</span>
+                      )}
                       <span className="text-sm font-medium">
                         {funnel[stage.key]}
                       </span>
@@ -209,10 +230,7 @@ export default function MerchantDashboard() {
           ) : (
             <div className="space-y-1">
               {recentPurchases.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                >
+                <Link to="/purchases" key={p.id} className={ROW_LINK}>
                   <div>
                     <p className="text-sm font-medium">{p.product_name}</p>
                     <p className="text-xs text-text-muted">
@@ -220,20 +238,16 @@ export default function MerchantDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {p.alert_id ? (
-                      <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
-                        From alert
-                      </span>
-                    ) : (
-                      <span className="text-xs bg-white/5 text-text-muted px-2 py-0.5 rounded-full">
-                        Matched
-                      </span>
-                    )}
+                    {/* How the sale was proven (attribution.service.js) */}
+                    <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
+                      {p.attribution_source === "pixel" ? "Buy it now" : "Syncstock checkout"}
+                    </span>
                     <span className="text-sm font-semibold">
                       ${parseFloat(p.price_paid).toFixed(2)}
                     </span>
+                    <LuChevronRight size={14} className="text-text-muted" aria-hidden="true" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -243,14 +257,35 @@ export default function MerchantDashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }) {
-  return (
-    <div className="p-5 rounded-xl border border-border bg-surface">
-      <div className="p-2 bg-primary/10 rounded-lg w-fit mb-3">
-        <Icon size={18} className="text-text" />
+// A headline number that opens its details: a page (`to`) or an action
+// on this page (`onClick`). The arrow and hint show it's clickable.
+function StatCard({ icon: Icon, label, value, to, onClick, hint }) {
+  const body = (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="p-2 bg-primary/10 rounded-lg w-fit mb-3">
+          <Icon size={18} className="text-text" />
+        </div>
+        <LuChevronRight
+          size={16}
+          className="text-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-text"
+          aria-hidden="true"
+        />
       </div>
       <h3 className="text-sm text-text-muted mb-1">{label}</h3>
       <p className="text-xl font-bold">{value}</p>
-    </div>
+      {hint && <p className="mt-2 text-xs text-text-muted group-hover:text-text transition-colors">{hint}</p>}
+    </>
+  );
+  const className =
+    "group block w-full text-left p-5 rounded-xl border border-border bg-surface transition-colors hover:border-text/25 hover:bg-text/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+  return to ? (
+    <Link to={to} className={className}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={className}>
+      {body}
+    </button>
   );
 }

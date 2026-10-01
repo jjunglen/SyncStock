@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import SizeSelector from "../onboarding/SizeSelector.jsx";
 import api from "../../lib/api.js";
+import LogoutEverywhere from "../../components/auth/LogoutEverywhere.jsx";
 
 function Toggle({ checked, onChange, label, description }) {
   return (
@@ -334,6 +335,8 @@ export default function CustomerProfile() {
             </div>
           )}
         </div>
+
+        <LogoutEverywhere />
       </div>
     </div>
   );

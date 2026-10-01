@@ -1,19 +1,36 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 
-// Creates a JWT for an Account after login.
-// tenant.middleware.js.
-const signToken = (account) => {
-  return jwt.sign(
-    {
-      id: account.id,
-      email: account.email,
-    },
+// How long a login lasts. It renews as the shopper uses the site
+// (renewSession in session.js), so regular visitors stay logged in.
+const SESSION_DAYS = 60;
+
+// The session token, set as a cookie after login. `via: "email-link"`
+// marks a login from a link in an alert email — those can browse and set
+// alerts, but changing the email, phone or deleting the account needs a
+// normal login (requireFullLogin).
+const signToken = (account, { via } = {}) =>
+  jwt.sign(
+    { id: account.id, email: account.email, ...(via && { via }) },
     process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    },
+    { expiresIn: `${SESSION_DAYS}d` },
   );
+
+// Sign-in link for one shopper at one store, used in alert emails: tapping
+// a shoe logs them in even in an email app's own browser (which doesn't
+// share the phone browser's login). Lasts 7 days from the email.
+const signEmailLoginToken = (accountId, storeId) =>
+  jwt.sign({ id: accountId, store_id: storeId, purpose: "email-login" }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+
+const verifyEmailLoginToken = (token) => {
+  try {
+    const decoded = jwt.verify(String(token || ""), process.env.JWT_SECRET);
+    return decoded.purpose === "email-login" ? decoded : null;
+  } catch {
+    return null;
+  }
 };
 
 const verifyToken = (token) => {
@@ -65,6 +82,9 @@ const verifyEmailVerifyToken = (token) => {
 };
 
 module.exports = {
+  SESSION_DAYS,
+  signEmailLoginToken,
+  verifyEmailLoginToken,
   signToken,
   verifyToken,
   signOnboardingToken,

@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   resolveStoreFromSubdomainOrAdmin,
 } = require("../middleware/tenant.middleware.js");
-const { authenticateAccount } = require("../middleware/auth.middleware.js");
+const { authenticateAccount, requireFullLogin } = require("../middleware/auth.middleware.js");
 const {
   getProfile,
   updateProfile,
@@ -15,6 +15,6 @@ router.use(authenticateAccount, resolveStoreFromSubdomainOrAdmin);
 
 router.get("/profile", getProfile);
 router.put("/profile", updateProfile);
-router.delete("/profile", deleteAccount);
+router.delete("/profile", requireFullLogin, deleteAccount);
 
 module.exports = router;

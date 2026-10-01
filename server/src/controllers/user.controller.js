@@ -63,6 +63,14 @@ const updateProfile = async (req, res) => {
     } = req.body;
 
     if (email && email !== req.account.email) {
+      // Changing the login email needs a full login, not an alert-email link
+      if (req.sessionVia === "email-link") {
+        return res.status(403).json({
+          success: false,
+          code: "FULL_LOGIN_REQUIRED",
+          message: "For your security, log out and log back in with your password or Google to change your email.",
+        });
+      }
       if (!isValidEmail(email)) {
         return res
           .status(400)

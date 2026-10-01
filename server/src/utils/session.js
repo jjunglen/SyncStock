@@ -1,4 +1,4 @@
-const { verifyToken } = require("./jwt.js");
+const { verifyToken, signToken, SESSION_DAYS } = require("./jwt.js");
 
 const SESSION_COOKIE = "session_token";
 const isProduction = process.env.NODE_ENV === "production";
@@ -9,7 +9,7 @@ const COOKIE_OPTIONS = {
   secure: isProduction,
   sameSite: "lax",
   domain: isProduction ? ".syncstock.io" : undefined,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
 };
 
 // Before NODE_ENV=production was set, the cookie belonged to the API host
@@ -38,8 +38,17 @@ const sessionTokens = (req) =>
     })
     .filter(Boolean);
 
+// A token from before the account's "log out everywhere" moment (password
+// reset or the profile button) no longer counts. Compared in whole
+// seconds, the precision tokens carry.
+const issuedBeforeCutoff = (decoded, account) =>
+  !!account.sessions_valid_after &&
+  decoded.iat < Math.floor(new Date(account.sessions_valid_after).getTime() / 1000);
+
 // The account for the first session cookie that is valid AND whose
 // account still exists. `reason` explains a miss for error messages.
+// Only session tokens count — not other signed links (email
+// verification, email sign-in), which carry a `purpose`.
 const findSessionAccount = async (req, Account) => {
   const tokens = sessionTokens(req);
   if (tokens.length === 0) return { account: null, reason: "missing" };
@@ -47,12 +56,24 @@ const findSessionAccount = async (req, Account) => {
   let reason = "invalid";
   for (const token of tokens) {
     const decoded = verifyToken(token);
-    if (!decoded?.id) continue;
+    if (!decoded?.id || decoded.purpose) continue;
     const account = await Account.findByPk(decoded.id);
-    if (account) return { account, reason: null };
-    reason = "deleted";
+    if (!account) {
+      reason = "deleted";
+      continue;
+    }
+    if (issuedBeforeCutoff(decoded, account)) continue; // logged out everywhere
+    return { account, session: decoded, reason: null };
   }
   return { account: null, reason };
+};
+
+// Keeps regular shoppers logged in: once a day of use, the 60-day clock
+// restarts. Keeps how the session started (normal or email link).
+const RENEW_AFTER_SECONDS = 24 * 60 * 60;
+const renewSession = (res, account, session) => {
+  if (!session?.iat || Date.now() / 1000 - session.iat < RENEW_AFTER_SECONDS) return;
+  setSessionCookie(res, signToken(account, { via: session.via }));
 };
 
 const setSessionCookie = (res, token) => {
@@ -66,6 +87,8 @@ const clearSessionCookies = (res) => {
 };
 
 module.exports = {
+  issuedBeforeCutoff,
+  renewSession,
   COOKIE_OPTIONS,
   findSessionAccount,
   setSessionCookie,
