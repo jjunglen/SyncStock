@@ -8,6 +8,7 @@ const {
 } = require("../utils/jwt.js");
 const crypto = require("crypto");
 const { signupSource } = require("../utils/signupSource.js");
+const { isValidPassword } = require("../utils/validate.js");
 const { isPlatformAdmin } = require("../middleware/platformAdmin.middleware.js");
 const {
     sendPasswordResetEmail,
@@ -452,7 +453,10 @@ const forgotPassword = async (req, res) => {
         
         await account.update({ reset_token: token, reset_token_expires: expires });
 
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+        // Back to the site they asked from: their store's site for
+        // shoppers, syncstock.io for merchants
+        const base = req.store ? storeBaseUrl(req.store) : process.env.FRONTEND_URL;
+        const resetUrl = `${base}/reset-password?token=${token}`;
 
         await sendPasswordResetEmail({
             store: req.store,
@@ -481,6 +485,12 @@ const resetPassword = async (req, res) => {
             message: "Token and new password are required",
             });
 
+    }
+    if (!isValidPassword(password)) {
+        return res.status(400).json({
+            success: false,
+            message: "Password must be at least 8 characters with a number and a symbol",
+        });
     }
 
     const account = await Account.findOne({ where: { reset_token: token } });

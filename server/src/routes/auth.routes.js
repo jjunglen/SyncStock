@@ -34,7 +34,8 @@ router.post("/logout-everywhere", authenticateAccount, requireFullLogin, logoutE
 // Sign-in links in alert emails (auth.controller.js emailLinkLogin)
 router.get("/email-link", emailLinkLogin);
 router.get("/me", attachStoreIfPresent, authenticateAccount, getMe);
-router.post("/forgot-password", authLimiter, resolveStoreFromSubdomain, forgotPassword);
+// Works on syncstock.io (merchants) and on store sites (shoppers)
+router.post("/forgot-password", authLimiter, attachStoreIfPresent, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);
 
 module.exports = router;

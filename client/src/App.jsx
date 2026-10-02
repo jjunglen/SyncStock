@@ -6,6 +6,7 @@ import AuthForm from "./components/auth/AuthForm.jsx";
 import ConnectShopify from "./pages/onboarding/ConnectShopify.jsx";
 import OnboardingSteps from "./pages/onboarding/OnboardingSteps.jsx";
 import EmailVerification from "./pages/EmailVerification.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import MerchantDashboard from "./components/dashboard/MerchantDashboard.jsx";
 import MarketingHeader from "./components/marketing/MarketingHeader.jsx";
@@ -69,6 +70,7 @@ function App() {
       {/* Old setup path — links sent before the new flow still work */}
       <Route path="/onboarding/subdomain" element={<OnboardingSteps />} />
       <Route path="/email-verification" element={<EmailVerification />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/store" element={<StoreLanding />} />
       <Route path="/dashboard" element={<ProtectedRoute requireMerchant><MerchantDashboard /></ProtectedRoute>} />
       <Route path="/sourcing" element={<ProtectedRoute requireMerchant><SourcingPage /></ProtectedRoute>} />
