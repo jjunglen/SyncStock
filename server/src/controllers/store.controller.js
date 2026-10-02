@@ -11,6 +11,7 @@ const {
   isConfigured,
   queryHmacValid,
   appThatSignedQuery,
+  APPS,
 } = require("../utils/shopifyApps.js");
 const {
   isBillingExempt,
@@ -546,7 +547,12 @@ const shopifyAppEntry = async (req, res) => {
     const shop = String(req.query.shop || "").toLowerCase();
     if (!shop.endsWith(".myshopify.com")) return res.redirect(process.env.FRONTEND_URL);
     const appKey = appThatSignedQuery(req.query);
-    if (!appKey) return res.status(403).send("This link wasn't signed by Shopify");
+    if (!appKey) {
+      console.error(
+        `Shopify app link for ${shop} didn't match either app's secret (public app ${isConfigured("public") ? "configured" : "NOT configured"})`,
+      );
+      return res.status(403).send("This link wasn't signed by Shopify");
+    }
 
     const store = await Store.findOne({ where: { shopify_domain: shop } });
     const connected = store && store.shopify_app === appKey && !store.uninstalled_at;
@@ -561,6 +567,28 @@ const shopifyAppEntry = async (req, res) => {
     console.error("Shopify app entry error:", error.message);
     return res.redirect(process.env.FRONTEND_URL);
   }
+};
+
+// GET /api/store/shopify/status — which Shopify apps this server has keys
+// for, to check the Railway variables. Never shows a secret: just whether
+// each is set, the last 4 characters of the client ID, and a 6-character
+// fingerprint of the secret to compare against the Partner dashboard.
+const shopifyAppsStatus = (req, res) => {
+  const fingerprint = (secret) =>
+    secret ? crypto.createHash("sha256").update(secret).digest("hex").slice(0, 6) : null;
+  const describe = (key) => {
+    const app = APPS[key];
+    const id = app.clientId();
+    const secret = app.secret();
+    return {
+      configured: isConfigured(key),
+      client_id_ends_with: id ? id.slice(-4) : null,
+      secret_set: !!secret,
+      secret_length: secret ? secret.length : 0,
+      secret_fingerprint: fingerprint(secret),
+    };
+  };
+  res.status(200).json({ custom: describe("custom"), public: describe("public") });
 };
 
 // GET /api/store/go?shop=x.myshopify.com&src=banner|floating — the
@@ -682,6 +710,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  shopifyAppsStatus,
   shopifyAppEntry,
   goToStore,
   billingCallback,

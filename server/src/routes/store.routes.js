@@ -21,6 +21,7 @@ const {
   billingCallback,
   goToStore,
   shopifyAppEntry,
+  shopifyAppsStatus,
 } = require("../controllers/store.controller.js");
 const {
   getSettings,
@@ -38,6 +39,8 @@ router.get("/shopify/connect", initiateShopifyConnect);
 router.get("/shopify/callback", handleShopifyCallback);
 // The app's address in Shopify: installs and "open app" land here
 router.get("/shopify/app", shopifyAppEntry);
+// Which app keys the server has (no secrets) — for checking Railway
+router.get("/shopify/status", shopifyAppsStatus);
 
 // Merchant onboarding: Shopify → account → subdomain → plan. Progress is
 // saved on the store (onboarding_step). Where they are can be read with
