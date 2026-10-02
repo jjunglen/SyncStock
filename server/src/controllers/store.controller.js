@@ -99,7 +99,7 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
       continue;
     }
 
-    await fetch(`https://${shop}/admin/api/2025-01/webhooks.json`, {
+    const resp = await fetch(`https://${shop}/admin/api/2025-01/webhooks.json`, {
       method: "POST",
       headers: {
         "X-Shopify-Access-Token": accessToken,
@@ -112,9 +112,14 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
           format: "json",
         },
       }),
-    }).catch((err) =>
-      console.error(`Failed to register ${topic} webhook:`, err.message),
-    );
+    }).catch((err) => {
+      console.error(`Failed to register ${topic} webhook:`, err.message);
+      return null;
+    });
+    if (resp && !resp.ok) {
+      const detail = await resp.text().catch(() => "");
+      console.error(`Shopify refused the ${topic} webhook for ${shop} (${resp.status}): ${detail.slice(0, 300)}`);
+    }
   }
 };
 
@@ -295,13 +300,23 @@ const handleShopifyCallback = async (req, res) => {
       );
     }
 
-    const shopResp = await fetch(
-      `https://${shop}/admin/api/2025-01/shop.json`,
-      {
-        headers: { "X-Shopify-Access-Token": access_token },
-      },
-    );
-    const { shop: shopData } = await shopResp.json();
+    // The store's name and public domain (GraphQL — new public apps are
+    // expected to use it rather than REST)
+    const shopResp = await fetch(`https://${shop}/admin/api/2026-07/graphql.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": access_token },
+      body: JSON.stringify({ query: "{ shop { name primaryDomain { host } } }" }),
+    });
+    const shopBody = await shopResp.json().catch(() => ({}));
+    const shopInfo = shopBody.data?.shop;
+    if (!shopInfo?.name) {
+      console.error(
+        `Shopify callback for ${shop}: couldn't read the store details (${shopResp.status}):`,
+        JSON.stringify(shopBody.errors || shopBody).slice(0, 500),
+      );
+      return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=connect_failed`);
+    }
+    const shopData = { name: shopInfo.name, domain: shopInfo.primaryDomain?.host || shop };
 
     let store = await Store.findOne({ where: { shopify_domain: shop } });
 
