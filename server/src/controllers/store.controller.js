@@ -5,6 +5,7 @@ const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../ut
 const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
+const { appForConnect, appCredentials, isConfigured } = require("../utils/shopifyApps.js");
 const {
   isBillingExempt,
   createSubscription,
@@ -147,16 +148,24 @@ const initiateShopifyConnect = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=beta`);
   }
 
+  // Which SyncStock app to install (utils/shopifyApps.js). ?app=public
+  // moves an existing store over; otherwise it keeps the app it has.
+  const existing = await Store.findOne({ where: { shopify_domain: shop }, attributes: ["shopify_app"] });
+  const appKey = appForConnect(req.query.app, existing);
+  const { clientId } = appCredentials(appKey);
+
   const state = crypto.randomBytes(16).toString("hex");
-  res.cookie("shopify_oauth_state", state, {
+  const oauthCookie = {
     httpOnly: true,
     maxAge: 10 * 60 * 1000,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-  });
+  };
+  res.cookie("shopify_oauth_state", state, oauthCookie);
+  res.cookie("shopify_oauth_app", appKey, oauthCookie);
 
   const redirectUri = `${process.env.BACKEND_URL}/api/store/shopify/callback`;
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_APP_CLIENT_ID}&scope=${process.env.SHOPIFY_APP_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${process.env.SHOPIFY_APP_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
   return res.redirect(installUrl);
 };
@@ -231,6 +240,10 @@ const handleShopifyCallback = async (req, res) => {
     if (req.cookies.shopify_oauth_state !== state) {
       return res.status(403).send("Invalid state — possible CSRF attempt");
     }
+    // The app this install started with (set in initiateShopifyConnect)
+    const appKey = isConfigured(req.cookies.shopify_oauth_app) ? req.cookies.shopify_oauth_app : null;
+    if (!appKey) return res.status(403).send("Install session expired — start again");
+    const app = appCredentials(appKey);
 
     const params = { ...req.query };
     delete params.hmac;
@@ -240,7 +253,7 @@ const handleShopifyCallback = async (req, res) => {
       .map((key) => `${key}=${params[key]}`)
       .join("&");
     const generatedHmac = crypto
-      .createHmac("sha256", process.env.SHOPIFY_APP_CLIENT_SECRET)
+      .createHmac("sha256", app.secret)
       .update(message)
       .digest("hex");
     if (generatedHmac !== hmac) {
@@ -251,8 +264,8 @@ const handleShopifyCallback = async (req, res) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        client_id: process.env.SHOPIFY_APP_CLIENT_ID,
-        client_secret: process.env.SHOPIFY_APP_CLIENT_SECRET,
+        client_id: app.clientId,
+        client_secret: app.secret,
         code,
       }),
     });
@@ -275,12 +288,14 @@ const handleShopifyCallback = async (req, res) => {
         shopify_domain: shop,
         storefront_url: `https://${shopData.domain}`,
         shopify_access_token: access_token,
+        shopify_app: appKey,
         subdomain,
         status: "pending",
         onboarding_step: "account",
       });
     } else {
-      await store.update({ shopify_access_token: access_token });
+      // Reconnected — possibly moving to the other app
+      await store.update({ shopify_access_token: access_token, shopify_app: appKey });
       // Reinstalled after an uninstall. Shopify cancelled their
       // subscription on uninstall, so paying stores pick their plan again
       // (no second trial); the flagship store goes straight back online.
@@ -302,6 +317,7 @@ const handleShopifyCallback = async (req, res) => {
     const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");
+    res.clearCookie("shopify_oauth_app");
     // Reconnecting a live store just goes to the dashboard (login if needed)
     if (store.onboarding_step === "complete") {
       return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);

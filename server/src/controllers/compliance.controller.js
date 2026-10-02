@@ -31,6 +31,13 @@ const handleComplianceWebhook = async (req, res) => {
       console.log(`Compliance ${topic} for ${shopDomain}: no store on file, nothing to do`);
       return;
     }
+    // Only the app the store uses now speaks for it. After a store moves
+    // to the public app, the old app's shop/redact (sent 48 hours after
+    // the old app is uninstalled) must NOT delete the store.
+    if (req.shopifyApp !== (store.shopify_app || "custom")) {
+      console.log(`Compliance ${topic} for ${shopDomain} from the ${req.shopifyApp} app ignored — store uses the ${store.shopify_app} app`);
+      return;
+    }
     const email = payload.customer?.email || null;
 
     if (topic === "customers/data_request") {

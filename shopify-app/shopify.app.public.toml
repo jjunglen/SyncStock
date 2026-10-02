@@ -1,0 +1,34 @@
+# The public SyncStock app — the one merchants install (public distribution,
+# so it can install on any store and charge through Shopify Billing).
+# Replaces the original custom-distribution app (shopify.app.toml), which
+# could only install on The Laboratory and couldn't bill.
+# Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "6400fce3b0764e4ecad29fb44d6de683"
+name = "SyncStock"
+application_url = "https://syncstock.io"
+# The merchant dashboard is syncstock.io itself, not a page inside the
+# Shopify admin — opening the app from Shopify goes there
+embedded = false
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,write_pixels,read_customer_events"
+optional_scopes = [ ]
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [ "https://api.syncstock.io/api/store/shopify/callback" ]
+
+[webhooks]
+api_version = "2026-07"
+
+# app/uninstalled can't be subscribed here while the app uses its own
+# install flow (use_legacy_install_flow) — it's registered on each store
+# at connect instead, with the product and order webhooks
+# (registerShopifyWebhooks in server/src/controllers/store.controller.js).
+
+# Shopify's required privacy webhooks (compliance.controller.js)
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "https://api.syncstock.io/api/webhooks/shopify/compliance"

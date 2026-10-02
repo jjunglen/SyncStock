@@ -129,6 +129,13 @@ const Store = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    // Which SyncStock Shopify app the store installed: "custom" (the
+    // original, The Laboratory) or "public" (utils/shopifyApps.js)
+    shopify_app: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: "custom",
+    },
     // Clicks on the "Restock alerts" blocks on the merchant's Shopify site
     widget_clicks: {
       type: DataTypes.INTEGER,
