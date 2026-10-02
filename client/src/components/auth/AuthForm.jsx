@@ -168,6 +168,11 @@ export default function AuthForm({ initialMode = "login" }) {
         password: formData.password,
       });
       localStorage.setItem("syncstock_email", formData.email);
+      // SyncStock's own admin login
+      if (res.data.data?.platform_admin) {
+        navigate("/platform");
+        return;
+      }
       // Setup not finished yet → pick up where they left off
       if (res.data.data?.onboarding_step && res.data.data.onboarding_step !== "complete") {
         navigate("/onboarding/setup");

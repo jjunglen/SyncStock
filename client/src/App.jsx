@@ -77,7 +77,7 @@ function App() {
       <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
       <Route path="/price-check" element={<ProtectedRoute requireMerchant><PriceCheckPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
-      <Route path="/platform" element={<ProtectedRoute requireMerchant><PlatformAdmin /></ProtectedRoute>} />
+      <Route path="/platform" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
       <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />
       <Route path="/store/track" element={<ProtectedRoute loginPath="/store/login"><TrackShoe /></ProtectedRoute>} />
       <Route path="/store/profile" element={<ProtectedRoute loginPath="/store/login"><CustomerProfile /></ProtectedRoute>} />

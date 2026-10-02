@@ -47,6 +47,9 @@ const Inventory = sequelize.define(
     available: { type: DataTypes.INTEGER, defaultValue: 0 },
     shopify_url: { type: DataTypes.STRING, allowNull: true },
     image_url: { type: DataTypes.STRING, allowNull: true },
+    // The product's Shopify description, as plain text
+    // (utils/productDescription.js)
+    description: { type: DataTypes.TEXT, allowNull: true },
     last_synced_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     is_graded: {
       type: DataTypes.BOOLEAN,

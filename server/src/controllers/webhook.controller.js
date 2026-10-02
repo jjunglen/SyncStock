@@ -2,6 +2,7 @@ const { Inventory } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
+const { descriptionFromHtml } = require("../utils/productDescription.js");
 const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
@@ -38,6 +39,7 @@ const handleProductCreate = async (req, res) => {
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: data.images?.[0]?.src || null,
         image_urls: (data.images || []).map((img) => img.src),
+        description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
     }
@@ -144,6 +146,7 @@ const handleProductUpdate = async (req, res) => {
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: imageUrl,
         image_urls: (data.images || []).map((img) => img.src),
+        description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
 

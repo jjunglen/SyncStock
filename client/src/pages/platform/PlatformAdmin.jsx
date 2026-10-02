@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LuShieldCheck,
+  LuLogOut,
   LuStore,
   LuDollarSign,
   LuUsers,
@@ -9,12 +11,12 @@ import {
   LuShoppingBag,
   LuFootprints,
 } from "react-icons/lu";
-import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
 
 // SyncStock's own admin page: how every store is doing, and what
-// shoppers want across all of them. The server only answers for
-// PLATFORM_ADMIN_EMAILS; everyone else gets "not found".
+// shoppers want across all of them. The server only answers for the
+// one admin login (platformAdmin.middleware.js); everyone else gets
+// "not found".
 
 const money = (n) =>
   `$${Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -146,6 +148,7 @@ export default function PlatformAdmin() {
   const [demand, setDemand] = useState(null);
   const [category, setCategory] = useState("all");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     api
@@ -166,18 +169,37 @@ export default function PlatformAdmin() {
   const days = overview?.recent_days || 30;
   const sizeGroups = demand?.sizes ? Object.entries(demand.sizes) : [];
 
-  return (
-    <div className="flex min-h-screen w-full bg-bg text-text">
-      <MerchantSidebar />
+  const logOut = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch {
+      // Logged out or not, leave the page
+    }
+    navigate("/login");
+  };
 
-      <div className="flex-1 min-w-0 p-4 sm:p-6 overflow-auto">
-        <div className="max-w-6xl">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <LuShieldCheck size={18} className="text-text" />
-            </div>
-            <h1 className="font-display text-2xl font-semibold">SyncStock admin</h1>
+  return (
+    <div className="min-h-screen w-full bg-bg text-text">
+      <header className="sticky top-0 z-40 border-b border-border bg-bg/90 backdrop-blur">
+        <div className="mx-auto max-w-6xl flex items-center justify-between gap-3 px-4 sm:px-6 h-14">
+          <div className="flex items-center gap-2 min-w-0">
+            <LuShieldCheck size={18} className="text-text shrink-0" />
+            <span className="font-semibold truncate">SyncStock admin</span>
           </div>
+          <button
+            type="button"
+            onClick={logOut}
+            className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text transition-colors"
+          >
+            <LuLogOut size={16} />
+            Log out
+          </button>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-6xl min-w-0 p-4 sm:p-6">
+        <div>
+          <h1 className="font-display text-2xl font-semibold mb-1">All stores</h1>
           <p className="text-text-muted text-sm mb-6">
             Every store on SyncStock. Counts only — no shopper names or emails.
           </p>

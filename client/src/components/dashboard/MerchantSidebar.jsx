@@ -11,7 +11,6 @@ import {
   LuSettings,
   LuChevronDown,
   LuChevronsRight,
-  LuShieldCheck,
 } from "react-icons/lu";
 import SignalDot from "../ui/SignalDot.jsx";
 import { useMyStore, storefrontUrl } from "../../lib/myStore.js";
@@ -57,8 +56,6 @@ const NAV_ITEMS = [
     icon: LuSettings,
     to: "/settings",
   },
-  // SyncStock's own admin page — PLATFORM_ADMIN_EMAILS only
-  { key: "platform", label: "SyncStock admin", icon: LuShieldCheck, to: "/platform", platformAdminOnly: true },
 ];
 
 // Expanded/collapsed is remembered per browser, so it stays the same
@@ -161,11 +158,7 @@ export default function MerchantSidebar() {
       </div>
 
       <div className="space-y-1">
-        {NAV_ITEMS.filter(
-          (item) =>
-            (!item.flagshipOnly || store?.plan === "internal") &&
-            (!item.platformAdminOnly || store?.platform_admin),
-        ).map((item) => (
+        {NAV_ITEMS.filter((item) => !item.flagshipOnly || store?.plan === "internal").map((item) => (
           <NavOption
             key={item.key}
             item={item}

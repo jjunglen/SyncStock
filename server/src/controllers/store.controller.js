@@ -6,9 +6,7 @@ const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
 const { tokenFields } = require("../utils/shopifyToken.js");
-const { API_VERSION, shopifyGraphql } = require("../utils/shopifyGraphql.js");
-const { isPlatformAdmin } = require("../middleware/platformAdmin.middleware.js");
-const {
+const { API_VERSION, shopifyGraphql } = require("../utils/shopifyGraphql.js");const {
   appForConnect,
   appCredentials,
   isConfigured,
@@ -662,8 +660,6 @@ const getMyStore = (req, res) =>
       plan: req.store.plan,
       status: req.store.status,
       billing_status: req.store.billing_status,
-      // Shows the SyncStock admin link in the sidebar
-      platform_admin: isPlatformAdmin(req.account, req.sessionVia),
     },
   });
 

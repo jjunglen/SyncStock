@@ -8,6 +8,7 @@ const {
 } = require("../utils/jwt.js");
 const crypto = require("crypto");
 const { signupSource } = require("../utils/signupSource.js");
+const { isPlatformAdmin } = require("../middleware/platformAdmin.middleware.js");
 const {
     sendPasswordResetEmail,
     sendVerificationEmail,
@@ -202,6 +203,14 @@ const merchantLogin = async (req, res) => {
             where: { account_id: account.id, role: "admin" },
             include: [{ model: Store, attributes: ["onboarding_step"] }],
         });
+        // SyncStock's own admin login (owns no store) — goes to /platform
+        if (!adminMembership && isPlatformAdmin(account)) {
+            setSessionCookie(res, signToken(account));
+            return res.status(200).json({
+                success: true,
+                data: { id: account.id, email: account.email, full_name: account.full_name, platform_admin: true },
+            });
+        }
         if (!adminMembership) {
             return res.status(403).json({
                 success: false,
