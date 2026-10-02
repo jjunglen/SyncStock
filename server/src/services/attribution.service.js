@@ -1,5 +1,5 @@
 const { AlertClick, Purchase, PixelClaim, Inventory } = require("../models/index.js");
-const { getAccessToken } = require("../utils/shopifyToken.js");
+const { shopifyGraphql, gid } = require("../utils/shopifyGraphql.js");
 
 // Sales only count with proof that a Syncstock click led to them:
 //   cart_tag — the order carries syncstock_click_id, which our "Buy now"
@@ -138,22 +138,56 @@ const attributeOrder = async (store, order) => {
   return recorded;
 };
 
+const ORDER_QUERY = `
+  query ($id: ID!) {
+    order(id: $id) {
+      legacyResourceId email createdAt sourceName tags
+      customAttributes { key value }
+      lineItems(first: 100) {
+        nodes {
+          title sku quantity
+          variant { legacyResourceId }
+          originalUnitPriceSet { shopMoney { amount } }
+          discountAllocations { allocatedAmountSet { shopMoney { amount } } }
+        }
+      }
+    }
+  }
+`;
+
+// GraphQL order → the same shape as the orders/create webhook, which
+// attributeOrder works with
+const toOrderPayload = (order) => ({
+  id: order.legacyResourceId,
+  email: order.email,
+  created_at: order.createdAt,
+  source_name: order.sourceName,
+  tags: (order.tags || []).join(", "),
+  note_attributes: (order.customAttributes || []).map((a) => ({ name: a.key, value: a.value })),
+  line_items: order.lineItems.nodes.map((line) => ({
+    title: line.title,
+    sku: line.sku,
+    quantity: line.quantity,
+    variant_id: line.variant?.legacyResourceId || null,
+    price: line.originalUnitPriceSet?.shopMoney?.amount,
+    discount_allocations: (line.discountAllocations || []).map((d) => ({
+      amount: d.allocatedAmountSet?.shopMoney?.amount,
+    })),
+  })),
+});
+
+// The order from Shopify, or null if it can't be read yet. Partial data
+// is fine: if Shopify withholds the customer's email, the sale still
+// counts, just without it.
 const fetchOrder = async (store, orderId) => {
-  const fields = "id,email,created_at,line_items,note_attributes,source_name,tags";
-  let token;
+  if (!/^\d+$/.test(String(orderId))) return null;
   try {
-    token = await getAccessToken(store);
+    const data = await shopifyGraphql(store, ORDER_QUERY, { id: gid("Order", orderId) }, { allowPartial: true });
+    return data?.order ? toOrderPayload(data.order) : null;
   } catch (error) {
-    console.error(error.message);
+    console.error(`Couldn't read order ${orderId}:`, error.message);
     return null;
   }
-  const resp = await fetch(
-    `https://${store.shopify_domain}/admin/api/2025-01/orders/${orderId}.json?fields=${fields}`,
-    { headers: { "X-Shopify-Access-Token": token } },
-  );
-  if (!resp.ok) return null;
-  const { order } = await resp.json();
-  return order || null;
 };
 
 // The pixel's report: save it for the webhook, then attribute right away

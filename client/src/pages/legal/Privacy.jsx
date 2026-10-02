@@ -105,6 +105,10 @@ export default function Privacy() {
         </li>
         <li>To keep store catalogs in sync with Shopify.</li>
         <li>To prevent abuse, fix problems, and improve the service.</li>
+        <li>
+          To understand and improve SyncStock using combined statistics
+          across stores — counts, never individual shoppers.
+        </li>
       </ul>
       <p>We don't sell your information or use it for advertising.</p>
 

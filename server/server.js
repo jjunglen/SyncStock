@@ -144,6 +144,7 @@ app.use("/api/redirect", redirectRoutes);
 app.use("/api/phone", twilioRoutes);
 app.use("/api/unsubscribe", require("./src/routes/unsubscribe.routes.js"));
 app.use("/api/analytics", require("./src/routes/analytics.routes.js"));
+app.use("/api/platform", require("./src/routes/platform.routes.js"));
 // StockX catalog search for "Track a shoe" — every store (STOCKX_* vars)
 app.use("/api/stockx", require("./src/routes/stockx.routes.js"));
 

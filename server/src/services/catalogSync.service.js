@@ -3,7 +3,7 @@ const { Inventory } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
-const { getAccessToken } = require("../utils/shopifyToken.js");
+const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 
 // Loads a store's whole Shopify catalog into Syncstock's inventory.
 // Used when a store connects, and nightly as a safety net for product
@@ -15,32 +15,107 @@ const { getAccessToken } = require("../utils/shopifyToken.js");
 // read must never mark the rest of the catalog as gone.
 // It doesn't send restock alerts for anything it finds; those come from
 // the webhooks as things happen.
-const MAX_PAGES = 50;
+// Products per page, kept small so each query stays under Shopify's
+// per-query cost limit (each product brings up to 50 variants)
+const PAGE_SIZE = 15;
+const MAX_PAGES = 1000;
+
+const VARIANT_FIELDS = "legacyResourceId title sku price inventoryQuantity";
+
+const PRODUCTS_QUERY = `
+  query ($cursor: String) {
+    products(first: ${PAGE_SIZE}, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        id legacyResourceId title handle vendor productType tags isGiftCard
+        media(first: 10) { nodes { ... on MediaImage { image { url } } } }
+        variants(first: 50) {
+          pageInfo { hasNextPage endCursor }
+          nodes { ${VARIANT_FIELDS} }
+        }
+      }
+    }
+  }
+`;
+
+// The rest of a product's variants, for products with more than 50
+const MORE_VARIANTS_QUERY = `
+  query ($id: ID!, $cursor: String) {
+    product(id: $id) {
+      variants(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { ${VARIANT_FIELDS} }
+      }
+    }
+  }
+`;
+
+const allVariants = async (store, product) => {
+  const variants = [...product.variants.nodes];
+  let pageInfo = product.variants.pageInfo;
+  while (pageInfo.hasNextPage) {
+    const data = await shopifyGraphql(store, MORE_VARIANTS_QUERY, { id: product.id, cursor: pageInfo.endCursor });
+    const page = data.product?.variants;
+    if (!page) break;
+    variants.push(...page.nodes);
+    pageInfo = page.pageInfo;
+  }
+  return variants;
+};
+
+// GraphQL product → the same shape Shopify's product webhooks send, which
+// the rest of SyncStock (categorize, parseVariantTitle) works with
+const toProductPayload = (product, variants) => {
+  const images = product.media.nodes.map((m) => m.image?.url).filter(Boolean);
+  return {
+    id: product.legacyResourceId,
+    title: product.title,
+    handle: product.handle,
+    vendor: product.vendor,
+    product_type: product.productType,
+    tags: product.tags,
+    gift_card: product.isGiftCard,
+    images: images.map((src) => ({ src })),
+    variants: variants.map((v) => ({
+      id: v.legacyResourceId,
+      title: v.title,
+      sku: v.sku,
+      price: v.price,
+      inventory_quantity: v.inventoryQuantity,
+    })),
+  };
+};
 
 const syncCatalog = async (store, { removeMissing = false } = {}) => {
   const shop = store.shopify_domain;
-  const accessToken = await getAccessToken(store);
   const seen = new Set();
-  let url = `https://${shop}/admin/api/2025-01/products.json?limit=250`;
+  let cursor = null;
+  let hasNextPage = true;
   let products = 0;
   let pages = 0;
   let complete = true;
 
-  while (url) {
+  while (hasNextPage) {
     if (pages >= MAX_PAGES) {
       complete = false;
       console.warn(`Catalog sync hit the ${MAX_PAGES}-page cap for ${shop} — may be incomplete`);
       break;
     }
-    const response = await fetch(url, { headers: { "X-Shopify-Access-Token": accessToken } });
-    if (!response.ok) {
+    let page;
+    try {
+      page = (await shopifyGraphql(store, PRODUCTS_QUERY, { cursor })).products;
+    } catch (error) {
       complete = false;
-      console.error(`Catalog sync for ${shop} stopped: Shopify returned ${response.status}`);
+      console.error(`Catalog sync for ${shop} stopped: ${error.message}`);
       break;
     }
-    const page = await response.json();
 
-    for (const product of page.products || []) {
+    const pageProducts = [];
+    for (const node of page.nodes) {
+      pageProducts.push(toProductPayload(node, await allVariants(store, node)));
+    }
+
+    for (const product of pageProducts) {
       const category = categorizeProduct(product);
       if (!category) continue; // gift cards aren't listed
       for (const variant of product.variants || []) {
@@ -67,10 +142,10 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
       }
     }
 
-    products += (page.products || []).length;
+    products += pageProducts.length;
     pages++;
-    const next = response.headers.get("link")?.match(/<([^>]+)>;\s*rel="next"/);
-    url = next ? next[1] : null;
+    hasNextPage = page.pageInfo.hasNextPage;
+    cursor = page.pageInfo.endCursor;
   }
 
   let removed = 0;

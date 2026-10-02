@@ -1,14 +1,14 @@
 const { User, Account } = require("../models/index.js");
-const { getAccessToken } = require("../utils/shopifyToken.js");
+const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 
-// Merchant billing through Shopify: the $40/month plan is charged on the
+// Merchant billing through Shopify: the $50/month plan is charged on the
 // merchant's Shopify invoice. SyncStock asks Shopify for a subscription,
 // the merchant approves it in Shopify, and the store only goes live once
 // Shopify confirms it's ACTIVE. Changes after that (cancelled, payment
 // problems) arrive on the app_subscriptions/update webhook.
 const PLAN = {
   name: "Syncstock Pro",
-  price: 40,
+  price: 50,
   // Only the first subscription gets a trial — reinstalling doesn't
   // restart it
   trialDays: 7,
@@ -32,21 +32,6 @@ const isBillingExempt = async (store) => {
 };
 
 
-const shopifyGraphql = async (store, query, variables) => {
-  const resp = await fetch(`https://${store.shopify_domain}/admin/api/2025-01/graphql.json`, {
-    method: "POST",
-    headers: {
-      "X-Shopify-Access-Token": await getAccessToken(store),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const body = await resp.json();
-  if (!resp.ok || body.errors) {
-    throw new Error(`Shopify billing request failed: ${JSON.stringify(body.errors || resp.status)}`);
-  }
-  return body.data;
-};
 
 // Shopify development stores (for testing) can't be charged for real, so
 // they get test charges — approved the same way, but never billed. Real

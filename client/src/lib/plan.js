@@ -1,7 +1,7 @@
 // The one Syncstock plan — shown on the landing page and /pricing
 export const PLAN = {
   name: "Pro",
-  price: 40,
+  price: 50,
   // Must match PLAN.trialDays in server/src/services/billing.service.js
   trialDays: 7,
   info: "Everything included, for any Shopify store",

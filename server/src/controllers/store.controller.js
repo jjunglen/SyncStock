@@ -6,6 +6,8 @@ const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
 const { tokenFields } = require("../utils/shopifyToken.js");
+const { API_VERSION, shopifyGraphql } = require("../utils/shopifyGraphql.js");
+const { isPlatformAdmin } = require("../middleware/platformAdmin.middleware.js");
 const {
   appForConnect,
   appCredentials,
@@ -59,67 +61,54 @@ const isValidSubdomainFormat = (value) => {
   return true;
 };
 
-const registerShopifyWebhooks = async (store, accessToken, shop) => {
-  const topics = [
-    "products/create",
-    "products/update",
-    "products/delete",
-    "orders/create",
-    // Takes the store offline when the merchant uninstalls (can't go in
-    // shopify.app.toml with the app's own install flow)
-    "app/uninstalled",
-    // Subscription cancelled / payment problems (billing.controller.js)
-    "app_subscriptions/update",
-  ];
+// Webhooks SyncStock needs on each store. Each arrives at
+// /api/webhooks/shopify/<topic> (webhook.routes.js).
+const WEBHOOK_TOPICS = [
+  "products/create",
+  "products/update",
+  "products/delete",
+  "orders/create",
+  // Takes the store offline when the merchant uninstalls (can't go in
+  // shopify.app.toml with the app's own install flow)
+  "app/uninstalled",
+  // Subscription cancelled / payment problems (billing.controller.js)
+  "app_subscriptions/update",
+];
+// "products/create" → GraphQL's PRODUCTS_CREATE
+const topicEnum = (topic) => topic.replace("/", "_").toUpperCase();
+const webhookUri = (topic) => `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`;
 
-  const existingResp = await fetch(
-    `https://${shop}/admin/api/2025-01/webhooks.json`,
-    {
-      headers: { "X-Shopify-Access-Token": accessToken },
-    },
-  ).catch((err) => {
-    console.error("Failed to fetch existing webhooks:", err.message);
-    return null;
-  });
-
-  const existingTopics = new Set();
-  if (existingResp && existingResp.ok) {
-    const { webhooks } = await existingResp.json();
-    const ourAddress = (topic) =>
-      `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`;
-    for (const webhook of webhooks || []) {
-      if (webhook.address === ourAddress(webhook.topic)) {
-        existingTopics.add(webhook.topic);
-      }
-    }
+const registerShopifyWebhooks = async (store) => {
+  const shop = store.shopify_domain;
+  const existing = new Set();
+  try {
+    const data = await shopifyGraphql(store, `{ webhookSubscriptions(first: 100) { nodes { topic uri } } }`);
+    for (const sub of data.webhookSubscriptions.nodes) existing.add(`${sub.topic} ${sub.uri}`);
+  } catch (error) {
+    console.error(`Couldn't list webhooks for ${shop}:`, error.message);
   }
 
-  for (const topic of topics) {
-    if (existingTopics.has(topic)) {
+  for (const topic of WEBHOOK_TOPICS) {
+    if (existing.has(`${topicEnum(topic)} ${webhookUri(topic)}`)) {
       console.log(`Webhook already registered, skipping: ${topic}`);
       continue;
     }
-
-    const resp = await fetch(`https://${shop}/admin/api/2025-01/webhooks.json`, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        webhook: {
-          topic,
-          address: `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`,
-          format: "json",
-        },
-      }),
-    }).catch((err) => {
-      console.error(`Failed to register ${topic} webhook:`, err.message);
-      return null;
-    });
-    if (resp && !resp.ok) {
-      const detail = await resp.text().catch(() => "");
-      console.error(`Shopify refused the ${topic} webhook for ${shop} (${resp.status}): ${detail.slice(0, 300)}`);
+    try {
+      const data = await shopifyGraphql(
+        store,
+        `mutation ($topic: WebhookSubscriptionTopic!, $sub: WebhookSubscriptionInput!) {
+          webhookSubscriptionCreate(topic: $topic, webhookSubscription: $sub) {
+            userErrors { field message }
+          }
+        }`,
+        { topic: topicEnum(topic), sub: { uri: webhookUri(topic), format: "JSON" } },
+      );
+      const errors = data.webhookSubscriptionCreate?.userErrors || [];
+      if (errors.length) {
+        console.error(`Shopify refused the ${topic} webhook for ${shop}: ${JSON.stringify(errors)}`);
+      }
+    } catch (error) {
+      console.error(`Failed to register ${topic} webhook for ${shop}:`, error.message);
     }
   }
 };
@@ -199,7 +188,7 @@ const startOAuth = (res, shop, appKey) => {
 const activateWebPixel = async (store, accessToken, shop) => {
   const settings = JSON.stringify({ apiUrl: process.env.BACKEND_URL });
   const gql = async (query, variables) => {
-    const resp = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
+    const resp = await fetch(`https://${shop}/admin/api/${API_VERSION}/graphql.json`, {
       method: "POST",
       headers: {
         "X-Shopify-Access-Token": accessToken,
@@ -356,7 +345,7 @@ const handleShopifyCallback = async (req, res) => {
       }
     }
 
-    await registerShopifyWebhooks(store, access_token, shop);
+    await registerShopifyWebhooks(store);
     await activateWebPixel(store, access_token, shop);
     await backfillInventory(store);
     const onboardingToken = signOnboardingToken(store.id);
@@ -673,6 +662,8 @@ const getMyStore = (req, res) =>
       plan: req.store.plan,
       status: req.store.status,
       billing_status: req.store.billing_status,
+      // Shows the SyncStock admin link in the sidebar
+      platform_admin: isPlatformAdmin(req.account, req.sessionVia),
     },
   });
 

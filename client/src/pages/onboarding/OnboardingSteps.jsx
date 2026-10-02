@@ -8,6 +8,8 @@ import {
   LuCheck,
   LuCircleCheck,
   LuTriangleAlert,
+  LuEye,
+  LuEyeOff,
 } from "react-icons/lu";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -60,6 +62,7 @@ export default function OnboardingSteps() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Find out where this merchant is. The setup link from the Shopify
   // connect step identifies the store before an account exists (sent as
@@ -239,8 +242,19 @@ export default function OnboardingSteps() {
                 <div className="w-full space-y-2.5 mt-2 text-left">
                   <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
                   <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
-                  <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
-                  <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} />
+                  {/* One eye shows or hides both password fields */}
+                  <div className="relative">
+                    <input type={showPassword ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className={`${inputClass} pr-12`} />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
+                    >
+                      {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
+                    </button>
+                  </div>
+                  <input type={showPassword ? "text" : "password"} placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} />
                   <p className="text-xs text-text-muted">
                     By creating an account you agree to the{" "}
                     <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">Terms</a>{" "}

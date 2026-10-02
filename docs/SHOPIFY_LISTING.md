@@ -23,7 +23,7 @@ SyncStock gives your store a branded alerts site where shoppers save their sizes
 - Weekly "most wanted sizes" report and a sourcing page
 - Theme section and floating button, branded with your logo and colors
 
-**Pricing**: One plan — $40/month, 7-day free trial. Billed through Shopify.
+**Pricing**: One plan — $50/month, 7-day free trial. Billed through Shopify.
 
 **Search terms**: restock alerts, back in stock, sneakers, notify me, sold out
 
