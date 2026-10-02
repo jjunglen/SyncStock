@@ -1,4 +1,5 @@
 const { AlertClick, Purchase, PixelClaim, Inventory } = require("../models/index.js");
+const { getAccessToken } = require("../utils/shopifyToken.js");
 
 // Sales only count with proof that a Syncstock click led to them:
 //   cart_tag — the order carries syncstock_click_id, which our "Buy now"
@@ -139,9 +140,16 @@ const attributeOrder = async (store, order) => {
 
 const fetchOrder = async (store, orderId) => {
   const fields = "id,email,created_at,line_items,note_attributes,source_name,tags";
+  let token;
+  try {
+    token = await getAccessToken(store);
+  } catch (error) {
+    console.error(error.message);
+    return null;
+  }
   const resp = await fetch(
     `https://${store.shopify_domain}/admin/api/2025-01/orders/${orderId}.json?fields=${fields}`,
-    { headers: { "X-Shopify-Access-Token": store.shopify_access_token } },
+    { headers: { "X-Shopify-Access-Token": token } },
   );
   if (!resp.ok) return null;
   const { order } = await resp.json();

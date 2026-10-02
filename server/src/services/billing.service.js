@@ -1,4 +1,5 @@
 const { User, Account } = require("../models/index.js");
+const { getAccessToken } = require("../utils/shopifyToken.js");
 
 // Merchant billing through Shopify: the $40/month plan is charged on the
 // merchant's Shopify invoice. SyncStock asks Shopify for a subscription,
@@ -35,7 +36,7 @@ const shopifyGraphql = async (store, query, variables) => {
   const resp = await fetch(`https://${store.shopify_domain}/admin/api/2025-01/graphql.json`, {
     method: "POST",
     headers: {
-      "X-Shopify-Access-Token": store.shopify_access_token,
+      "X-Shopify-Access-Token": await getAccessToken(store),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ query, variables }),

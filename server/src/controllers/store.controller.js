@@ -5,6 +5,7 @@ const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../ut
 const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
+const { tokenFields } = require("../utils/shopifyToken.js");
 const {
   appForConnect,
   appCredentials,
@@ -124,9 +125,9 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
 };
 
 // The whole catalog, when a store connects (catalogSync.service.js)
-const backfillInventory = async (store, accessToken) => {
+const backfillInventory = async (store) => {
   try {
-    const { products } = await syncCatalog(store, { accessToken });
+    const { products } = await syncCatalog(store);
     console.log(`Backfilled ${products} products for store ${store.id}`);
   } catch (error) {
     console.error("Backfill inventory error:", error.message);
@@ -285,9 +286,14 @@ const handleShopifyCallback = async (req, res) => {
         client_id: app.clientId,
         client_secret: app.secret,
         code,
+        // Shopify no longer accepts tokens that never expire: this one
+        // lasts about an hour and comes with a refresh token
+        // (utils/shopifyToken.js renews it)
+        expiring: 1,
       }),
     });
-    const { access_token } = await tokenResp.json().catch(() => ({}));
+    const tokenBody = await tokenResp.json().catch(() => ({}));
+    const { access_token } = tokenBody;
     if (!access_token) {
       console.error(
         `Shopify callback for ${shop} (${appKey} app): code exchange rejected (${tokenResp.status}), signature ${signed ? "valid" : "invalid"}`,
@@ -326,7 +332,7 @@ const handleShopifyCallback = async (req, res) => {
         name: shopData.name,
         shopify_domain: shop,
         storefront_url: `https://${shopData.domain}`,
-        shopify_access_token: access_token,
+        ...tokenFields(tokenBody),
         shopify_app: appKey,
         subdomain,
         status: "pending",
@@ -334,7 +340,7 @@ const handleShopifyCallback = async (req, res) => {
       });
     } else {
       // Reconnected — possibly moving to the other app
-      await store.update({ shopify_access_token: access_token, shopify_app: appKey });
+      await store.update({ ...tokenFields(tokenBody), shopify_app: appKey });
       // Reinstalled after an uninstall. Shopify cancelled their
       // subscription on uninstall, so paying stores pick their plan again
       // (no second trial); the flagship store goes straight back online.
@@ -352,7 +358,7 @@ const handleShopifyCallback = async (req, res) => {
 
     await registerShopifyWebhooks(store, access_token, shop);
     await activateWebPixel(store, access_token, shop);
-    await backfillInventory(store, access_token);
+    await backfillInventory(store);
     const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");

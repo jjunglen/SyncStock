@@ -3,6 +3,7 @@ const { Inventory } = require("../models/index.js");
 const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
+const { getAccessToken } = require("../utils/shopifyToken.js");
 
 // Loads a store's whole Shopify catalog into Syncstock's inventory.
 // Used when a store connects, and nightly as a safety net for product
@@ -16,8 +17,9 @@ const { detectBrand } = require("../utils/brand.js");
 // the webhooks as things happen.
 const MAX_PAGES = 50;
 
-const syncCatalog = async (store, { accessToken = store.shopify_access_token, removeMissing = false } = {}) => {
+const syncCatalog = async (store, { removeMissing = false } = {}) => {
   const shop = store.shopify_domain;
+  const accessToken = await getAccessToken(store);
   const seen = new Set();
   let url = `https://${shop}/admin/api/2025-01/products.json?limit=250`;
   let products = 0;

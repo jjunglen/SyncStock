@@ -38,6 +38,32 @@ const Store = sequelize.define(
         );
     },
     },
+    // Shopify's expiring offline tokens (utils/shopifyToken.js): the
+    // access token lasts about an hour and is renewed with the refresh
+    // token, which is replaced on every renewal and lasts 90 days. No
+    // expiry means an older token that never expires.
+    shopify_refresh_token: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+        const raw = this.getDataValue("shopify_refresh_token");
+        return raw ? decrypt(raw) : raw;
+    },
+    set(value) {
+        this.setDataValue(
+        "shopify_refresh_token",
+        value ? encrypt(value) : value,
+        );
+    },
+    },
+    shopify_token_expires_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    },
+    shopify_refresh_expires_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    },
     shopify_webhook_secret: {
         type: DataTypes.STRING,
         allowNull: true,
