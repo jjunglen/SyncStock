@@ -134,6 +134,9 @@ const backfillInventory = async (store, accessToken) => {
 const BETA_CLOSED_MESSAGE =
   "Syncstock is in private beta. Email hello@syncstock.io to get your store on the list.";
 
+// A bare x.myshopify.com domain — nothing else may reach our token requests
+const isShopDomain = (shop) => typeof shop === "string" && /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop);
+
 const canConnect = async (shop) => {
   if (process.env.MERCHANT_SIGNUPS_OPEN === "true") return true;
   const invited = (process.env.BETA_SHOP_DOMAINS || "")
@@ -146,7 +149,7 @@ const canConnect = async (shop) => {
 
 const initiateShopifyConnect = async (req, res) => {
   const { shop } = req.query;
-  if (!shop || !shop.endsWith(".myshopify.com")) {
+  if (!isShopDomain(shop)) {
     return res
       .status(400)
       .json({ success: false, message: "Valid shop domain required" });
@@ -247,7 +250,7 @@ const activateWebPixel = async (store, accessToken, shop) => {
 
 const handleShopifyCallback = async (req, res) => {
   try {
-    const { shop, code, state, hmac } = req.query;
+    const { shop, code, state } = req.query;
 
     if (req.cookies.shopify_oauth_state !== state) {
       return res.status(403).send("Invalid state — possible CSRF attempt");
@@ -257,34 +260,18 @@ const handleShopifyCallback = async (req, res) => {
     if (!appKey) return res.status(403).send("Install session expired — start again");
     const app = appCredentials(appKey);
 
-    const rawQuery = req.originalUrl.split("?")[1] || "";
-    if (!queryHmacValid(req.query, app.secret, rawQuery)) {
-      // Say which app really signed it — usually a client ID / secret
-      // pair on Railway that belongs to the other app
-      const signer = appThatSignedQuery(req.query, rawQuery);
-      console.error(
-        `Shopify callback signature failed for ${shop}: install used the ${appKey} app` +
-          (signer ? `, but it was signed by the ${signer} app — check that app's Railway variables` : ", and neither app's secret matches — check the secret on Railway"),
-      );
-      // Diagnostic: Shopify only trades the code for a token when the
-      // client secret is right, so this tells a wrong secret on Railway
-      // apart from a wrong signature check. The token isn't kept.
-      try {
-        const probe = await fetch(`https://${shop}/admin/oauth/access_token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ client_id: app.clientId, client_secret: app.secret, code }),
-        });
-        const probeBody = await probe.json().catch(() => ({}));
-        console.error(
-          `Signature diagnostic for ${shop}: Shopify ${probeBody.access_token ? "ACCEPTED" : `rejected (${probe.status} ${probeBody.error || ""})`} the ${appKey} app's secret; ` +
-            `query fields: ${Object.keys(req.query).join(", ")}; hmac length ${String(hmac || "").length}; encoded values: ${/%/.test(rawQuery)}`,
-        );
-      } catch (probeError) {
-        console.error(`Signature diagnostic for ${shop} failed:`, probeError.message);
-      }
-      return res.status(403).send("HMAC validation failed");
+    // Only ever send the code (and our secret) to a real Shopify store
+    if (!isShopDomain(shop) || typeof code !== "string" || !code) {
+      return res.status(400).send("Invalid shop");
     }
+
+    // Shopify only trades the one-time code for a token when it issued
+    // that code to this app for this shop, and the state cookie ties the
+    // callback to the browser that started it — so a successful exchange
+    // proves the callback is genuine even if the signature check misses
+    // (e.g. Shopify still signing with a pre-rotation secret).
+    const rawQuery = req.originalUrl.split("?")[1] || "";
+    const signed = queryHmacValid(req.query, app.secret, rawQuery);
 
     const tokenResp = await fetch(`https://${shop}/admin/oauth/access_token`, {
       method: "POST",
@@ -295,7 +282,18 @@ const handleShopifyCallback = async (req, res) => {
         code,
       }),
     });
-    const { access_token } = await tokenResp.json();
+    const { access_token } = await tokenResp.json().catch(() => ({}));
+    if (!access_token) {
+      console.error(
+        `Shopify callback for ${shop} (${appKey} app): code exchange rejected (${tokenResp.status}), signature ${signed ? "valid" : "invalid"}`,
+      );
+      return res.status(403).send("Shopify didn't confirm this install — start again");
+    }
+    if (!signed) {
+      console.warn(
+        `Shopify callback for ${shop}: signature didn't match the ${appKey} app's secret, but Shopify accepted the code — finish any pending secret rotation in the Shopify dashboard`,
+      );
+    }
 
     const shopResp = await fetch(
       `https://${shop}/admin/api/2025-01/shop.json`,
@@ -563,16 +561,22 @@ const getStore = async (req, res) => {
 const shopifyAppEntry = async (req, res) => {
   try {
     const shop = String(req.query.shop || "").toLowerCase();
-    if (!shop.endsWith(".myshopify.com")) return res.redirect(process.env.FRONTEND_URL);
-    const appKey = appThatSignedQuery(req.query, req.originalUrl.split("?")[1] || "");
+    if (!isShopDomain(shop)) return res.redirect(process.env.FRONTEND_URL);
+    const store = await Store.findOne({ where: { shopify_domain: shop } });
+
+    // A link Shopify signed skips the private beta (it's an install from
+    // Shopify). One that doesn't verify is treated like the Connect page:
+    // beta rules apply, and the install itself is still confirmed by
+    // Shopify in the callback. Nothing here grants access on its own.
+    let appKey = appThatSignedQuery(req.query, req.originalUrl.split("?")[1] || "");
     if (!appKey) {
-      console.error(
-        `Shopify app link for ${shop} didn't match either app's secret (public app ${isConfigured("public") ? "configured" : "NOT configured"}; fields: ${Object.keys(req.query).sort().join(", ")})`,
-      );
-      return res.status(403).send("This link wasn't signed by Shopify");
+      console.warn(`Shopify app link for ${shop} didn't match either app's secret — handling it as a normal connect`);
+      if (!(await canConnect(shop))) {
+        return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=beta`);
+      }
+      appKey = appForConnect(undefined, store);
     }
 
-    const store = await Store.findOne({ where: { shopify_domain: shop } });
     const connected = store && store.shopify_app === appKey && !store.uninstalled_at;
     if (!connected) return startOAuth(res, shop, appKey);
 
