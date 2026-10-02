@@ -266,6 +266,23 @@ const handleShopifyCallback = async (req, res) => {
         `Shopify callback signature failed for ${shop}: install used the ${appKey} app` +
           (signer ? `, but it was signed by the ${signer} app — check that app's Railway variables` : ", and neither app's secret matches — check the secret on Railway"),
       );
+      // Diagnostic: Shopify only trades the code for a token when the
+      // client secret is right, so this tells a wrong secret on Railway
+      // apart from a wrong signature check. The token isn't kept.
+      try {
+        const probe = await fetch(`https://${shop}/admin/oauth/access_token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: app.clientId, client_secret: app.secret, code }),
+        });
+        const probeBody = await probe.json().catch(() => ({}));
+        console.error(
+          `Signature diagnostic for ${shop}: Shopify ${probeBody.access_token ? "ACCEPTED" : `rejected (${probe.status} ${probeBody.error || ""})`} the ${appKey} app's secret; ` +
+            `query fields: ${Object.keys(req.query).join(", ")}; hmac length ${String(hmac || "").length}; encoded values: ${/%/.test(rawQuery)}`,
+        );
+      } catch (probeError) {
+        console.error(`Signature diagnostic for ${shop} failed:`, probeError.message);
+      }
       return res.status(403).send("HMAC validation failed");
     }
 
