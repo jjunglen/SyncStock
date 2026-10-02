@@ -14,7 +14,7 @@ export default function PricingSection() {
             One plan. Everything included.
           </h2>
           <p className="max-w-xl text-base font-medium text-text-muted sm:text-xl">
-            No tiers, no per-alert fees, and texts aren't a paid add-on.
+            No tiers and no per-alert fees.
           </p>
         </div>
 

@@ -4,12 +4,13 @@ import { PLAN } from "../../lib/plan.js";
 // Adapted from Launch UI's stats row (MIT — see LAUNCH_UI_LICENSE.md).
 // Product facts, not usage claims — keep them matching the code:
 // one batched message per drop (digest.service.js), CLICK_WINDOW_DAYS
-// (attribution.service.js), the email/SMS/push channels, and lib/plan.js.
+// (attribution.service.js), the email/push/in-app channels (texts coming
+// soon — SMS_ENABLED), and lib/plan.js.
 const STATS = [
   { label: "a whole drop in", value: "1", suffix: "alert", description: "sent once your listing finishes, with final photos" },
-  { label: "reach shoppers on", value: "3", suffix: "channels", description: "email, text, and push, all included" },
+  { label: "reach shoppers on", value: "3", suffix: "channels", description: "email, push, and in-app, all included" },
   { label: "sales counted within", value: "7", suffix: "days", description: "of a shopper clicking an alert, only when they check out" },
-  { label: "one plan,", value: `$${PLAN.price}`, suffix: "/mo", description: "every feature and SMS included" },
+  { label: "one plan,", value: `$${PLAN.price}`, suffix: "/mo", description: "every feature included" },
 ];
 
 export default function StatsSection() {

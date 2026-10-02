@@ -14,7 +14,7 @@ const FAQS = [
   },
   {
     q: "How do shoppers get notified?",
-    a: "By email, text, and push notification — whichever they turn on. Alerts wait until your drop finishes listing (usually a few minutes), then go out together, so shoppers get the whole drop in one message with the final photos. Every link goes straight to the item.",
+    a: "By email, push notification, and their in-app inbox — whichever they turn on (text messages are coming soon). Alerts wait until your drop finishes listing (usually a few minutes), then go out together, so shoppers get the whole drop in one message with the final photos. Every link goes straight to the item.",
   },
   {
     q: "Does it work for more than sneakers?",
@@ -25,8 +25,8 @@ const FAQS = [
     a: "Your dashboard shows revenue attributed to alerts, how many shoppers were notified and clicked, recent purchases, and which products have the most shoppers waiting.",
   },
   {
-    q: "Are text messages extra?",
-    a: "No. SMS is included in the plan, not a paid add-on.",
+    q: "Do you send text messages?",
+    a: "Text alerts are coming soon, and they'll be included in the plan, not a paid add-on. Until then, alerts go out by email, push, and in-app.",
   },
 ];
 

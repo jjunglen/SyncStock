@@ -5,7 +5,13 @@ const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../ut
 const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
-const { appForConnect, appCredentials, isConfigured } = require("../utils/shopifyApps.js");
+const {
+  appForConnect,
+  appCredentials,
+  isConfigured,
+  queryHmacValid,
+  appThatSignedQuery,
+} = require("../utils/shopifyApps.js");
 const {
   isBillingExempt,
   createSubscription,
@@ -151,7 +157,12 @@ const initiateShopifyConnect = async (req, res) => {
   // Which SyncStock app to install (utils/shopifyApps.js). ?app=public
   // moves an existing store over; otherwise it keeps the app it has.
   const existing = await Store.findOne({ where: { shopify_domain: shop }, attributes: ["shopify_app"] });
-  const appKey = appForConnect(req.query.app, existing);
+  return startOAuth(res, shop, appForConnect(req.query.app, existing));
+};
+
+// Sends the merchant to Shopify to approve SyncStock (OAuth), for one of
+// the two apps. Remembers the app and a CSRF state for the callback.
+const startOAuth = (res, shop, appKey) => {
   const { clientId } = appCredentials(appKey);
 
   const state = crypto.randomBytes(16).toString("hex");
@@ -245,18 +256,7 @@ const handleShopifyCallback = async (req, res) => {
     if (!appKey) return res.status(403).send("Install session expired — start again");
     const app = appCredentials(appKey);
 
-    const params = { ...req.query };
-    delete params.hmac;
-    delete params.signature;
-    const message = Object.keys(params)
-      .sort()
-      .map((key) => `${key}=${params[key]}`)
-      .join("&");
-    const generatedHmac = crypto
-      .createHmac("sha256", app.secret)
-      .update(message)
-      .digest("hex");
-    if (generatedHmac !== hmac) {
+    if (!queryHmacValid(req.query, app.secret)) {
       return res.status(403).send("HMAC validation failed");
     }
 
@@ -526,6 +526,36 @@ const getStore = async (req, res) => {
   });
 };
 
+// GET /api/store/shopify/app — the app's address in Shopify. Shopify
+// sends merchants here (signed) when they install SyncStock from the App
+// Store or open it from their admin. Installing starts the connection
+// straight away (no typing a store address); opening an already
+// connected store goes to the merchant dashboard. Installs that come
+// signed through Shopify skip the private-beta gate: until Shopify
+// approves the public app only development stores can install it, which
+// is how Shopify's reviewers test it.
+const shopifyAppEntry = async (req, res) => {
+  try {
+    const shop = String(req.query.shop || "").toLowerCase();
+    if (!shop.endsWith(".myshopify.com")) return res.redirect(process.env.FRONTEND_URL);
+    const appKey = appThatSignedQuery(req.query);
+    if (!appKey) return res.status(403).send("This link wasn't signed by Shopify");
+
+    const store = await Store.findOne({ where: { shopify_domain: shop } });
+    const connected = store && store.shopify_app === appKey && !store.uninstalled_at;
+    if (!connected) return startOAuth(res, shop, appKey);
+
+    return res.redirect(
+      store.onboarding_step === "complete"
+        ? `${process.env.FRONTEND_URL}/dashboard`
+        : `${process.env.FRONTEND_URL}/login?redirect=${encodeURIComponent("/onboarding/setup")}`,
+    );
+  } catch (error) {
+    console.error("Shopify app entry error:", error.message);
+    return res.redirect(process.env.FRONTEND_URL);
+  }
+};
+
 // GET /api/store/go?shop=x.myshopify.com&src=banner|floating — the
 // "Restock alerts" blocks on a merchant's own Shopify site link here.
 // Finds the store from its Shopify domain (so the blocks need no setup),
@@ -645,6 +675,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  shopifyAppEntry,
   goToStore,
   billingCallback,
   getMyStore,

@@ -8,8 +8,8 @@ export const PLAN = {
   features: [
     "Automatic Shopify sync — including your existing catalog",
     "Unlimited customer restock alerts",
-    "Email, in-app, and text notifications",
-    "SMS included, not a paid add-on",
+    "Email, push, and in-app notifications",
+    "Text alerts coming soon, included at no extra cost",
     "Customer browse & search dashboard",
     "StockX-powered catalog search",
   ],

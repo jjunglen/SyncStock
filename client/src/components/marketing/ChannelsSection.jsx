@@ -6,7 +6,7 @@ import Section from "./Section.jsx";
 const CHANNELS = [
   { name: "Shopify", note: "Catalog sync", icon: SiShopify },
   { name: "Email", note: "Digest alerts", icon: LuMail },
-  { name: "Text", note: "SMS included", icon: LuMessageSquare },
+  { name: "Text", note: "Coming soon", icon: LuMessageSquare },
   { name: "Push", note: "Web notifications", icon: LuBellRing },
 ];
 

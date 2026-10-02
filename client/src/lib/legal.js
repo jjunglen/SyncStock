@@ -3,12 +3,14 @@
 // starting draft, not legal advice. mailingAddress is left out of the
 // pages while empty; add one when there's a business address.
 export const LEGAL = {
-  company: "Syncstock LLC",
+  // Who legally runs Syncstock. Until the LLC is formed, that's JP as a
+  // sole proprietor — change to "Syncstock LLC" once it's registered.
+  company: "John Paul Junglen, doing business as Syncstock",
   brand: "Syncstock",
   site: "syncstock.io",
   contactEmail: "hello@syncstock.io",
   mailingAddress: "",
   apiHost: "Railway",
   governingLaw: "Texas",
-  effectiveDate: "September 28, 2026",
+  effectiveDate: "October 2, 2026",
 };

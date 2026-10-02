@@ -46,8 +46,36 @@ const hmacMatches = (secret, body, signature) => {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 
+// Links Shopify sends (installs, opening the app, the OAuth callback) are
+// signed over their sorted query string, as a hex HMAC
+const queryHmacValid = (query, secret) => {
+  if (!secret || typeof query.hmac !== "string") return false;
+  const message = Object.keys(query)
+    .filter((key) => key !== "hmac" && key !== "signature")
+    .sort()
+    .map((key) => `${key}=${Array.isArray(query[key]) ? query[key].join(",") : query[key]}`)
+    .join("&");
+  const expected = crypto.createHmac("sha256", secret).update(message).digest("hex");
+  const a = Buffer.from(query.hmac, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+
+// Which configured app signed this link, or null
+const appThatSignedQuery = (query) =>
+  Object.keys(APPS).find((key) => isConfigured(key) && queryHmacValid(query, APPS[key].secret())) || null;
+
 // Which configured app signed this webhook body, or null
 const appThatSigned = (body, signature) =>
   Object.keys(APPS).find((key) => isConfigured(key) && hmacMatches(APPS[key].secret(), body, signature)) || null;
 
-module.exports = { APPS, isConfigured, appCredentials, appForConnect, hmacMatches, appThatSigned };
+module.exports = {
+  APPS,
+  isConfigured,
+  appCredentials,
+  appForConnect,
+  hmacMatches,
+  appThatSigned,
+  queryHmacValid,
+  appThatSignedQuery,
+};

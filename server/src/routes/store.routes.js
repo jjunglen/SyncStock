@@ -20,6 +20,7 @@ const {
   getMyStore,
   billingCallback,
   goToStore,
+  shopifyAppEntry,
 } = require("../controllers/store.controller.js");
 const {
   getSettings,
@@ -35,6 +36,8 @@ const admin = [authenticateAccount, resolveStoreFromAdminMembership];
 router.post("/check-domain", checkDomain);
 router.get("/shopify/connect", initiateShopifyConnect);
 router.get("/shopify/callback", handleShopifyCallback);
+// The app's address in Shopify: installs and "open app" land here
+router.get("/shopify/app", shopifyAppEntry);
 
 // Merchant onboarding: Shopify → account → subdomain → plan. Progress is
 // saved on the store (onboarding_step). Where they are can be read with

@@ -6,9 +6,12 @@
 
 client_id = "6400fce3b0764e4ecad29fb44d6de683"
 name = "SyncStock"
-application_url = "https://syncstock.io"
+# Where Shopify sends merchants who install or open the app: the server
+# checks Shopify's signature, then starts connecting the store, or opens
+# the merchant dashboard (syncstock.io) if it's already connected
+application_url = "https://api.syncstock.io/api/store/shopify/app"
 # The merchant dashboard is syncstock.io itself, not a page inside the
-# Shopify admin — opening the app from Shopify goes there
+# Shopify admin
 embedded = false
 
 [access_scopes]
