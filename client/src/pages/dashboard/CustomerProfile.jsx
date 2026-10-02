@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import SizeSelector from "../onboarding/SizeSelector.jsx";
 import api from "../../lib/api.js";
+import { useStoreInfo } from "../../lib/storeInfo.js";
 import LogoutEverywhere from "../../components/auth/LogoutEverywhere.jsx";
 
 function Toggle({ checked, onChange, label, description }) {
@@ -42,6 +43,7 @@ export default function CustomerProfile() {
   const [error, setError] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
 
+  const store = useStoreInfo();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
@@ -207,7 +209,7 @@ export default function CustomerProfile() {
               label="Any size match"
               description="Notify me about anything in my saved sizes, not just specific alerts"
             />
-            {phoneVerified && (
+            {phoneVerified && store?.sms_available && (
               <Toggle
                 checked={notifySms}
                 onChange={setNotifySms}
@@ -231,110 +233,126 @@ export default function CustomerProfile() {
           </div>
         </form>
 
-        <div className="rounded-xl border border-border bg-surface p-6 mt-6">
-          <div className="flex items-center gap-2 mb-1">
-            <LuPhone size={16} className="text-text-muted" />
-            <p className="text-sm font-semibold">Phone number</p>
-          </div>
-          <p className="text-xs text-text-muted mb-4">
-            For text alerts, verified once per number
-          </p>
-
-          {phoneVerified ? (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm text-live">
-                <LuBadgeCheck size={16} />
-                {phoneNumber} — verified
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setPhoneVerified(false);
-                  setPhoneInput("");
-                }}
-                className="text-xs text-text-muted hover:text-text underline"
-              >
-                Change number
-              </button>
+        {/* Text alerts are off until the Twilio number is approved */}
+        {store && !store.sms_available ? (
+          <div className="rounded-xl border border-border bg-surface p-6 mt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <LuPhone size={16} className="text-text-muted" />
+              <p className="text-sm font-semibold">Text alerts</p>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
+                Coming soon
+              </span>
             </div>
-          ) : phoneStep === "codeSent" ? (
-            <div className="space-y-3">
-              <p className="text-xs text-text-muted">
-                Enter the 6-digit code sent to {phoneInput}
-              </p>
-              <input
-                type="text"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder="123456"
-                className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
-              />
-              {phoneError && (
-                <p className="text-danger text-xs">{phoneError}</p>
-              )}
-              <div className="flex gap-2">
+            <p className="text-xs text-text-muted">
+              You'll soon be able to get restock alerts by text. For now we'll email you and show them in your inbox.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-surface p-6 mt-6">
+            <div className="flex items-center gap-2 mb-1">
+              <LuPhone size={16} className="text-text-muted" />
+              <p className="text-sm font-semibold">Phone number</p>
+            </div>
+            <p className="text-xs text-text-muted mb-4">
+              For text alerts, verified once per number
+            </p>
+
+            {phoneVerified ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-live">
+                  <LuBadgeCheck size={16} />
+                  {phoneNumber} — verified
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneVerified(false);
+                    setPhoneInput("");
+                  }}
+                  className="text-xs text-text-muted hover:text-text underline"
+                >
+                  Change number
+                </button>
+              </div>
+            ) : phoneStep === "codeSent" ? (
+              <div className="space-y-3">
+                <p className="text-xs text-text-muted">
+                  Enter the 6-digit code sent to {phoneInput}
+                </p>
+                <input
+                  type="text"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  placeholder="123456"
+                  className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
+                />
+                {phoneError && (
+                  <p className="text-danger text-xs">{phoneError}</p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={phoneSubmitting}
+                    onClick={handleVerifyCode}
+                  >
+                    {phoneSubmitting ? <Spinner size={16} /> : "Verify"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setPhoneStep("idle")}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  type="tel"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  placeholder="+1 555 123 4567"
+                  className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
+                />
+                {phoneError && (
+                  <p className="text-danger text-xs">{phoneError}</p>
+                )}
+                {phoneMessage && (
+                  <p className="text-live text-xs">{phoneMessage}</p>
+                )}
+                {/* Consent wording carriers and TCPA expect at opt-in */}
+                <p className="text-xs text-text-muted">
+                  By verifying your number, you agree to receive automated
+                  restock alert texts from this store via Syncstock. How often
+                  depends on your alerts. Msg & data rates may apply. Reply STOP
+                  to opt out, HELP for help. See our{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
+                    Terms
+                  </a>{" "}
+                  and{" "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
+                    Privacy Policy
+                  </a>
+                  .
+                </p>
                 <Button
                   type="button"
                   variant="primary"
-                  disabled={phoneSubmitting}
-                  onClick={handleVerifyCode}
+                  disabled={phoneSubmitting || !phoneInput}
+                  onClick={handleSendCode}
                 >
-                  {phoneSubmitting ? <Spinner size={16} /> : "Verify"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setPhoneStep("idle")}
-                >
-                  Cancel
+                  {phoneSubmitting ? (
+                    <Spinner size={16} />
+                  ) : (
+                    "Send verification code"
+                  )}
                 </Button>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <input
-                type="tel"
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                placeholder="+1 555 123 4567"
-                className="w-full bg-surface-muted border border-border rounded-xl px-4 py-2.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
-              />
-              {phoneError && (
-                <p className="text-danger text-xs">{phoneError}</p>
-              )}
-              {phoneMessage && (
-                <p className="text-live text-xs">{phoneMessage}</p>
-              )}
-              {/* Consent wording carriers and TCPA expect at opt-in */}
-              <p className="text-xs text-text-muted">
-                By verifying your number, you agree to receive automated
-                restock alert texts from this store via Syncstock. How often
-                depends on your alerts. Msg & data rates may apply. Reply STOP
-                to opt out, HELP for help. See our{" "}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
-                  Terms
-                </a>{" "}
-                and{" "}
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-text">
-                  Privacy Policy
-                </a>
-                .
-              </p>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={phoneSubmitting || !phoneInput}
-                onClick={handleSendCode}
-              >
-                {phoneSubmitting ? (
-                  <Spinner size={16} />
-                ) : (
-                  "Send verification code"
-                )}
-              </Button>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         <LogoutEverywhere />
       </div>

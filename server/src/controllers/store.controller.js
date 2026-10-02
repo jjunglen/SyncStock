@@ -1,12 +1,10 @@
 const crypto = require("crypto");
 const { Op } = require("sequelize");
 const { Store, Inventory, User, Account } = require("../models/index.js");
-const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
-const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
-const { detectBrand } = require("../utils/brand.js");
-const { enabledCategories, logoUrl, textOnColor } = require("../utils/storeSettings.js");
+const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../utils/storeSettings.js");
 const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
+const { syncCatalog } = require("../services/catalogSync.service.js");
 const {
   isBillingExempt,
   createSubscription,
@@ -112,65 +110,11 @@ const registerShopifyWebhooks = async (store, accessToken, shop) => {
   }
 };
 
-const backfillInventory = async (store, accessToken, shop) => {
+// The whole catalog, when a store connects (catalogSync.service.js)
+const backfillInventory = async (store, accessToken) => {
   try {
-    let url = `https://${shop}/admin/api/2025-01/products.json?limit=250`;
-    let totalSynced = 0;
-    let pageCount = 0;
-    const MAX_PAGES = 50;
-
-    while (url && pageCount < MAX_PAGES) {
-      const response = await fetch(url, {
-        headers: { "X-Shopify-Access-Token": accessToken },
-      });
-      const { products } = await response.json();
-
-      for (const product of products) {
-        const category = categorizeProduct(product);
-        if (!category) continue; // gift cards aren't listed
-        for (const variant of product.variants || []) {
-          const { size, condition, boxCondition } = parseVariantTitle(
-            variant.title,
-            product.handle,
-          );
-
-          await Inventory.upsert({
-            store_id: store.id,
-            shopify_product_id: String(product.id),
-            shopify_variant_id: String(variant.id),
-            category,
-            product_name: product.title,
-            brand: detectBrand(product.title, product.vendor, store.name),
-            sku: variant.sku || null,
-            size: normalizeSize(size, category),
-            condition,
-            box_status: boxCondition,
-            price: parseFloat(variant.price) || null,
-            available: variant.inventory_quantity || 0,
-            shopify_url: `${store.storefront_url}/products/${product.handle}`,
-            image_url: product.images?.[0]?.src || null,
-            image_urls: (product.images || []).map((img) => img.src),
-            last_synced_at: new Date(),
-          });
-        }
-      }
-
-      totalSynced += products.length;
-      pageCount++;
-
-      const linkHeader = response.headers.get("link");
-      const nextMatch =
-        linkHeader && linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-      url = nextMatch ? nextMatch[1] : null;
-    }
-
-    if (pageCount >= MAX_PAGES) {
-      console.warn(
-        `Backfill hit MAX_PAGES safety cap for store ${store.id} — may be incomplete`,
-      );
-    }
-
-    console.log(`Backfilled ${totalSynced} products for store ${store.id}`);
+    const { products } = await syncCatalog(store, { accessToken });
+    console.log(`Backfilled ${products} products for store ${store.id}`);
   } catch (error) {
     console.error("Backfill inventory error:", error.message);
   }
@@ -354,7 +298,7 @@ const handleShopifyCallback = async (req, res) => {
 
     await registerShopifyWebhooks(store, access_token, shop);
     await activateWebPixel(store, access_token, shop);
-    await backfillInventory(store, access_token, shop);
+    await backfillInventory(store, access_token);
     const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");
@@ -560,6 +504,8 @@ const getStore = async (req, res) => {
       brand_color: req.store.brand_color || null,
       brand_text_color: req.store.brand_color ? textOnColor(req.store.brand_color) : null,
       enabled_categories: enabledCategories(req.store),
+      // Whether shoppers can add a phone for text alerts right now
+      sms_available: smsAvailable(req.store),
     },
   });
 };

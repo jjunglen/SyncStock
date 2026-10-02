@@ -79,6 +79,23 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       console.error("Digest flush error:", err.message),
     );
   });
+  // Nightly 4am Central: reload each live store's Shopify catalog, as a
+  // safety net for product webhooks Shopify failed to deliver
+  cron.schedule(
+    "0 4 * * *",
+    async () => {
+      try {
+        const { Store } = require("./src/models/index.js");
+        const { syncAllCatalogs } = require("./src/services/catalogSync.service.js");
+        const stores = await Store.findAll({ where: { status: "active", uninstalled_at: null } });
+        await syncAllCatalogs(stores);
+      } catch (err) {
+        console.error("Nightly catalog sync error:", err.message);
+      }
+    },
+    { timezone: "America/Chicago" },
+  );
+
   // Every 6 hours: StockX price check for stores that have it (flagship)
   cron.schedule("0 */6 * * *", async () => {
     try {

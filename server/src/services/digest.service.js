@@ -10,6 +10,7 @@ const {
 } = require("../models/index.js");
 const { sendDigestEmail } = require("./email.service.js");
 const { sendDigestText } = require("./sms.service.js");
+const { smsAvailable } = require("../utils/storeSettings.js");
 const { sendPushNotification } = require("./push.service.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { buildDashboardUrl } = require("./notification.service.js");
@@ -24,7 +25,7 @@ const QUIET_MS = 90 * 1000;
 const MAX_WAIT_MS = 3 * 60 * 1000;
 
 const maybeSendText = async ({ store, account, user, items }) => {
-  if (store.sms_enabled && account.phone_verified && user.notify_sms) {
+  if (smsAvailable(store) && account.phone_verified && user.notify_sms) {
     await sendDigestText({
       phoneNumber: account.phone_number,
       store,

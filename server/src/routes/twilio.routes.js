@@ -3,8 +3,17 @@ const router = express.Router();
 const { authenticateAccount, requireFullLogin } = require("../middleware/auth.middleware.js");
 const { authLimiter } = require("../middleware/rateLimit.middleware.js");
 const { sendPhoneVerification, verifyPhone } = require("../controllers/twilio.controller.js");
+const { smsEnabledGlobally } = require("../utils/storeSettings.js");
 
 router.use(authenticateAccount);
+
+// Text alerts are switched off until the Twilio number is approved
+// (SMS_ENABLED, utils/storeSettings.js) — no codes are sent meanwhile
+router.use((req, res, next) =>
+  smsEnabledGlobally()
+    ? next()
+    : res.status(503).json({ success: false, message: "Text alerts are coming soon." }),
+);
 
 // Rate-limited: each send-code is a paid text (and a target for SMS
 // pumping fraud), and verify guards a 6-digit code against guessing

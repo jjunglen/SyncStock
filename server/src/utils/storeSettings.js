@@ -15,6 +15,11 @@ const enabledCategories = (store) => {
 
 const isCategoryEnabled = (store, category) => enabledCategories(store).includes(category);
 
+// Text alerts are off for everyone until SMS_ENABLED=true (set on Railway
+// once the Twilio number is approved); then per store (sms_enabled)
+const smsEnabledGlobally = () => process.env.SMS_ENABLED === "true";
+const smsAvailable = (store) => smsEnabledGlobally() && !!store?.sms_enabled;
+
 // The logo's public address — ?v= changes whenever it's replaced, so
 // browsers and email clients don't show an old one
 const logoUrl = (store) =>
@@ -31,6 +36,8 @@ const textOnColor = (hex) => {
 };
 
 module.exports = {
+  smsEnabledGlobally,
+  smsAvailable,
   SELECTABLE_CATEGORIES,
   COMING_SOON_CATEGORIES,
   enabledCategories,

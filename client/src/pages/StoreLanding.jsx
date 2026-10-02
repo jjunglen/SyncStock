@@ -280,7 +280,7 @@ export default function StoreLanding() {
                   </p>
                 </div>
                 <ul className="flex flex-col gap-2 text-sm">
-                  {["Email", "Text message", "Push notification", "In-app inbox"].map((c) => (
+                  {["Email", "Push notification", "In-app inbox", "Text message (coming soon)"].map((c) => (
                     <li key={c} className="flex items-center gap-2 text-text-muted">
                       <LuCheck size={16} className="text-live shrink-0" aria-hidden="true" /> {c}
                     </li>
