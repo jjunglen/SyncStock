@@ -51,23 +51,44 @@ const hmacMatches = (secret, body, signature) => {
 };
 
 // Links Shopify sends (installs, opening the app, the OAuth callback) are
-// signed over their sorted query string, as a hex HMAC
-const queryHmacValid = (query, secret) => {
-  if (!secret || typeof query.hmac !== "string") return false;
-  const message = Object.keys(query)
+// signed as a hex HMAC over their query string with hmac removed and the
+// rest sorted by name. Checked two ways: over the query exactly as Shopify
+// sent it (values still URL-encoded — what Shopify signs when values like
+// `host` contain "=" or "%"), and over the decoded values (what plain
+// values look like either way). Either matching is a valid signature.
+const safeEqual = (a, b) => {
+  const x = Buffer.from(a, "utf8");
+  const y = Buffer.from(b, "utf8");
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+
+const rawQueryMessage = (rawQuery) =>
+  String(rawQuery || "")
+    .split("&")
+    .filter(Boolean)
+    .filter((pair) => !/^(hmac|signature)=/.test(pair))
+    .sort()
+    .join("&");
+
+const decodedQueryMessage = (query) =>
+  Object.keys(query)
     .filter((key) => key !== "hmac" && key !== "signature")
     .sort()
     .map((key) => `${key}=${Array.isArray(query[key]) ? query[key].join(",") : query[key]}`)
     .join("&");
-  const expected = crypto.createHmac("sha256", secret).update(message).digest("hex");
-  const a = Buffer.from(query.hmac, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+
+const queryHmacValid = (query, secret, rawQuery) => {
+  if (!secret || typeof query.hmac !== "string") return false;
+  const sign = (message) => crypto.createHmac("sha256", secret).update(message).digest("hex");
+  return (
+    (rawQuery !== undefined && safeEqual(query.hmac, sign(rawQueryMessage(rawQuery)))) ||
+    safeEqual(query.hmac, sign(decodedQueryMessage(query)))
+  );
 };
 
 // Which configured app signed this link, or null
-const appThatSignedQuery = (query) =>
-  Object.keys(APPS).find((key) => isConfigured(key) && queryHmacValid(query, APPS[key].secret())) || null;
+const appThatSignedQuery = (query, rawQuery) =>
+  Object.keys(APPS).find((key) => isConfigured(key) && queryHmacValid(query, APPS[key].secret(), rawQuery)) || null;
 
 // Which configured app signed this webhook body, or null
 const appThatSigned = (body, signature) =>

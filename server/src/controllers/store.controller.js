@@ -257,10 +257,11 @@ const handleShopifyCallback = async (req, res) => {
     if (!appKey) return res.status(403).send("Install session expired — start again");
     const app = appCredentials(appKey);
 
-    if (!queryHmacValid(req.query, app.secret)) {
+    const rawQuery = req.originalUrl.split("?")[1] || "";
+    if (!queryHmacValid(req.query, app.secret, rawQuery)) {
       // Say which app really signed it — usually a client ID / secret
       // pair on Railway that belongs to the other app
-      const signer = appThatSignedQuery(req.query);
+      const signer = appThatSignedQuery(req.query, rawQuery);
       console.error(
         `Shopify callback signature failed for ${shop}: install used the ${appKey} app` +
           (signer ? `, but it was signed by the ${signer} app — check that app's Railway variables` : ", and neither app's secret matches — check the secret on Railway"),
@@ -546,10 +547,10 @@ const shopifyAppEntry = async (req, res) => {
   try {
     const shop = String(req.query.shop || "").toLowerCase();
     if (!shop.endsWith(".myshopify.com")) return res.redirect(process.env.FRONTEND_URL);
-    const appKey = appThatSignedQuery(req.query);
+    const appKey = appThatSignedQuery(req.query, req.originalUrl.split("?")[1] || "");
     if (!appKey) {
       console.error(
-        `Shopify app link for ${shop} didn't match either app's secret (public app ${isConfigured("public") ? "configured" : "NOT configured"})`,
+        `Shopify app link for ${shop} didn't match either app's secret (public app ${isConfigured("public") ? "configured" : "NOT configured"}; fields: ${Object.keys(req.query).sort().join(", ")})`,
       );
       return res.status(403).send("This link wasn't signed by Shopify");
     }
