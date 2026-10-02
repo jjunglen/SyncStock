@@ -257,6 +257,13 @@ const handleShopifyCallback = async (req, res) => {
     const app = appCredentials(appKey);
 
     if (!queryHmacValid(req.query, app.secret)) {
+      // Say which app really signed it — usually a client ID / secret
+      // pair on Railway that belongs to the other app
+      const signer = appThatSignedQuery(req.query);
+      console.error(
+        `Shopify callback signature failed for ${shop}: install used the ${appKey} app` +
+          (signer ? `, but it was signed by the ${signer} app — check that app's Railway variables` : ", and neither app's secret matches — check the secret on Railway"),
+      );
       return res.status(403).send("HMAC validation failed");
     }
 

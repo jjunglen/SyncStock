@@ -10,14 +10,18 @@ const crypto = require("crypto");
 //            approves it, only development stores can install it.
 // Each store remembers which app it installed (stores.shopify_app), and
 // everything Shopify sends is checked against THAT app's secret.
+// Values are trimmed and stripped of wrapping quotes — a pasted space or
+// quote in a Railway variable would otherwise break every signature check
+const env = (name) => (process.env[name] || "").trim().replace(/^["']|["']$/g, "") || undefined;
+
 const APPS = {
   custom: {
-    clientId: () => process.env.SHOPIFY_APP_CLIENT_ID,
-    secret: () => process.env.SHOPIFY_APP_CLIENT_SECRET,
+    clientId: () => env("SHOPIFY_APP_CLIENT_ID"),
+    secret: () => env("SHOPIFY_APP_CLIENT_SECRET"),
   },
   public: {
-    clientId: () => process.env.SHOPIFY_PUBLIC_APP_CLIENT_ID,
-    secret: () => process.env.SHOPIFY_PUBLIC_APP_CLIENT_SECRET,
+    clientId: () => env("SHOPIFY_PUBLIC_APP_CLIENT_ID"),
+    secret: () => env("SHOPIFY_PUBLIC_APP_CLIENT_SECRET"),
   },
 };
 
