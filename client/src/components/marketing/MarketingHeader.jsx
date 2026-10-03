@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import Button from "../ui/Button.jsx";
-import SignalDot from "../ui/SignalDot.jsx";
+import { SyncStockLogo } from "../ui/SyncStockMark.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 
 const NAV_ITEMS = [
@@ -26,11 +26,8 @@ export default function MarketingHeader() {
     <>
       <header className="w-full z-40 fixed top-0 left-0 bg-bg/90 backdrop-blur border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <SignalDot tone="live" size="md" />
-            <span className="font-display font-semibold text-sm tracking-tight">
-              Syncstock
-            </span>
+          <Link to="/" aria-label="Syncstock home">
+            <SyncStockLogo size={26} />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1">

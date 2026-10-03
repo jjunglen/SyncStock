@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { FaFacebook, FaXTwitter, FaInstagram, FaLinkedin } from "react-icons/fa6";
 import { LEGAL } from "../../lib/legal.js";
+import { SyncStockLogo } from "../ui/SyncStockMark.jsx";
 
 const QUICK_LINKS = [
 { label: "Home", href: "/" },
@@ -22,10 +23,7 @@ return (
     <div className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid gap-10 md:grid-cols-3">
         <div>
-            <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-live" />
-            <span className="font-display font-semibold text-sm">Syncstock</span>
-            </div>
+            <SyncStockLogo size={24} className="mb-3" />
             <p className="text-sm text-text-muted">Get more out of every restock.</p>
         </div>
 

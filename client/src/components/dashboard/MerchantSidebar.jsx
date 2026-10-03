@@ -12,7 +12,7 @@ import {
   LuChevronDown,
   LuChevronsRight,
 } from "react-icons/lu";
-import SignalDot from "../ui/SignalDot.jsx";
+import SyncStockMark from "../ui/SyncStockMark.jsx";
 import { useMyStore, storefrontUrl } from "../../lib/myStore.js";
 
 const NAV_ITEMS = [
@@ -143,7 +143,7 @@ export default function MerchantSidebar() {
       <div className="mb-6 border-b border-border pb-4">
         <div className="flex items-center justify-between rounded-md p-2">
           <div className="flex items-center gap-2">
-            <SignalDot tone="live" size="md" />
+            <SyncStockMark size={open ? 26 : 28} className="text-text" />
             {open && (
               <div>
                 <span className="block text-sm font-semibold text-text">

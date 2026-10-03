@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  LuShieldCheck,
   LuLogOut,
   LuStore,
   LuDollarSign,
@@ -12,6 +11,7 @@ import {
   LuFootprints,
 } from "react-icons/lu";
 import api from "../../lib/api.js";
+import SyncStockMark from "../../components/ui/SyncStockMark.jsx";
 
 // SyncStock's own admin page: how every store is doing, and what
 // shoppers want across all of them. The server only answers for the
@@ -183,7 +183,7 @@ export default function PlatformAdmin() {
       <header className="sticky top-0 z-40 border-b border-border bg-bg/90 backdrop-blur">
         <div className="mx-auto max-w-6xl flex items-center justify-between gap-3 px-4 sm:px-6 h-14">
           <div className="flex items-center gap-2 min-w-0">
-            <LuShieldCheck size={18} className="text-text shrink-0" />
+            <SyncStockMark size={24} className="text-text" />
             <span className="font-semibold truncate">SyncStock admin</span>
           </div>
           <button
