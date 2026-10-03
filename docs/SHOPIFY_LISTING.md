@@ -66,6 +66,7 @@ Notes for reviewers:
 - [ ] Billing tested end to end on `syncstock-billing-test`
 - [ ] `npx shopify app deploy` run for the public app, Distribution set to Public
 - [ ] `SHOPIFY_PUBLIC_APP_CLIENT_ID` / `SHOPIFY_PUBLIC_APP_CLIENT_SECRET` set on Railway
-- [ ] App icon (1200×1200) and screenshots uploaded
+- [ ] App icon uploaded — `docs/brand/syncstock-app-icon-1200.png` (1200×1200)
+- [ ] Screenshots uploaded
 - [ ] Demo screencast recorded
 - [ ] Private beta gate: Shopify installs bypass it (reviewers can install); decide whether to open the manual Connect page too

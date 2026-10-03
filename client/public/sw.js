@@ -11,7 +11,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Syncstock";
   const options = {
     body: payload.body || "",
-    icon: payload.icon || "/favicon.svg",
+    // PNG: Android doesn't show SVG notification icons
+    icon: payload.icon || "/icon-192.png",
     data: { url: payload.url || "/store/dashboard" },
   };
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-44 -54 88 95">
+  <title>SyncStock</title>
+  <!-- The mark alone, for dark backgrounds (transparent) -->
+  <defs><path id="s" d="M13.9 -24 A16 16 0 1 0 0 0 A16 16 0 1 1 -13.9 24"/></defs>
+  <g fill="none" stroke="#fafafa" stroke-width="9" stroke-linecap="round">
+    <use href="#s" transform="translate(-19 0)"/>
+    <use href="#s" transform="translate(19 0) scale(-1 1)"/>
+  </g>
+  <circle cx="0" cy="-43" r="6" fill="#22c55e"/>
+</svg>

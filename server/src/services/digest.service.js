@@ -63,7 +63,7 @@ const pushPayload = (store, items) => {
     return {
       title: isPriceDrop(item) ? "Price drop" : item.alert_id ? "Your alert just hit" : "New in your size",
       body: inAppMessage(item),
-      icon: item.image_url || "/favicon.svg",
+      icon: item.image_url || "/icon-192.png",
       url: item.shopify_url,
     };
   }
@@ -72,7 +72,7 @@ const pushPayload = (store, items) => {
   return {
     title: `${items.length} new matches at ${store.name}`,
     body: `${names}${more}`,
-    icon: items[0].image_url || "/favicon.svg",
+    icon: items[0].image_url || "/icon-192.png",
     url: `${storeBaseUrl(store)}/store/dashboard`,
   };
 };
