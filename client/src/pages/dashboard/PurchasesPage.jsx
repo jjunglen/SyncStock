@@ -59,8 +59,9 @@ export default function PurchasesPage() {
                   <div>
                     <p className="text-sm font-medium">{p.product_name}</p>
                     <p className="text-xs text-text-muted">
-                      {p.size} · {p.customer_email} ·{" "}
-                      {new Date(p.purchased_at).toLocaleDateString()}
+                      {[p.size, p.customer_email, new Date(p.purchased_at).toLocaleDateString()]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

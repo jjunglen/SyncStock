@@ -1,6 +1,6 @@
 const { sequelize } = require("../config/database.js");
 const { QueryTypes } = require("sequelize");
-const { Alert, NotificationLog, AlertClick, Purchase, User } = require("../models/index.js");
+const { Alert, NotificationLog, AlertClick, Purchase, User, Account } = require("../models/index.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 const { SOURCES } = require("../utils/signupSource.js");
 
@@ -103,6 +103,9 @@ const getPurchases = async (req, res) => {
 
     const { count, rows } = await Purchase.findAndCountAll({
       where: { store_id: req.store.id },
+      // The buyer's SyncStock account — Shopify's order email isn't
+      // requested (protected customer data), so this is who bought
+      include: [{ model: User, attributes: ["id"], include: [{ model: Account, attributes: ["email"] }] }],
       order: [["purchased_at", "DESC"]],
       limit,
       offset,
@@ -110,7 +113,10 @@ const getPurchases = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows,
+      data: rows.map((row) => {
+        const { User: buyer, ...purchase } = row.toJSON();
+        return { ...purchase, customer_email: purchase.customer_email || buyer?.Account?.email || null };
+      }),
       meta: buildMeta(count, page, limit),
     });
   } catch (error) {

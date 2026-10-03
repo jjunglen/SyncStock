@@ -141,7 +141,7 @@ const attributeOrder = async (store, order) => {
 const ORDER_QUERY = `
   query ($id: ID!) {
     order(id: $id) {
-      legacyResourceId email createdAt sourceName tags
+      legacyResourceId createdAt sourceName tags
       customAttributes { key value }
       lineItems(first: 100) {
         nodes {
@@ -156,10 +156,11 @@ const ORDER_QUERY = `
 `;
 
 // GraphQL order → the same shape as the orders/create webhook, which
-// attributeOrder works with
+// attributeOrder works with. No customer email: SyncStock only requests
+// Shopify's basic protected-data level, and the click proves who bought.
 const toOrderPayload = (order) => ({
   id: order.legacyResourceId,
-  email: order.email,
+  email: null,
   created_at: order.createdAt,
   source_name: order.sourceName,
   tags: (order.tags || []).join(", "),
@@ -176,9 +177,7 @@ const toOrderPayload = (order) => ({
   })),
 });
 
-// The order from Shopify, or null if it can't be read yet. Partial data
-// is fine: if Shopify withholds the customer's email, the sale still
-// counts, just without it.
+// The order from Shopify, or null if it can't be read yet
 const fetchOrder = async (store, orderId) => {
   if (!/^\d+$/.test(String(orderId))) return null;
   try {
