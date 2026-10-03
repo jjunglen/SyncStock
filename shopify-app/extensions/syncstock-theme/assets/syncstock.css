@@ -17,10 +17,36 @@
   margin: 0 0 20px;
   opacity: 0.8;
 }
-/* Fallback if the theme has no .button styles */
-.syncstock-banner__button {
-  display: inline-block;
+/* A solid, rounded button with its label centered. Colors come from the
+   theme's button colors when it sets them (Dawn-style themes use
+   --color-button / --color-button-text as "R, G, B"), else black on white. */
+.syncstock-banner .syncstock-banner__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(var(--color-button, 18, 18, 18));
+  color: rgb(var(--color-button-text, 255, 255, 255));
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.syncstock-banner .syncstock-banner__button:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+.syncstock-banner .syncstock-banner__button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 .syncstock-banner__note {
   margin: 12px 0 0;

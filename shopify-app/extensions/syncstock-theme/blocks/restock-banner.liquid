@@ -3,7 +3,8 @@
   The button goes to api.syncstock.io/api/store/go, which finds this
   store's SyncStock site from the Shopify domain (no setup needed) and
   tags the visit so signups from it show on the merchant dashboard.
-  Uses the theme's own button and heading styles where it has them.
+  Uses the theme's heading styles; the button is styled here (syncstock.css)
+  so it looks like a button on every theme, in the theme's colors.
 {%- endcomment -%}
 {%- liquid
   assign syncstock_url = 'https://api.syncstock.io/api/store/go?src=banner&shop=' | append: shop.permanent_domain
@@ -17,7 +18,7 @@
       <p class="syncstock-banner__text">{{ block.settings.text | escape }}</p>
     {%- endif -%}
     <a
-      class="button button--primary syncstock-banner__button"
+      class="syncstock-banner__button"
       href="{{ syncstock_url }}"
       {% if block.settings.new_tab %}target="_blank" rel="noopener"{% endif %}
     >
