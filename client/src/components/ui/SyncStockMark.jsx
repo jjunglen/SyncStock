@@ -5,10 +5,12 @@ const S_PATH = "M13.9 -24 A16 16 0 1 0 0 0 A16 16 0 1 1 -13.9 24";
 
 export default function SyncStockMark({ size = 24, className = "", title }) {
   return (
+    // Centered on the S's (y = 0), not on the S's plus the dot — so the
+    // letters line up with the middle of the text beside them
     <svg
-      viewBox="-44 -54 88 95"
+      viewBox="-44 -50 88 100"
       height={size}
-      width={(size * 88) / 95}
+      width={(size * 88) / 100}
       className={`shrink-0 ${className}`}
       role={title ? "img" : undefined}
       aria-label={title}
