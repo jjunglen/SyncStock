@@ -111,12 +111,16 @@ function NavOption({ item, isSelected, onClick, open }) {
   );
 }
 
-export default function MerchantSidebar() {
-  const store = useMyStore();
+// preview: a sample store for the landing page's dashboard preview —
+// nothing is fetched, and the sidebar sizes to its content
+export default function MerchantSidebar({ preview = null }) {
+  const myStore = useMyStore(!preview);
+  const store = preview || myStore;
   const storeName = store?.name;
   const [savedOpen, setSavedOpen] = useState(readSavedOpen);
   const isMobile = useIsMobile();
-  const open = savedOpen && !isMobile;
+  // The preview is always shown expanded (except on phones)
+  const open = (preview || savedOpen) && !isMobile;
   const navigate = useNavigate();
 
   const toggleOpen = () => {
@@ -138,7 +142,7 @@ export default function MerchantSidebar() {
 
   return (
     <nav
-      className={`sticky top-0 h-screen shrink-0 border-r border-border bg-surface p-2 transition-all duration-300 ${open ? "w-64" : "w-16"}`}
+      className={`${preview ? "relative" : "sticky top-0 h-screen"} shrink-0 border-r border-border bg-surface p-2 transition-all duration-300 ${open ? "w-64" : "w-16"}`}
     >
       <div className="mb-6 border-b border-border pb-4">
         <div className="flex items-center justify-between rounded-md p-2">
@@ -162,14 +166,14 @@ export default function MerchantSidebar() {
           <NavOption
             key={item.key}
             item={item}
-            isSelected={location.pathname === item.to}
+            isSelected={preview ? item.key === "dashboard" : location.pathname === item.to}
             onClick={() => handleClick(item)}
             open={open}
           />
         ))}
       </div>
 
-      {!isMobile && (
+      {!isMobile && !preview && (
       <button
         onClick={toggleOpen}
         aria-label={open ? "Collapse sidebar" : "Expand sidebar"}

@@ -20,9 +20,11 @@ export const getMyStore = () => {
   return request;
 };
 
-export function useMyStore() {
+// enabled=false skips the request (the landing page's dashboard preview)
+export function useMyStore(enabled = true) {
   const [store, setStore] = useState(null);
   useEffect(() => {
+    if (!enabled) return undefined;
     let active = true;
     getMyStore()
       .then((data) => active && setStore(data))
@@ -30,7 +32,7 @@ export function useMyStore() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [enabled]);
   return store;
 }
 
