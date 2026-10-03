@@ -5,8 +5,25 @@ const {
   enabledCategories,
   logoUrl,
 } = require("../utils/storeSettings.js");
+const { APPS } = require("../utils/shopifyApps.js");
 
 const MAX_LOGO_BYTES = 300 * 1024;
+
+// One-click links into the store's Shopify theme editor with SyncStock's
+// theme app extension (shopify-app/extensions/syncstock-theme) ready to
+// add: the "Restock alerts" section (blocks/restock-banner.liquid) and the
+// floating button app embed (blocks/restock-button.liquid). Each needs the
+// client ID of the app the store installed.
+const themeLinks = (store) => {
+  // The client ID only — it's public (it's in the app's TOML file)
+  const clientId = APPS[store.shopify_app || "custom"]?.clientId();
+  if (!clientId) return null;
+  const editor = `https://${store.shopify_domain}/admin/themes/current/editor`;
+  return {
+    section: `${editor}?template=index&addAppBlockId=${clientId}/restock-banner&target=newAppsSection`,
+    button: `${editor}?context=apps&template=index&activateAppId=${clientId}/restock-button`,
+  };
+};
 
 // What the settings page shows
 const settingsFor = (store) => ({
@@ -16,6 +33,7 @@ const settingsFor = (store) => ({
   brand_color: store.brand_color || null,
   logo_url: logoUrl(store),
   weekly_report: store.weekly_report,
+  theme_links: themeLinks(store),
 });
 
 // GET /api/store/settings (store admin)

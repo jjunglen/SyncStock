@@ -19,7 +19,7 @@ export default function MarketingHeader() {
       },
     })),
     { label: "Log in", onClick: () => navigate("/login") },
-    { label: "Link POS", onClick: () => navigate("/onboarding") },
+    { label: "Install on Shopify", onClick: () => navigate("/onboarding") },
   ];
 
   return (
@@ -50,7 +50,7 @@ export default function MarketingHeader() {
             </Link>
             <Link to="/onboarding">
               <Button variant="primary" size="sm">
-                Link POS
+                Install on Shopify
               </Button>
             </Link>
           </div>

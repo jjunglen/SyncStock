@@ -1,60 +1,23 @@
-import { useState } from "react";
-import { LuStore } from "react-icons/lu";
+import { Link } from "react-router-dom";
+import { LuStore, LuExternalLink } from "react-icons/lu";
 import Button from "../../components/ui/Button.jsx";
-import Spinner from "../../components/ui/Spinner.jsx";
 import BlackHoleBackground from "../../components/ui/BlackHoleBackground.jsx";
-import api from "../../lib/api.js";
+
+// Step 1 of merchant setup. SyncStock is installed from the Shopify App
+// Store — Shopify's rules don't allow asking merchants to type their
+// store's address. After they approve it in Shopify, the install comes
+// back to /onboarding/setup (store.controller.js handleShopifyCallback).
+// Merchants are also sent here when an install didn't finish (?error=…).
+const APP_STORE_URL =
+  import.meta.env.VITE_SHOPIFY_APP_STORE_URL || "https://apps.shopify.com/search?q=syncstock";
+
+const ERRORS = {
+  beta: "Syncstock is in private beta. Email hello@syncstock.io to get your store on the list.",
+  connect_failed: "Connecting your store didn't finish. Install SyncStock from Shopify again to retry.",
+};
 
 export default function ConnectShopify() {
-  const [shopDomain, setShopDomain] = useState("");
-  // ?error=beta — sent back here because signups are closed
-  const [error, setError] = useState(() =>
-    new URLSearchParams(window.location.search).get("error") === "beta"
-      ? "Syncstock is in private beta. Email hello@syncstock.io to get your store on the list."
-      : "",
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    let cleaned = shopDomain.trim().toLowerCase();
-    if (cleaned && !cleaned.includes(".")) {
-      cleaned = `${cleaned}.myshopify.com`;
-    }
-    if (!cleaned.endsWith(".myshopify.com")) {
-      setError(
-        "Enter your Shopify store's domain, e.g. yourstore.myshopify.com",
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const res = await api.post("/store/check-domain", { shop: cleaned });
-      const { exists, subdomain } = res.data.data;
-
-      if (exists && subdomain) {
-        const protocol =
-          window.location.hostname === "localhost" ? "http" : "https";
-        const host =
-          window.location.hostname === "localhost"
-            ? "localhost:5173"
-            : `${subdomain}.syncstock.io`;
-        window.location.href = `${protocol}://${host}/login`;
-        return;
-      }
-
-      window.location.href = `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/store/shopify/connect?shop=${encodeURIComponent(cleaned)}`;
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Something went wrong. Please try again.",
-      );
-      setIsSubmitting(false);
-    }
-  };
+  const error = ERRORS[new URLSearchParams(window.location.search).get("error")] || "";
 
   return (
     <div className="min-h-screen bg-bg text-text relative overflow-hidden flex items-center justify-center px-4">
@@ -81,34 +44,28 @@ export default function ConnectShopify() {
             <LuStore size={26} className="text-text" />
           </div>
           <div>
-            <p className="font-semibold">
-              Log in or connect your Shopify store
-            </p>
+            <p className="font-semibold">Install SyncStock from Shopify</p>
             <p className="mt-1 text-text-muted text-sm">
-              Already connected? We'll take you straight to sign in.
+              Add SyncStock to your store from the Shopify App Store. Once you
+              approve it in Shopify, you'll come right back here to finish setup.
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            type="text"
-            value={shopDomain}
-            onChange={(e) => setShopDomain(e.target.value)}
-            placeholder="yourstore.myshopify.com"
-            className="w-full bg-surface-muted border border-border rounded-xl px-4 py-3 text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-white/10"
-          />
-          {error && <p className="text-danger text-xs">{error}</p>}
+        {error && <p className="text-danger text-xs">{error}</p>}
 
-          <Button
-            type="submit"
-            variant="primary"
-            fullWidth
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <Spinner size={18} /> : "Continue"}
-          </Button>
-        </form>
+        <Button variant="primary" fullWidth onClick={() => window.location.assign(APP_STORE_URL)}>
+          <span className="flex items-center justify-center gap-2">
+            Find SyncStock on the App Store <LuExternalLink size={16} />
+          </span>
+        </Button>
+
+        <p className="text-center text-xs text-text-muted">
+          Already set up?{" "}
+          <Link to="/login" className="text-text underline">
+            Log in
+          </Link>
+        </p>
       </div>
     </div>
   );

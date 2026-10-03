@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -129,6 +129,52 @@ export default function StoreSettings() {
 
         {settings && (
           <>
+            {/* Shopify's App Store rules: show merchants how to add the
+                theme app extension, with deep links into the theme editor
+                (links built in storeSettings.controller.js) */}
+            <Section
+              icon={LuLayoutTemplate}
+              title="Add SyncStock to your Shopify store"
+              description="Send shoppers from your Shopify site to their restock alerts. Nothing to code — both are added in Shopify's theme editor."
+            >
+              <ol className="space-y-5">
+                {[
+                  {
+                    key: "section",
+                    title: "1. Add the \"Restock alerts\" section",
+                    text: "A banner inviting shoppers to save their sizes. The button below opens your theme editor with the section ready to add — place it where you like, then click Save.",
+                    manual: "Or: Online Store → Themes → Customize → Add section → Apps → Restock alerts.",
+                    action: "Add section",
+                  },
+                  {
+                    key: "button",
+                    title: "2. Turn on the floating button (optional)",
+                    text: "A small \"Restock alerts\" button in the corner of every page. The button below opens App embeds with it switched on — click Save to publish it.",
+                    manual: "Or: Online Store → Themes → Customize → App embeds → Restock alerts button.",
+                    action: "Turn on button",
+                  },
+                ].map((step) => (
+                  <li key={step.key}>
+                    <p className="text-sm font-medium">{step.title}</p>
+                    <p className="text-xs text-text-muted mt-1">{step.text}</p>
+                    <p className="text-xs text-text-muted mt-1">{step.manual}</p>
+                    {settings.theme_links?.[step.key] && (
+                      <Button
+                        variant={step.key === "section" ? "primary" : "secondary"}
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => window.open(settings.theme_links[step.key], "_blank", "noopener,noreferrer")}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {step.action} <LuExternalLink size={13} />
+                        </span>
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </Section>
+
             <Section
               icon={LuEye}
               title="What shoppers see"

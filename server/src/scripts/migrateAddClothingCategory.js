@@ -22,7 +22,7 @@ const run = async () => {
     console.log(`${type}: clothing added`);
   }
   console.log(
-    "Done. Next: node src/scripts/recategorizeInventory.js (dry run) to sort existing items.",
+    "Done. Existing items are sorted on the next catalog sync (nightly, or on reconnect).",
   );
   process.exit(0);
 };

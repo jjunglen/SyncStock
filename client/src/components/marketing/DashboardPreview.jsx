@@ -36,6 +36,10 @@ export default function DashboardPreview({ fill = false }) {
         fill ? "h-screen" : "max-h-[560px] md:max-h-[880px]"
       }`}
     >
+      {/* The numbers are made up — say so (Shopify: only factual info) */}
+      <span className="absolute top-3 right-3 z-20 rounded-full border border-border bg-surface/90 px-2.5 py-1 text-[11px] font-medium text-text-muted">
+        Sample data
+      </span>
       {/* Fades out the cut-off bottom edge */}
       {!fill && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-linear-to-t from-bg to-transparent" />

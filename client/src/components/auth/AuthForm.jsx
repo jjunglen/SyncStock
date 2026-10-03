@@ -296,7 +296,7 @@ export default function AuthForm({ initialMode = "login" }) {
           onClick={() => navigate("/onboarding")}
           className="w-full bg-primary text-primary-text font-medium py-3 px-6 rounded-xl hover:opacity-90 transition-all"
         >
-          Link POS
+          Install on Shopify
         </button>
       ) : (
         <>
