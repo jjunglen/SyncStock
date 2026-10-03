@@ -84,6 +84,8 @@ export default function NotificationBell() {
           setIsOpen((prev) => !prev);
         }}
         className="relative p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-expanded={isOpen}
       >
         <LuBell size={18} />
         {unreadCount > 0 && (
@@ -92,7 +94,9 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl z-50">
+        // Phones: just under the header, nearly full width (anchored to
+        // the bell it ran off the left edge). Wider screens: a dropdown.
+        <div className="fixed inset-x-3 top-[4.5rem] max-h-[70vh] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96 sm:max-h-[28rem] overflow-y-auto overscroll-contain bg-surface border border-border rounded-xl shadow-xl z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <p className="text-sm font-medium">Notifications</p>
             <div className="flex items-center gap-3">
@@ -138,9 +142,9 @@ export default function NotificationBell() {
                       className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
                     />
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p
-                      className={`text-sm ${!n.read ? "text-text font-medium" : "text-text-muted"}`}
+                      className={`text-sm break-words ${!n.read ? "text-text font-medium" : "text-text-muted"}`}
                     >
                       {n.message}
                     </p>

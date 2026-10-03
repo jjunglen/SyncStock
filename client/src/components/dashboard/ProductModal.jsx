@@ -186,6 +186,17 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
               ${parseFloat(item.price).toFixed(0)}
             </p>
 
+            {/* The product's description from Shopify (condition notes,
+                what's included) — plain text, before they buy */}
+            {item.description && (
+              <div className="mb-5 rounded-xl border border-border bg-surface-muted px-4 py-3">
+                <p className="text-xs font-medium text-text-muted mb-1">Details</p>
+                <p className="text-sm text-text leading-relaxed whitespace-pre-line break-words">
+                  {item.description}
+                </p>
+              </div>
+            )}
+
             {isInStock ? (
               <>
                 <div className="flex gap-3">
