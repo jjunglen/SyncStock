@@ -533,7 +533,7 @@ export default function CustomerDashboard() {
                   to="/store/track"
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
-                  <LuPlus size={16} /> Track a new shoe
+                  <LuPlus size={16} /> Track a new item
                 </Link>
                 )}
               </div>
@@ -620,7 +620,7 @@ export default function CustomerDashboard() {
                   to="/store/track"
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
-                  <LuPlus size={16} /> Track a new shoe
+                  <LuPlus size={16} /> Track a new item
                 </Link>
                 )}
               </div>
@@ -707,7 +707,7 @@ export default function CustomerDashboard() {
                   to="/store/track"
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
-                  <LuPlus size={16} /> Track a new shoe
+                  <LuPlus size={16} /> Track a new item
                 </Link>
               </div>
 

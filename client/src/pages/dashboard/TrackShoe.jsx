@@ -112,7 +112,7 @@ export default function TrackShoe() {
             <LuSearch className="text-text" size={18} />
           </div>
           <div>
-            <p className="text-base font-medium">Track a new shoe</p>
+            <p className="text-base font-medium">Track a new item</p>
             <p className="text-xs text-text-muted">
               We'll notify you the moment it hits the store
             </p>
@@ -171,7 +171,7 @@ export default function TrackShoe() {
 
             {query && !searching && (
               <p className="text-sm text-text-muted mb-4">
-                Tap a shoe to set an alert
+                Tap an item to set an alert
               </p>
             )}
             {searching && (
@@ -329,7 +329,7 @@ export default function TrackShoe() {
               <div className="text-center py-16">
                 <LuFootprints size={28} className="mx-auto mb-3 text-text-muted/60" aria-hidden="true" />
                 <p className="text-text-muted text-sm">
-                  Select a shoe from the results to set an alert
+                  Select an item from the results to set an alert
                 </p>
               </div>
             )}

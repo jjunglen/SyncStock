@@ -37,7 +37,7 @@ SyncStock gives your store a branded alerts site where shoppers save their sizes
 
 ## Screenshots to take (1600×900, desktop)
 1. Shopper dashboard: "In stock in your sizes" grid with filters
-2. Track a shoe: photo, size picker, price range slider
+2. Track an item: photo, size picker, price range slider
 3. Alert email on a phone (one message, several pairs)
 4. Merchant dashboard: revenue attributed, funnel, recent purchases
 5. Store settings: categories, logo and brand color preview

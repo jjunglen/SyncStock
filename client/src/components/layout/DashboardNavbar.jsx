@@ -52,7 +52,7 @@ export default function DashboardNavbar() {
       onClick: () => navigate("/store/dashboard?tab=browse"),
     },
     {
-      label: "Track a shoe",
+      label: "Track an item",
       icon: LuPlus,
       onClick: () => navigate("/store/track"),
     },
