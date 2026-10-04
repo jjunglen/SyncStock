@@ -27,7 +27,7 @@ export default function HeroSection() {
 
         <p className="animate-appear opacity-0 [animation-delay:100ms] relative z-10 max-w-2xl text-base sm:text-xl font-medium text-text-muted text-balance">
           Connect your Shopify store in minutes. Shoppers pick their sizes,
-          and Syncstock alerts them by email, text, and push the moment it's
+          and Syncstock alerts them by email and push the moment it's
           back — then shows you exactly which alerts turned into sales.
         </p>
 

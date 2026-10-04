@@ -125,10 +125,10 @@ return (
         <div className="w-9 h-9 rounded-lg bg-white/5 border border-border flex items-center justify-center mb-3">
             <LuMessageSquare className="text-text" size={18} />
         </div>
-        <h2 className="text-base font-bold mb-1">Text alerts included</h2>
+        <h2 className="text-base font-bold mb-1">Text alerts, coming soon</h2>
         <p className="text-text-muted text-sm">
-            SMS notifications are bundled in, not a paid add-on. Verify your
-            number once, get texted the moment your size drops.
+            SMS notifications are on the way, and they'll be included in the
+            plan, not a paid add-on. Until then, alerts go out by email and push.
         </p>
         </BentoItem>
     </div>

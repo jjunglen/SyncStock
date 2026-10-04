@@ -201,7 +201,7 @@ export default function StoreLanding() {
             </h1>
             <p className="animate-appear opacity-0 [animation-delay:100ms] relative z-10 max-w-2xl text-base sm:text-xl font-medium text-text-muted text-balance">
               Save your sizes, pick what you want, and we'll tell you the
-              moment it's back — by email, text, or push.
+              moment it's back — by email or push.
             </p>
             <div className="animate-appear opacity-0 [animation-delay:300ms] relative z-10 flex flex-wrap justify-center gap-3">
               <Link to="/store/signup">
