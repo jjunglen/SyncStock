@@ -81,8 +81,12 @@ const setSessionCookie = (res, token) => {
   res.cookie(SESSION_COOKIE, token, COOKIE_OPTIONS);
 };
 
+// Clearing needs the cookie's identity (domain, path, flags) but not its
+// lifetime — Express deprecates passing maxAge to clearCookie
+const { maxAge: _maxAge, ...CLEAR_COOKIE_OPTIONS } = COOKIE_OPTIONS;
+
 const clearSessionCookies = (res) => {
-  res.clearCookie(SESSION_COOKIE, COOKIE_OPTIONS);
+  res.clearCookie(SESSION_COOKIE, CLEAR_COOKIE_OPTIONS);
   if (COOKIE_OPTIONS.domain) res.clearCookie(SESSION_COOKIE, LEGACY_COOKIE_OPTIONS);
 };
 
