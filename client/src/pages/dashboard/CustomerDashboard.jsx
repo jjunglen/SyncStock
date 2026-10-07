@@ -528,9 +528,9 @@ export default function CustomerDashboard() {
                     )}
                   </div>
                 </div>
-                {category === "sneakers" && (
+                {category !== "trading_cards" && (
                 <Link
-                  to="/store/track"
+                  to={`/store/track?category=${category}`}
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
                   <LuPlus size={16} /> Track a new item
@@ -615,9 +615,9 @@ export default function CustomerDashboard() {
                     </p>
                   </div>
                 </div>
-                {category === "sneakers" && (
+                {category !== "trading_cards" && (
                 <Link
-                  to="/store/track"
+                  to={`/store/track?category=${category}`}
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
                   <LuPlus size={16} /> Track a new item

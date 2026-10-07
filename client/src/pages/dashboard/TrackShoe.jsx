@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { LuSearch, LuCircleCheck, LuCircleX, LuFootprints } from "react-icons/lu";
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -9,6 +9,20 @@ import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
 import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
 import SizePicker from "../../components/dashboard/SizePicker.jsx";
 import Switch from "../../components/ui/Switch.jsx";
+import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
+
+// What can be tracked here (trading cards have no sizes and aren't on
+// StockX search). ?category=clothing opens in clothing mode.
+const TRACKABLE = ["sneakers", "clothing"];
+
+// StockX product types → our category, so picking a hoodie switches to
+// clothing sizes on its own
+const categoryFromStockx = (item) => {
+  const type = `${item?.productType || ""} ${item?.productAttributes?.category || ""}`;
+  if (/apparel|clothing|streetwear|accessor|hoodie|shirt|jacket|pants|shorts|hat|bag/i.test(type)) return "clothing";
+  if (/sneaker|shoe|footwear/i.test(type)) return "sneakers";
+  return null;
+};
 
 export default function TrackShoe() {
   const [query, setQuery] = useState("");
@@ -23,6 +37,16 @@ export default function TrackShoe() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [mySizes, setMySizes] = useState([]);
+  const [searchParams] = useSearchParams();
+  const [category, setCategory] = useState(() =>
+    TRACKABLE.includes(searchParams.get("category")) ? searchParams.get("category") : "sneakers",
+  );
+  // A size only makes sense for its category — clear it on a switch
+  const switchCategory = (next) => {
+    if (next === category) return;
+    setCategory(next);
+    setSize(null);
+  };
 
   const navigate = useNavigate();
   const formRef = useRef(null);
@@ -72,6 +96,7 @@ export default function TrackShoe() {
 
     try {
       await api.post("/alerts", {
+        category,
         product_name: selectedShoe.title,
         sku: selectedShoe.styleId,
         size,
@@ -188,7 +213,14 @@ export default function TrackShoe() {
                       showFormOnPhones();
                       setSuccess(false);
                       setError("");
-                      if (mySizes.length > 0 && !size) setSize(mySizes[0]);
+                      // A hoodie switches to clothing sizes on its own
+                      const itemCategory = categoryFromStockx(shoe) || category;
+                      if (itemCategory !== category) {
+                        setCategory(itemCategory);
+                        setSize(null);
+                      }
+                      const savedForType = mySizes.filter((s) => SIZES_BY_CATEGORY[itemCategory].includes(s));
+                      if (savedForType.length > 0 && (itemCategory !== category || !size)) setSize(savedForType[0]);
                     }}
                     className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
                       selectedShoe?.productId === shoe.productId
@@ -271,8 +303,30 @@ export default function TrackShoe() {
                 </div>
 
                 <div>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Type</p>
+                  <div role="radiogroup" aria-label="Type" className="grid grid-cols-2 gap-1 p-1 mb-4 border border-text/15 rounded-xl bg-surface-muted">
+                    {TRACKABLE.map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="radio"
+                        aria-checked={category === key}
+                        onClick={() => switchCategory(key)}
+                        className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+                          category === key ? "bg-primary text-primary-text" : "text-text-muted hover:text-text"
+                        }`}
+                      >
+                        {CATEGORY_META[key].label}
+                      </button>
+                    ))}
+                  </div>
                   <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Size</p>
-                  <SizePicker value={size} onChange={setSize} mySizes={mySizes} />
+                  <SizePicker
+                    value={size}
+                    onChange={setSize}
+                    category={category}
+                    mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
+                  />
                 </div>
 
                 <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
