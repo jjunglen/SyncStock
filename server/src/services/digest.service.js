@@ -15,6 +15,12 @@ const { sendPushNotification } = require("./push.service.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { buildDashboardUrl } = require("./notification.service.js");
 
+// "jordan23@gmail.com" → "jo•••@gmail.com", for logs
+const maskEmail = (email) => {
+  const [name = "", domain = ""] = String(email || "").split("@");
+  return domain ? `${name.slice(0, 2)}•••@${domain}` : "(no email)";
+};
+
 // A shopper's digest waits until their batch has settled: nothing new
 // queued for them, and none of the queued products edited in Shopify,
 // for QUIET_MS. Listing tools (e.g. Copyt) create a product and then add
@@ -136,13 +142,22 @@ const deliverDigest = async (storeId, userId, queuedItems) => {
 
     emailItems = wants("notify_email");
     if (emailItems.length > 0) {
+      const alertMatches = emailItems.filter((i) => i.alert_id);
+      const sizeMatches = emailItems.filter((i) => !i.alert_id);
       await sendDigestEmail({
         store,
         account,
         membershipId: user.id,
-        alerts: emailItems.filter((i) => i.alert_id),
-        sizes: emailItems.filter((i) => !i.alert_id),
+        alerts: alertMatches,
+        sizes: sizeMatches,
       });
+      // Who got it and how big it was. The address is partly hidden (logs
+      // are kept by Railway); the account ID identifies the shopper.
+      console.log(
+        `Alert email sent to ${maskEmail(account.email)} (account ${account.id}) at ${store.subdomain}: ` +
+          `${emailItems.length} product${emailItems.length === 1 ? "" : "s"} ` +
+          `(${alertMatches.length} from saved alerts, ${sizeMatches.length} size matches)`,
+      );
     }
   } catch (err) {
     return requeue(queuedItems, userId, err);
