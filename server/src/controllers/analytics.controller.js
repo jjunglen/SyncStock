@@ -125,7 +125,38 @@ const getPurchases = async (req, res) => {
   }
 };
 
-module.exports = { getSourcingDemand, getRevenue, getFunnel, getCustomerCount, getPurchases };
+// GET /api/analytics/most-viewed — the products shoppers opened most in
+// the last 7 days (each shopper counted once per product, any size), with
+// whether any size is in stock. For the merchant only.
+const getMostViewed = async (req, res) => {
+  try {
+    const rows = await sequelize.query(
+      `
+      SELECT
+        pv.shopify_product_id,
+        COUNT(DISTINCT pv.account_id)::int AS viewers,
+        MAX(i.product_name) AS product_name,
+        MAX(i.image_url) AS image_url,
+        BOOL_OR(i.available > 0) AS in_stock
+      FROM product_views pv
+      JOIN inventory i
+        ON i.store_id = pv.store_id AND i.shopify_product_id = pv.shopify_product_id
+      WHERE pv.store_id = :storeId
+        AND pv.viewed_at >= NOW() - INTERVAL '7 days'
+      GROUP BY pv.shopify_product_id
+      ORDER BY viewers DESC, MAX(pv.viewed_at) DESC
+      LIMIT 8
+      `,
+      { replacements: { storeId: req.store.id }, type: QueryTypes.SELECT },
+    );
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Get most viewed error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to fetch most viewed" });
+  }
+};
+
+module.exports = { getSourcingDemand, getRevenue, getFunnel, getCustomerCount, getPurchases, getMostViewed };
 // --- Price check (merchant): brand-new pairs vs StockX -----------------
 const { Op: PriceOp } = require("sequelize");
 const {

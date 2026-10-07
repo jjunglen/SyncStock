@@ -53,6 +53,12 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
     else if (deltaX < -40) showNextImage();
   };
 
+  // Count this shopper's look for the merchant's "Most viewed" panel —
+  // shoppers don't see view counts
+  useEffect(() => {
+    api.post(`/inventory/${item.id}/view`).catch(() => {});
+  }, [item.id]);
+
   useEffect(() => {
     const handleEsc = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", handleEsc);

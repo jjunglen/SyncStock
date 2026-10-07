@@ -8,6 +8,7 @@ const {
   getFunnel,
   getCustomerCount,
   getPurchases,
+  getMostViewed,
   getPriceCheck,
   refreshPriceCheck,
 } = require("../controllers/analytics.controller.js");
@@ -17,6 +18,7 @@ router.get("/revenue", authenticateAccount, resolveStoreFromAdminMembership, get
 router.get("/funnel", authenticateAccount, resolveStoreFromAdminMembership, getFunnel);
 router.get("/customer-count", authenticateAccount, resolveStoreFromAdminMembership, getCustomerCount);
 router.get("/purchases", authenticateAccount, resolveStoreFromAdminMembership, getPurchases);
+router.get("/most-viewed", authenticateAccount, resolveStoreFromAdminMembership, getMostViewed);
 // Price check (flagship store): brand-new pairs vs StockX
 router.get("/price-check", authenticateAccount, resolveStoreFromAdminMembership, getPriceCheck);
 router.post("/price-check/refresh", authenticateAccount, resolveStoreFromAdminMembership, refreshPriceCheck);

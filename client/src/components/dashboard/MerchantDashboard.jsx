@@ -7,6 +7,8 @@ import {
   LuBellRing,
   LuShoppingBag,
   LuChevronRight,
+  LuEye,
+  LuFootprints,
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
@@ -38,6 +40,15 @@ export default function MerchantDashboard() {
   const [customerCount, setCustomerCount] = useState(null);
   // Signups and clicks from the "Restock alerts" blocks on the Shopify site
   const [fromWebsite, setFromWebsite] = useState(null);
+  // Products shoppers opened most this week (not shown to shoppers)
+  const [mostViewed, setMostViewed] = useState(null);
+
+  useEffect(() => {
+    api
+      .get("/analytics/most-viewed")
+      .then((res) => setMostViewed(res.data.data || []))
+      .catch(() => setMostViewed([]));
+  }, []);
 
   useEffect(() => {
     api
@@ -93,6 +104,7 @@ export default function MerchantDashboard() {
           funnel={funnel}
           customerCount={customerCount}
           fromWebsite={fromWebsite}
+          mostViewed={mostViewed}
         />
       </div>
     </div>
@@ -112,6 +124,9 @@ export function DashboardBody({
   fromWebsite,
   // The preview passes a sample count; normally it's the demand list
   productsTracked,
+  // [{ shopify_product_id, product_name, image_url, viewers, in_stock }];
+  // null while loading. Left out entirely (landing preview), the panel hides.
+  mostViewed,
 }) {
   // Bars are sized against the biggest number. The stages aren't
   // subsets of each other (one alert can be clicked many times), so
@@ -253,6 +268,52 @@ export function DashboardBody({
           )}
         </div>
       </div>
+
+      {mostViewed !== undefined && (
+      <div className="rounded-xl border border-border bg-surface p-6 mb-6">
+        <div className="flex items-center gap-2">
+          <LuEye size={16} className="text-text-muted" />
+          <h3 className="font-semibold">Most viewed this week</h3>
+        </div>
+        <p className="text-xs text-text-muted mt-0.5 mb-4">
+          How many shoppers opened each product (any size) in the last 7 days. Only you see this.
+        </p>
+        {mostViewed === null ? (
+          <p className="text-sm text-text-muted">Loading...</p>
+        ) : mostViewed.length === 0 ? (
+          <p className="text-sm text-text-muted">No views yet — this fills in as shoppers browse your store.</p>
+        ) : (
+          <div className="space-y-1">
+            {mostViewed.map((p) => (
+              <div
+                key={p.shopify_product_id}
+                className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="size-10 shrink-0 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                    ) : (
+                      <LuFootprints size={16} className="text-neutral-300" aria-hidden="true" />
+                    )}
+                  </div>
+                  <p className="text-sm font-medium truncate">{p.product_name}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {/* Viewed but nothing to buy — worth restocking */}
+                  {!p.in_stock && (
+                    <span className="text-xs bg-warn/10 text-warn px-2 py-0.5 rounded-full">Sold out</span>
+                  )}
+                  <span className="text-sm font-semibold">
+                    {count(p.viewers)} {p.viewers === 1 ? "shopper" : "shoppers"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
 
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="flex items-center justify-between mb-4">

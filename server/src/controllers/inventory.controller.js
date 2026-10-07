@@ -1,5 +1,5 @@
 const { Op, fn, col } = require("sequelize");
-const { Inventory } = require("../models/index.js");
+const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories } = require("../utils/storeSettings.js");
 const { searchInventoryItems } = require("../utils/inventorySearch.js");
@@ -94,6 +94,35 @@ const getInventoryItem = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Failed to fetch item" });
+  }
+};
+
+// POST /api/inventory/:id/view — a shopper opened this product. Recorded
+// once per shopper per product (refreshed on every look) for the
+// merchant's "Most viewed this week" (analytics.controller.js). Shoppers
+// never see view counts.
+const recordProductView = async (req, res) => {
+  try {
+    const item = await Inventory.findOne({
+      where: { id: req.params.id, store_id: req.store.id },
+      attributes: ["shopify_product_id"],
+    });
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Inventory item not found" });
+    }
+    await ProductView.upsert(
+      {
+        store_id: req.store.id,
+        shopify_product_id: item.shopify_product_id,
+        account_id: req.account.id,
+        viewed_at: new Date(),
+      },
+      { conflictFields: ["store_id", "shopify_product_id", "account_id"] },
+    );
+    return res.status(204).end();
+  } catch (error) {
+    console.error("Record product view error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to record view" });
   }
 };
 
@@ -271,6 +300,7 @@ module.exports = {
   getCategories,
   getInventory,
   getInventoryItem,
+  recordProductView,
   searchInventory,
   getInventoryInMySizes,
 };

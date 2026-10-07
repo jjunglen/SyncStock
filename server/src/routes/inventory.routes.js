@@ -13,6 +13,7 @@ const {
   getCategories,
   getBrands,
   getProductSizes,
+  recordProductView,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
@@ -50,6 +51,14 @@ router.get(
   resolveStoreFromSubdomain,
   authenticateAccount,
   getProductSizes,
+);
+// "3 people viewed this" (product pop-out)
+router.post(
+  "/:id/view",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  recordProductView,
 );
 router.get(
   "/:id",

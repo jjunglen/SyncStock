@@ -92,6 +92,17 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       } catch (err) {
         console.error("Nightly catalog sync error:", err.message);
       }
+      // "N people viewed this" only looks back 24 hours; keep a week
+      try {
+        const { Op } = require("sequelize");
+        const { ProductView } = require("./src/models/index.js");
+        const removed = await ProductView.destroy({
+          where: { viewed_at: { [Op.lt]: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+        });
+        if (removed) console.log(`Removed ${removed} product views older than 7 days`);
+      } catch (err) {
+        console.error("Product view cleanup error:", err.message);
+      }
     },
     { timezone: "America/Chicago" },
   );

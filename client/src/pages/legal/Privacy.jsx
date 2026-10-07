@@ -63,6 +63,11 @@ export default function Privacy() {
           When you open an item from an alert: the item, size, and time.
         </li>
         <li>
+          Which products you open on a store's page, kept for 7 days, so
+          the store can see which items shoppers look at most. The store
+          sees only counts — never who viewed an item.
+        </li>
+        <li>
           Purchases linked to an alert: the store's order number, item, size,
           price paid, and the email on the order, which the store's Shopify
           account shares with us.
