@@ -14,7 +14,7 @@ export default function HeroSection() {
           className="animate-appear inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs"
         >
           <span className="text-text-muted">
-            Now syncing sneakers, clothing, and trading cards
+            Sneakers & clothing now · trading cards soon
           </span>
           <span className="flex items-center gap-1 font-medium">
             Get started <LuArrowRight size={12} />
