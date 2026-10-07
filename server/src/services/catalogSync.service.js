@@ -1,8 +1,8 @@
 const { Op } = require("sequelize");
 const { Inventory } = require("../models/index.js");
-const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
+const { readVariant } = require("../utils/variantDetails.js");
 const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 const { descriptionFromHtml } = require("../utils/productDescription.js");
 
@@ -21,7 +21,7 @@ const { descriptionFromHtml } = require("../utils/productDescription.js");
 const PAGE_SIZE = 15;
 const MAX_PAGES = 1000;
 
-const VARIANT_FIELDS = "legacyResourceId title sku price inventoryQuantity";
+const VARIANT_FIELDS = "legacyResourceId title sku price inventoryQuantity selectedOptions { name value }";
 
 const PRODUCTS_QUERY = `
   query ($cursor: String) {
@@ -84,6 +84,7 @@ const toProductPayload = (product, variants) => {
       sku: v.sku,
       price: v.price,
       inventory_quantity: v.inventoryQuantity,
+      option_values: v.selectedOptions || [],
     })),
   };
 };
@@ -121,7 +122,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
       const category = categorizeProduct(product);
       if (!category) continue; // gift cards aren't listed
       for (const variant of product.variants || []) {
-        const { size, condition, boxCondition } = parseVariantTitle(variant.title, product.handle);
+        const { size, condition, boxCondition } = readVariant(product, variant, category);
         seen.add(String(variant.id));
         await Inventory.upsert({
           store_id: store.id,

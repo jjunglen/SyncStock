@@ -1,5 +1,5 @@
 const { Inventory } = require("../models/index.js");
-const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
+const { readVariant } = require("../utils/variantDetails.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
 const { descriptionFromHtml } = require("../utils/productDescription.js");
@@ -18,10 +18,7 @@ const handleProductCreate = async (req, res) => {
     if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
 
     for (const variant of variants) {
-      const { size, condition, boxCondition } = parseVariantTitle(
-        variant.title,
-        data.handle,
-      );
+      const { size, condition, boxCondition } = readVariant(data, variant, category);
 
       await Inventory.upsert({
         store_id: store.id,
@@ -119,10 +116,7 @@ const handleProductUpdate = async (req, res) => {
     const priceDropVariants = [];
 
     for (const variant of variants) {
-      const { size, condition, boxCondition } = parseVariantTitle(
-        variant.title,
-        data.handle,
-      );
+      const { size, condition, boxCondition } = readVariant(data, variant, category);
 
       const newPrice = parseFloat(variant.price) || null;
       const compareAtPrice = parseFloat(variant.compare_at_price) || null;
