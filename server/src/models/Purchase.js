@@ -34,6 +34,8 @@ const Purchase = sequelize.define(
     },
     // cart_tag — the order carried syncstock_click_id
     // pixel     — the web pixel reported the checkout (e.g. "Buy it now")
+    // utm       — Shopify's visit history shows the shopper arrived from
+    //             the click's link (they came back later; nightly check)
     attribution_source: {
       type: DataTypes.STRING(20),
       allowNull: true,
@@ -73,6 +75,25 @@ const Purchase = sequelize.define(
     purchased_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
+    },
+    // How much Shopify refunded of price_paid (set from the order's
+    // refunds, so replays can't double-count). Revenue is net of it.
+    refunded_amount: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0,
+    },
+    cancelled_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // exact   — the size clicked was bought: a sale
+    // product — a different size/condition of the clicked product:
+    //           "Assisted", reported separately, never in the main number
+    match_type: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: "exact",
     },
   },
   {

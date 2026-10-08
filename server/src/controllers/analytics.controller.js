@@ -1,5 +1,5 @@
 const { sequelize } = require("../config/database.js");
-const { QueryTypes } = require("sequelize");
+const { QueryTypes, Op } = require("sequelize");
 const { Alert, NotificationLog, AlertClick, Purchase, User, Account } = require("../models/index.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 const { SOURCES } = require("../utils/signupSource.js");
@@ -36,24 +36,26 @@ const getSourcingDemand = async (req, res) => {
   }
 };
 
+// Revenue SyncStock drove: exact sales (the size clicked was bought), net
+// of refunds and cancellations. "Assisted" sales (another size of a
+// clicked product) and refunds are reported alongside, never mixed in.
 const getRevenue = async (req, res) => {
   try {
-    const result = await Purchase.findOne({
-      where: { store_id: req.store.id },
-      attributes: [
-        [sequelize.fn("COALESCE", sequelize.fn("SUM", sequelize.col("price_paid")), 0), "total_revenue"],
-        [sequelize.fn("COUNT", sequelize.col("id")), "purchase_count"],
-      ],
-      raw: true,
-    });
+    const [r] = await sequelize.query(
+      `
+      SELECT
+        COALESCE(SUM(price_paid - refunded_amount) FILTER (WHERE match_type = 'exact'), 0)::float AS total_revenue,
+        COUNT(*) FILTER (WHERE match_type = 'exact' AND refunded_amount < price_paid)::int AS purchase_count,
+        COALESCE(SUM(price_paid - refunded_amount) FILTER (WHERE match_type = 'product'), 0)::float AS assisted_revenue,
+        COUNT(*) FILTER (WHERE match_type = 'product' AND refunded_amount < price_paid)::int AS assisted_count,
+        COALESCE(SUM(refunded_amount), 0)::float AS refunded_total
+      FROM purchases
+      WHERE store_id = :storeId
+      `,
+      { replacements: { storeId: req.store.id }, type: QueryTypes.SELECT },
+    );
 
-    return res.status(200).json({
-      success: true,
-      data: {
-        total_revenue: parseFloat(result.total_revenue),
-        purchase_count: parseInt(result.purchase_count, 10),
-      },
-    });
+    return res.status(200).json({ success: true, data: r });
   } catch (error) {
     console.error("Get revenue error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to fetch revenue" });
@@ -68,7 +70,14 @@ const getFunnel = async (req, res) => {
       Alert.count({ where: { store_id: storeId, active: true } }),
       NotificationLog.count({ where: { store_id: storeId } }),
       AlertClick.count({ where: { store_id: storeId } }),
-      Purchase.count({ where: { store_id: storeId } }),
+      // Exact sales that weren't fully refunded (getRevenue)
+      Purchase.count({
+        where: {
+          store_id: storeId,
+          match_type: "exact",
+          refunded_amount: { [Op.lt]: sequelize.col("price_paid") },
+        },
+      }),
     ]);
 
     return res.status(200).json({

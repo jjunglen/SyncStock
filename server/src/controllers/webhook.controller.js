@@ -7,7 +7,7 @@ const {
   checkAlertsForInventory,
   checkPriceDropAlerts,
 } = require("../services/alert.service.js");
-const { attributeOrder } = require("../services/attribution.service.js");
+const { attributeOrder, refreshOrderRefunds } = require("../services/attribution.service.js");
 
 const handleProductCreate = async (req, res) => {
   try {
@@ -195,9 +195,34 @@ const handleProductUpdate = async (req, res) => {
   }
 };
 
+// orders/cancelled and refunds/create: the order's sales are re-read from
+// Shopify and set to what's been refunded (attribution.service.js), so
+// revenue stays net of returns. Orders SyncStock never credited are skipped.
+const handleOrderCancelled = async (req, res) => {
+  try {
+    const order = JSON.parse(req.body);
+    res.status(200).json({ received: true });
+    await refreshOrderRefunds(req.store, order.id);
+  } catch (error) {
+    console.error("Order cancelled webhook error:", error.message);
+  }
+};
+
+const handleRefundCreate = async (req, res) => {
+  try {
+    const refund = JSON.parse(req.body);
+    res.status(200).json({ received: true });
+    await refreshOrderRefunds(req.store, refund.order_id);
+  } catch (error) {
+    console.error("Refund webhook error:", error.message);
+  }
+};
+
 module.exports = {
   handleProductCreate,
   handleProductDelete,
   handleProductUpdate,
   handleOrderCreate,
+  handleOrderCancelled,
+  handleRefundCreate,
 };

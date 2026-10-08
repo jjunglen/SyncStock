@@ -8,6 +8,12 @@ const {
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { CLICK_ATTRIBUTE, UUID_RE } = require("../services/attribution.service.js");
 
+// Tracking codes Shopify keeps in the order's visit history, so a
+// shopper who leaves and comes back later still connects to their click
+// (attribution.service.js, nightly check). utm_content is the click ID.
+const utmFor = (clickId) =>
+  `utm_source=syncstock&utm_medium=alert&utm_campaign=restock&utm_content=${clickId}`;
+
 // Most items one Syncstock cart can hand to Shopify at once
 const MAX_CART_ITEMS = 10;
 
@@ -75,7 +81,7 @@ const trackRedirect = async (req, res) => {
     // checkout. The tag stays on that cart while the shopper keeps
     // browsing the store, so the sale still counts if they check out
     // later (attribution.service.js); the web pixel also picks it up here.
-    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?storefront=true&attributes[${CLICK_ATTRIBUTE}]=${click.id}`;
+    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?storefront=true&attributes[${CLICK_ATTRIBUTE}]=${click.id}&${utmFor(click.id)}`;
 
     return res.redirect(cartUrl);
   } catch (error) {
@@ -136,7 +142,9 @@ const createCartCheckout = async (req, res) => {
     const tags = clicks
       .map((click, i) => `attributes[${CLICK_ATTRIBUTE}${i === 0 ? "" : `_${i + 1}`}]=${click.id}`)
       .join("&");
-    const url = `${store.storefront_url}/cart/${lines}?storefront=true&${tags}`;
+    // Visit history holds one utm_content, so it carries the first click;
+    // every item still has its own cart tag
+    const url = `${store.storefront_url}/cart/${lines}?storefront=true&${tags}&${utmFor(clicks[0].id)}`;
 
     return res.status(200).json({ success: true, data: { url, unavailable: [] } });
   } catch (error) {

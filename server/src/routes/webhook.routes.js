@@ -12,6 +12,8 @@ const {
   handleProductUpdate,
   handleProductDelete,
   handleOrderCreate,
+  handleOrderCancelled,
+  handleRefundCreate,
 } = require("../controllers/webhook.controller.js");
 const {
   handleComplianceWebhook,
@@ -32,6 +34,8 @@ router.post("/products/create", handleProductCreate);
 router.post("/products/update", handleProductUpdate);
 router.post("/products/delete", handleProductDelete);
 router.post("/orders/create", handleOrderCreate);
+router.post("/orders/cancelled", handleOrderCancelled);
+router.post("/refunds/create", handleRefundCreate);
 router.post("/app/uninstalled", handleAppUninstalled);
 router.post("/app_subscriptions/update", handleSubscriptionUpdate);
 

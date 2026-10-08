@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
+import { purchaseBadges, BADGE_CLASSES, netAmount, isRefunded } from "../../lib/purchaseLabels.js";
 
 // `to`: the page with the details behind that number
 const FUNNEL_STAGES = [
@@ -154,7 +155,11 @@ export function DashboardBody({
           label="Revenue attributed"
           value={revenue ? money(revenue.total_revenue) : "…"}
           to="/purchases"
-          hint="See purchases"
+          hint={
+            revenue?.assisted_count > 0
+              ? `+${money(revenue.assisted_revenue)} assisted (other sizes) · net of refunds`
+              : "See purchases · net of refunds"
+          }
         />
         <StatCard
           icon={LuUsers}
@@ -344,12 +349,17 @@ export function DashboardBody({
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* How the sale was proven (attribution.service.js) */}
-                  <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
-                    {p.attribution_source === "pixel" ? "Buy it now" : "Syncstock checkout"}
-                  </span>
+                  {/* How it was proven, refunds, assisted (lib/purchaseLabels.js) */}
+                  {purchaseBadges(p).map((b) => (
+                    <span key={b.label} className={`text-xs px-2 py-0.5 rounded-full ${BADGE_CLASSES[b.tone]}`}>
+                      {b.label}
+                    </span>
+                  ))}
                   <span className="text-sm font-semibold">
-                    {money(p.price_paid)}
+                    {isRefunded(p) && (
+                      <span className="mr-1.5 text-xs font-normal text-text-muted line-through">{money(p.price_paid)}</span>
+                    )}
+                    {money(netAmount(p))}
                   </span>
                   <LuChevronRight size={14} className="text-text-muted" aria-hidden="true" />
                 </div>

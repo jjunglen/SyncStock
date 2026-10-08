@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { LuShoppingBag } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
+import { purchaseBadges, BADGE_CLASSES, netAmount, isRefunded } from "../../lib/purchaseLabels.js";
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([]);
@@ -65,17 +66,18 @@ export default function PurchasesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {p.alert_id ? (
-                      <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
-                        From alert
+                    {purchaseBadges(p).map((b) => (
+                      <span key={b.label} className={`text-xs px-2 py-0.5 rounded-full ${BADGE_CLASSES[b.tone]}`}>
+                        {b.label}
                       </span>
-                    ) : (
-                      <span className="text-xs bg-white/5 text-text-muted px-2 py-0.5 rounded-full">
-                        Matched
-                      </span>
-                    )}
+                    ))}
                     <span className="text-sm font-semibold">
-                      ${parseFloat(p.price_paid).toFixed(2)}
+                      {isRefunded(p) && (
+                        <span className="mr-1.5 text-xs font-normal text-text-muted line-through">
+                          ${parseFloat(p.price_paid).toFixed(2)}
+                        </span>
+                      )}
+                      ${netAmount(p).toFixed(2)}
                     </span>
                   </div>
                 </div>

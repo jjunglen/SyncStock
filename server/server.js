@@ -89,6 +89,24 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
         const { syncAllCatalogs } = require("./src/services/catalogSync.service.js");
         const stores = await Store.findAll({ where: { status: "active", uninstalled_at: null } });
         await syncAllCatalogs(stores);
+
+        // Sales safety net (attribution.service.js): make sure each store
+        // has every webhook (stores connected before a new topic get it
+        // here), then re-check the click window's orders for missed
+        // sales, return visits and refunds
+        const { registerShopifyWebhooks } = require("./src/controllers/store.controller.js");
+        const { reconcileRecentOrders } = require("./src/services/attribution.service.js");
+        for (const store of stores) {
+          try {
+            await registerShopifyWebhooks(store);
+            const r = await reconcileRecentOrders(store);
+            console.log(
+              `Nightly sales check ${store.subdomain}: ${r.orders} orders, ${r.sales} sales added, ${r.refundsUpdated} refunds/cancellations updated`,
+            );
+          } catch (err) {
+            console.error(`Nightly sales check failed for ${store.subdomain}:`, err.message);
+          }
+        }
       } catch (err) {
         console.error("Nightly catalog sync error:", err.message);
       }

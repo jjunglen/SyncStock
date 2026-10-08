@@ -19,7 +19,8 @@ const handlePixelCheckout = async (req, res) => {
     const clickIds = [...new Set(Array.isArray(body.click_ids) ? body.click_ids : [])]
       .map(String)
       .filter((id) => UUID_RE.test(id))
-      .slice(0, 5);
+      // The pixel remembers up to 10 recent clicks
+      .slice(0, 10);
 
     if (!shop.endsWith(".myshopify.com") || !orderId || clickIds.length === 0) return;
 

@@ -62,15 +62,70 @@ const categoryForVariant = async (store, variantId) => {
   return item?.category || "sneakers";
 };
 
-// Records a Purchase for every order line that a valid click proves.
-// Safe to run more than once for the same order (webhook and pixel both
-// call it): one row per order + variant.
+// Saves one sold line, or upgrades an "Assisted" row to a full sale when
+// exact proof turns up later. One row per order + variant.
+const savePurchase = async (store, order, line, click, source, matchType) => {
+  const orderId = String(order.id);
+  const variantId = String(line.variant_id);
+  const where = { store_id: store.id, shopify_order_id: orderId, shopify_variant_id: variantId };
+  try {
+    const existing = await Purchase.findOne({ where });
+    if (existing) {
+      if (existing.match_type === "product" && matchType === "exact") {
+        await existing.update({
+          match_type: "exact",
+          click_id: click.id,
+          attribution_source: source,
+          alert_id: click.alert_id,
+          user_id: click.user_id,
+          size: click.size,
+        });
+        console.log(`Sale upgraded to exact (${source}) — ${line.title} on order ${orderId} (store ${store.id})`);
+        return 1;
+      }
+      return 0;
+    }
+    await Purchase.create({
+      ...where,
+      user_id: click.user_id,
+      alert_id: click.alert_id,
+      click_id: click.id,
+      attribution_source: source,
+      match_type: matchType,
+      category: await categoryForVariant(store, variantId),
+      product_name: line.title || click.product_name,
+      sku: line.sku || click.sku,
+      // An assisted sale may be another size than the one clicked
+      size: matchType === "exact" ? click.size : null,
+      price_paid: lineTotal(line),
+      customer_email: order.email || null,
+      purchased_at: new Date(order.created_at || Date.now()),
+    });
+    console.log(
+      `${matchType === "exact" ? "Sale" : "Assisted sale"} attributed (${source}) — ${line.title} on order ${orderId} (store ${store.id})`,
+    );
+    return 1;
+  } catch (error) {
+    // The webhook, the pixel and the nightly check raced to record the
+    // same line — fine
+    if (error.name !== "SequelizeUniqueConstraintError") throw error;
+    return 0;
+  }
+};
+
+// Records a Purchase for every order line a valid click proves. Proof is
+// the cart tag, the pixel's claim, or Shopify's visit history (utm). The
+// click must be within CLICK_WINDOW_DAYS before the order:
+//   exact   — the clicked size was bought: a sale
+//   product — only another size/condition of the clicked product was
+//             bought: "Assisted", reported separately
+// Safe to run any number of times for the same order.
 const attributeOrder = async (store, order) => {
   if (!order?.id || isPosOrder(order)) return 0;
 
   const orderId = String(order.id);
   const orderedAt = new Date(order.created_at || Date.now());
-  const lineItems = order.line_items || [];
+  const lineItems = (order.line_items || []).filter((line) => line.variant_id);
 
   const tagIds = (order.note_attributes || [])
     .filter((attr) => CLICK_ATTRIBUTE_RE.test(attr.name || ""))
@@ -78,103 +133,145 @@ const attributeOrder = async (store, order) => {
   const claims = await PixelClaim.findAll({
     where: { store_id: store.id, shopify_order_id: orderId },
   });
+  // Strongest proof first, so a line proven several ways keeps that label
   const candidates = [
     ...tagIds.map((id) => ({ id, source: "cart_tag" })),
     ...claims
       .filter((claim) => Math.abs(new Date(claim.created_at) - orderedAt) <= CLAIM_MAX_GAP_MS)
       .map((claim) => ({ id: claim.click_id, source: "pixel" })),
+    ...(order.utm_click_ids || []).map((id) => ({ id, source: "utm" })),
   ].filter((candidate) => UUID_RE.test(candidate.id));
-  if (candidates.length === 0) return 0;
+  if (candidates.length === 0 || lineItems.length === 0) return 0;
 
   const clicks = await AlertClick.findAll({
     where: { id: [...new Set(candidates.map((c) => c.id))], store_id: store.id },
   });
   const clicksById = new Map(clicks.map((click) => [click.id, click]));
+  // Which product each click was for, for assisted (other-size) matches
+  const clickedItems = await Inventory.findAll({
+    where: { id: clicks.map((c) => c.inventory_id).filter(Boolean), store_id: store.id },
+    attributes: ["id", "shopify_product_id"],
+  });
+  const productOfItem = new Map(clickedItems.map((i) => [i.id, i.shopify_product_id]));
+
+  const valid = candidates
+    .map((c) => ({ ...c, click: clicksById.get(c.id) }))
+    .filter(({ click }) => {
+      if (!click) return false;
+      const age = orderedAt - new Date(click.clicked_at);
+      return age >= -CLOCK_SKEW_MS && age <= CLICK_WINDOW_DAYS * DAY_MS;
+    });
 
   let recorded = 0;
   const credited = new Set();
-  // Cart tags come first, so a line proven both ways is labelled cart_tag
-  for (const { id, source } of candidates) {
-    const click = clicksById.get(id);
-    if (!click) continue;
+  const usedClicks = new Set();
 
-    const age = orderedAt - new Date(click.clicked_at);
-    if (age < -CLOCK_SKEW_MS || age > CLICK_WINDOW_DAYS * DAY_MS) continue;
-
+  // 1. Exact: the clicked variant was bought
+  for (const { click, source } of valid) {
     const line = lineForClick(click, lineItems);
-    if (!line) continue;
-    const variantId = String(line.variant_id);
-    if (credited.has(variantId)) continue;
-    credited.add(variantId);
+    if (!line || credited.has(String(line.variant_id))) continue;
+    credited.add(String(line.variant_id));
+    usedClicks.add(click.id);
+    recorded += await savePurchase(store, order, line, click, source, "exact");
+  }
 
-    try {
-      const [, created] = await Purchase.findOrCreate({
-        where: { store_id: store.id, shopify_order_id: orderId, shopify_variant_id: variantId },
-        defaults: {
-          user_id: click.user_id,
-          alert_id: click.alert_id,
-          click_id: click.id,
-          attribution_source: source,
-          category: await categoryForVariant(store, variantId),
-          product_name: line.title || click.product_name,
-          sku: line.sku || click.sku,
-          size: click.size,
-          price_paid: lineTotal(line),
-          customer_email: order.email || null,
-          purchased_at: orderedAt,
-        },
-      });
-      if (created) {
-        recorded += 1;
-        console.log(
-          `Sale attributed (${source}) — ${line.title} on order ${orderId} (store ${store.id})`,
-        );
-      }
-    } catch (error) {
-      // The webhook and the pixel raced to record the same line — fine
-      if (error.name !== "SequelizeUniqueConstraintError") throw error;
-    }
+  // 2. Assisted: another size/condition of a clicked product was bought
+  for (const { click, source } of valid) {
+    if (usedClicks.has(click.id)) continue;
+    const productId = productOfItem.get(click.inventory_id);
+    if (!productId) continue;
+    const line = lineItems.find(
+      (l) => String(l.product_id) === String(productId) && !credited.has(String(l.variant_id)),
+    );
+    if (!line) continue;
+    credited.add(String(line.variant_id));
+    usedClicks.add(click.id);
+    recorded += await savePurchase(store, order, line, click, source, "product");
   }
   return recorded;
 };
 
-const ORDER_QUERY = `
-  query ($id: ID!) {
-    order(id: $id) {
-      legacyResourceId createdAt sourceName tags
-      customAttributes { key value }
-      lineItems(first: 100) {
-        nodes {
-          title sku quantity
-          variant { legacyResourceId }
-          originalUnitPriceSet { shopMoney { amount } }
-          discountAllocations { allocatedAmountSet { shopMoney { amount } } }
-        }
+// The order fields SyncStock reads — for one order and the nightly list
+const ORDER_FIELDS = `
+  legacyResourceId createdAt cancelledAt sourceName tags
+  customAttributes { key value }
+  lineItems(first: 20) {
+    nodes {
+      title sku quantity
+      variant { legacyResourceId product { legacyResourceId } }
+      originalUnitPriceSet { shopMoney { amount } }
+      discountAllocations { allocatedAmountSet { shopMoney { amount } } }
+    }
+  }
+  refunds(first: 5) {
+    refundLineItems(first: 10) {
+      nodes {
+        lineItem { variant { legacyResourceId } }
+        subtotalSet { shopMoney { amount } }
       }
+    }
+  }
+  customerJourneySummary {
+    ready
+    firstVisit { utmParameters { source content } }
+    lastVisit { utmParameters { source content } }
+  }
+`;
+const ORDER_QUERY = `query ($id: ID!) { order(id: $id) { ${ORDER_FIELDS} } }`;
+const RECENT_ORDERS_QUERY = `
+  query ($cursor: String, $query: String) {
+    orders(first: 10, after: $cursor, query: $query, sortKey: CREATED_AT) {
+      pageInfo { hasNextPage endCursor }
+      nodes { ${ORDER_FIELDS} }
     }
   }
 `;
 
+// Our alert links carry utm_source=syncstock and the click ID as
+// utm_content (redirect.controller.js). Shopify's visit history keeps
+// them for the shopper's first and last visit before the order — even
+// when they left and came back later. Empty until Shopify has processed
+// the order (up to 48 hours), or when the shopper declined tracking.
+const utmClickIds = (journey) =>
+  [journey?.firstVisit, journey?.lastVisit]
+    .map((visit) => visit?.utmParameters)
+    .filter((utm) => utm && String(utm.source || "").toLowerCase() === "syncstock")
+    .map((utm) => String(utm.content || ""))
+    .filter((id) => UUID_RE.test(id));
+
 // GraphQL order → the same shape as the orders/create webhook, which
-// attributeOrder works with. No customer email: SyncStock only requests
-// Shopify's basic protected-data level, and the click proves who bought.
+// attributeOrder works with — plus visit-history click IDs and refunds.
+// No customer email: SyncStock only requests Shopify's basic
+// protected-data level, and the click proves who bought.
 const toOrderPayload = (order) => ({
   id: order.legacyResourceId,
   email: null,
   created_at: order.createdAt,
+  cancelled_at: order.cancelledAt || null,
   source_name: order.sourceName,
   tags: (order.tags || []).join(", "),
   note_attributes: (order.customAttributes || []).map((a) => ({ name: a.key, value: a.value })),
+  utm_click_ids: [...new Set(utmClickIds(order.customerJourneySummary))],
   line_items: order.lineItems.nodes.map((line) => ({
     title: line.title,
     sku: line.sku,
     quantity: line.quantity,
     variant_id: line.variant?.legacyResourceId || null,
+    product_id: line.variant?.product?.legacyResourceId || null,
     price: line.originalUnitPriceSet?.shopMoney?.amount,
     discount_allocations: (line.discountAllocations || []).map((d) => ({
       amount: d.allocatedAmountSet?.shopMoney?.amount,
     })),
   })),
+  // Refunded amount per variant, summed over all of the order's refunds
+  refunded_by_variant: (order.refunds || []).reduce((totals, refund) => {
+    for (const item of refund.refundLineItems?.nodes || []) {
+      const variantId = item.lineItem?.variant?.legacyResourceId;
+      if (!variantId) continue;
+      totals[variantId] = (totals[variantId] || 0) + (parseFloat(item.subtotalSet?.shopMoney?.amount) || 0);
+    }
+    return totals;
+  }, {}),
 });
 
 // The order from Shopify, or null if it can't be read yet
@@ -187,6 +284,40 @@ const fetchOrder = async (store, orderId) => {
     console.error(`Couldn't read order ${orderId}:`, error.message);
     return null;
   }
+};
+
+// Cancellations and refunds, from the order as Shopify has it now. Sets
+// absolute amounts (not increments), so a repeated webhook or the nightly
+// check can never subtract twice. A cancelled order's sales count as
+// fully refunded.
+const applyRefunds = async (store, order) => {
+  const purchases = await Purchase.findAll({
+    where: { store_id: store.id, shopify_order_id: String(order.id) },
+  });
+  let changed = 0;
+  for (const purchase of purchases) {
+    const paid = parseFloat(purchase.price_paid) || 0;
+    const refunded = order.cancelled_at
+      ? paid
+      : Math.min(paid, order.refunded_by_variant?.[purchase.shopify_variant_id] || 0);
+    const cancelledAt = order.cancelled_at ? new Date(order.cancelled_at) : null;
+    const sameRefund = Math.abs(refunded - (parseFloat(purchase.refunded_amount) || 0)) < 0.005;
+    const sameCancel = (cancelledAt?.getTime() || null) === (purchase.cancelled_at ? new Date(purchase.cancelled_at).getTime() : null);
+    if (sameRefund && sameCancel) continue;
+    await purchase.update({ refunded_amount: refunded.toFixed(2), cancelled_at: cancelledAt });
+    changed += 1;
+    console.log(
+      `Sale ${order.cancelled_at ? "cancelled" : "refund updated"} — ${purchase.product_name} on order ${order.id}: ` +
+        `$${refunded.toFixed(2)} of $${paid.toFixed(2)} refunded (store ${store.id})`,
+    );
+  }
+  return changed;
+};
+
+// orders/cancelled and refunds/create webhooks: re-read the order
+const refreshOrderRefunds = async (store, orderId) => {
+  const order = await fetchOrder(store, orderId);
+  if (order) await applyRefunds(store, order);
 };
 
 // The pixel's report: save it for the webhook, then attribute right away
@@ -208,10 +339,44 @@ const recordPixelCheckout = async (store, orderId, clickIds) => {
   return attributeOrder(store, order);
 };
 
+// Nightly safety net over every order in the click window. Catches sales
+// whose webhook never arrived, shoppers who came back later (visit
+// history, ready up to 48 hours after the order), and refunds or
+// cancellations whose webhook was missed. Idempotent.
+const MAX_RECONCILE_PAGES = 100;
+const reconcileRecentOrders = async (store) => {
+  const since = new Date(Date.now() - (CLICK_WINDOW_DAYS + 1) * DAY_MS).toISOString().slice(0, 10);
+  let cursor = null;
+  let pages = 0;
+  const result = { orders: 0, sales: 0, refundsUpdated: 0 };
+  do {
+    const data = await shopifyGraphql(
+      store,
+      RECENT_ORDERS_QUERY,
+      { cursor, query: `created_at:>=${since}` },
+      { allowPartial: true },
+    );
+    const page = data?.orders;
+    if (!page) break;
+    for (const node of page.nodes) {
+      const order = toOrderPayload(node);
+      result.orders += 1;
+      result.sales += await attributeOrder(store, order);
+      result.refundsUpdated += await applyRefunds(store, order);
+    }
+    cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    pages += 1;
+  } while (cursor && pages < MAX_RECONCILE_PAGES);
+  return result;
+};
+
 module.exports = {
   CLICK_WINDOW_DAYS,
   CLICK_ATTRIBUTE,
   UUID_RE,
   attributeOrder,
   recordPixelCheckout,
+  applyRefunds,
+  refreshOrderRefunds,
+  reconcileRecentOrders,
 };

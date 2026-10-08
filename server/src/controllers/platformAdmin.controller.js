@@ -29,10 +29,10 @@ const getOverview = async (req, res) => {
           (SELECT COUNT(*) FROM alerts a WHERE a.store_id = s.id AND a.active = true)::int AS active_alerts,
           (SELECT COUNT(*) FROM notification_logs n WHERE n.store_id = s.id AND n.sent_at >= :since)::int AS notified,
           (SELECT COUNT(*) FROM alert_clicks c WHERE c.store_id = s.id AND c.clicked_at >= :since)::int AS clicks,
-          (SELECT COUNT(*) FROM purchases p WHERE p.store_id = s.id)::int AS purchases,
-          (SELECT COALESCE(SUM(p.price_paid), 0) FROM purchases p WHERE p.store_id = s.id)::float AS revenue,
-          (SELECT COUNT(*) FROM purchases p WHERE p.store_id = s.id AND p.purchased_at >= :since)::int AS recent_purchases,
-          (SELECT COALESCE(SUM(p.price_paid), 0) FROM purchases p WHERE p.store_id = s.id AND p.purchased_at >= :since)::float AS recent_revenue,
+          (SELECT COUNT(*) FROM purchases p WHERE p.store_id = s.id AND p.match_type = 'exact' AND p.refunded_amount < p.price_paid)::int AS purchases,
+          (SELECT COALESCE(SUM(p.price_paid - p.refunded_amount), 0) FROM purchases p WHERE p.store_id = s.id AND p.match_type = 'exact')::float AS revenue,
+          (SELECT COUNT(*) FROM purchases p WHERE p.store_id = s.id AND p.match_type = 'exact' AND p.refunded_amount < p.price_paid AND p.purchased_at >= :since)::int AS recent_purchases,
+          (SELECT COALESCE(SUM(p.price_paid - p.refunded_amount), 0) FROM purchases p WHERE p.store_id = s.id AND p.match_type = 'exact' AND p.purchased_at >= :since)::float AS recent_revenue,
           (SELECT MAX(p.purchased_at) FROM purchases p WHERE p.store_id = s.id) AS last_purchase_at,
           (SELECT COUNT(*) FROM inventory i WHERE i.store_id = s.id AND i.available > 0)::int AS in_stock,
           (SELECT MAX(i.last_synced_at) FROM inventory i WHERE i.store_id = s.id) AS last_synced_at
@@ -141,11 +141,12 @@ const getDemand = async (req, res) => {
           COALESCE(p.sku, LOWER(p.product_name)) AS product_key,
           MAX(p.product_name) AS product_name,
           MAX(p.category::text) AS category,
-          COUNT(*)::int AS purchases,
-          COALESCE(SUM(p.price_paid), 0)::float AS revenue,
+          COUNT(*) FILTER (WHERE p.refunded_amount < p.price_paid)::int AS purchases,
+          COALESCE(SUM(p.price_paid - p.refunded_amount), 0)::float AS revenue,
           COUNT(DISTINCT p.store_id)::int AS stores
         FROM purchases p
         WHERE (:category = 'all' OR p.category::text = :category)
+          AND p.match_type = 'exact'
         GROUP BY product_key
         ORDER BY purchases DESC, revenue DESC
         LIMIT 15

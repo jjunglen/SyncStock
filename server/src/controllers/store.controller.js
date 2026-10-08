@@ -66,6 +66,9 @@ const WEBHOOK_TOPICS = [
   "products/update",
   "products/delete",
   "orders/create",
+  // Keep attributed revenue net of returns (attribution.service.js)
+  "orders/cancelled",
+  "refunds/create",
   // Takes the store offline when the merchant uninstalls (can't go in
   // shopify.app.toml with the app's own install flow)
   "app/uninstalled",
@@ -740,6 +743,8 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  // Also run nightly (server.js), so existing stores get new topics
+  registerShopifyWebhooks,
   shopifyAppsStatus,
   shopifyAppEntry,
   goToStore,
