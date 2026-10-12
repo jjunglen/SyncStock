@@ -153,7 +153,7 @@ export default function Privacy() {
         <li>Update your name, email, sizes, and notification settings in your profile.</li>
         <li>Turn off email, in-app, text, or push alerts at any time.</li>
         <li>Reply STOP to any text message to stop texts.</li>
-        <li>Turn off push notifications in your profile or browser settings.</li>
+        <li>Turn browser notifications on or off from the notification bell, or in your browser settings.</li>
         <li>
           Remove yourself from a store in your profile. To delete your whole
           account and all its information, email {mail}.

@@ -2,14 +2,52 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LuBell } from "react-icons/lu";
 import api from "../../lib/api.js";
+import Switch from "../ui/Switch.jsx";
+import { getPushSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../../lib/push.js";
+
+// iPhones only allow web notifications once the site is on the Home Screen
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  // Browser notifications on this device: loading | subscribed |
+  // not-subscribed | denied | unsupported (lib/push.js)
+  const [pushStatus, setPushStatus] = useState("loading");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
   const containerRef = useRef(null);
   const navigate = useNavigate();
+
+  // Read fresh each time the menu opens — the shopper may have changed
+  // the permission in their browser settings meanwhile
+  useEffect(() => {
+    if (!isOpen) return;
+    setPushError("");
+    getPushSubscriptionStatus()
+      .then(setPushStatus)
+      .catch(() => setPushStatus("unsupported"));
+  }, [isOpen]);
+
+  const togglePush = async (on) => {
+    setPushBusy(true);
+    setPushError("");
+    try {
+      if (on) await subscribeToPush();
+      else await unsubscribeFromPush();
+    } catch (err) {
+      setPushError(
+        /permission/i.test(err.message)
+          ? "Your browser didn't allow notifications."
+          : err.message || "Couldn't change browser notifications.",
+      );
+    } finally {
+      setPushStatus(await getPushSubscriptionStatus().catch(() => "unsupported"));
+      setPushBusy(false);
+    }
+  };
 
   const fetchNotifications = () => {
     api
@@ -118,6 +156,36 @@ export default function NotificationBell() {
               )}
             </div>
           </div>
+
+          {/* Browser (push) notifications on/off for this device */}
+          {pushStatus !== "loading" && (
+            <div className="px-4 py-3 border-b border-border">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm">Browser notifications</p>
+                  <p className="text-xs text-text-muted">
+                    {pushStatus === "unsupported"
+                      ? isIOS()
+                        ? "On iPhone, add this site to your Home Screen first."
+                        : "Not available in this browser."
+                      : pushStatus === "denied"
+                        ? "Blocked — allow notifications for this site in your browser settings."
+                        : "A pop-up on this device when your size restocks."}
+                  </p>
+                </div>
+                {pushStatus !== "unsupported" && (
+                  <Switch
+                    size="sm"
+                    label="Browser notifications"
+                    checked={pushStatus === "subscribed"}
+                    disabled={pushBusy || pushStatus === "denied"}
+                    onChange={togglePush}
+                  />
+                )}
+              </div>
+              {pushError && <p className="mt-1.5 text-xs text-danger">{pushError}</p>}
+            </div>
+          )}
 
           {loading ? (
             <p className="text-sm text-text-muted px-4 py-6 text-center">

@@ -40,9 +40,12 @@ export async function subscribeToPush() {
   const registration = await navigator.serviceWorker.register("/sw.js");
   await navigator.serviceWorker.ready;
 
-  const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  // The server's public push key (no site setting needed)
+  const publicKey =
+    import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+    (await api.get("/push/public-key").then((res) => res.data.data.key).catch(() => null));
   if (!publicKey) {
-    throw new Error("VITE_VAPID_PUBLIC_KEY is not set");
+    throw new Error("Browser notifications aren't set up yet");
   }
 
   const subscription = await registration.pushManager.subscribe({
