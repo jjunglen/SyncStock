@@ -26,7 +26,10 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!isOpen) return;
     setPushError("");
-    getPushSubscriptionStatus()
+    // Some browsers can stall on the service-worker lookup — never leave
+    // the switch stuck checking
+    const timeout = new Promise((resolve) => setTimeout(() => resolve("not-subscribed"), 3000));
+    Promise.race([getPushSubscriptionStatus(), timeout])
       .then(setPushStatus)
       .catch(() => setPushStatus("unsupported"));
   }, [isOpen]);
@@ -157,8 +160,9 @@ export default function NotificationBell() {
             </div>
           </div>
 
-          {/* Browser (push) notifications on/off for this device */}
-          {pushStatus !== "loading" && (
+          {/* Browser (push) notifications on/off for this device — always
+              shown; the switch is greyed out while the status loads */}
+          {(
             <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -178,7 +182,7 @@ export default function NotificationBell() {
                     size="sm"
                     label="Browser notifications"
                     checked={pushStatus === "subscribed"}
-                    disabled={pushBusy || pushStatus === "denied"}
+                    disabled={pushBusy || pushStatus === "denied" || pushStatus === "loading"}
                     onChange={togglePush}
                   />
                 )}
