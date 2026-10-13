@@ -34,6 +34,10 @@ app.set("trust proxy", 1);
 // use a fixed origin list like a single-tenant app since merchant
 // subdomains are created dynamically at signup
 const allowedOriginPattern = /^https:\/\/([a-z0-9-]+\.)?syncstock\.io$/;
+// The phone app's own pages. iPhone: Capacitor's capacitor://localhost
+// (no website can have it). Android uses https://app.syncstock.io, which
+// the pattern above already allows ("app" is a reserved subdomain).
+const APP_ORIGINS = ["capacitor://localhost"];
 
 // The Shopify web pixel reports checkouts from merchants' own store
 // domains, so it has its own open CORS rule (see pixel.routes.js)
@@ -49,7 +53,7 @@ app.use(
       ) {
         return callback(null, true);
       }
-      if (allowedOriginPattern.test(origin)) {
+      if (allowedOriginPattern.test(origin) || APP_ORIGINS.includes(origin)) {
         return callback(null, true);
       }
       // 403, not a server error — the site asking just isn't allowed
@@ -176,6 +180,8 @@ app.use("/api/analytics", require("./src/routes/analytics.routes.js"));
 app.use("/api/platform", require("./src/routes/platform.routes.js"));
 // StockX catalog search for "Track a shoe" — every store (STOCKX_* vars)
 app.use("/api/stockx", require("./src/routes/stockx.routes.js"));
+// The SyncStock phone app
+app.use("/api/app", require("./src/routes/app.routes.js"));
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Syncstock API is running" });

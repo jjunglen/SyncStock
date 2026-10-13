@@ -47,6 +47,12 @@ const Account = sequelize.define(
       unique: true,
       comment: "Supabase auth user id - set on Google OAuth login",
     },
+    // Sign in with Apple (phone app) — Apple's stable id for this person
+    apple_sub: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
     full_name: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -82,9 +88,9 @@ const Account = sequelize.define(
     updatedAt: "updated_at",
     validate: {
       mustHaveAuth() {
-        if (!this.password && !this.auth_id) {
+        if (!this.password && !this.auth_id && !this.apple_sub) {
           throw new Error(
-            "Account must have either a password or a Google auth id",
+            "Account must have a password, a Google auth id or an Apple id",
           );
         }
       },

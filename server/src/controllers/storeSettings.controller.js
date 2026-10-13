@@ -33,6 +33,9 @@ const settingsFor = (store) => ({
   brand_color: store.brand_color || null,
   logo_url: logoUrl(store),
   weekly_report: store.weekly_report,
+  // Phone app store list — read-only until the app launches (the
+  // settings switch shows "Coming soon")
+  app_listed: store.app_listed,
   theme_links: themeLinks(store),
 });
 

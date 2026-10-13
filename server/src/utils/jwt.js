@@ -1,5 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 // How long a login lasts. It renews as the shopper uses the site
 // (renewSession in session.js), so regular visitors stay logged in.
@@ -81,8 +82,29 @@ const verifyEmailVerifyToken = (token) => {
   }
 };
 
+// Phone app: opening a store swaps the app's login for the store site's
+// normal login cookie through this link (routes/app.routes.js). Single
+// use (`jti`) and short-lived — the app opens it right away.
+const signAppHandoffToken = (accountId, storeId) =>
+  jwt.sign(
+    { id: accountId, store_id: storeId, purpose: "app-handoff", jti: crypto.randomUUID() },
+    process.env.JWT_SECRET,
+    { expiresIn: "2m" },
+  );
+
+const verifyAppHandoffToken = (token) => {
+  try {
+    const decoded = jwt.verify(String(token || ""), process.env.JWT_SECRET);
+    return decoded.purpose === "app-handoff" ? decoded : null;
+  } catch {
+    return null;
+  }
+};
+
 module.exports = {
   SESSION_DAYS,
+  signAppHandoffToken,
+  verifyAppHandoffToken,
   signEmailLoginToken,
   verifyEmailLoginToken,
   signToken,

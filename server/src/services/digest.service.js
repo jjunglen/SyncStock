@@ -12,6 +12,7 @@ const { sendDigestEmail } = require("./email.service.js");
 const { sendDigestText } = require("./sms.service.js");
 const { smsAvailable } = require("../utils/storeSettings.js");
 const { sendPushNotification } = require("./push.service.js");
+const { sendAppNotification } = require("./appPush.service.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { buildDashboardUrl } = require("./notification.service.js");
 
@@ -83,9 +84,10 @@ const pushPayload = (store, items) => {
   };
 };
 
-// In-app inbox entries plus the push. Runs after the email; a failure
-// here is logged, not requeued, so the email isn't sent twice.
-const deliverInApp = async (store, userId, items) => {
+// In-app inbox entries plus the pushes (browser and phone app). Runs
+// after the email; a failure here is logged, not requeued, so the email
+// isn't sent twice.
+const deliverInApp = async (store, userId, accountId, items) => {
   try {
     await NotificationLog.bulkCreate(
       items.map((item) => ({
@@ -98,7 +100,15 @@ const deliverInApp = async (store, userId, items) => {
         message: inAppMessage(item),
       })),
     );
-    await sendPushNotification(store.id, userId, pushPayload(store, items));
+    const push = pushPayload(store, items);
+    await sendPushNotification(store.id, userId, push);
+    // Phone app — the same message; tapping it opens the item in the store
+    await sendAppNotification(accountId, {
+      title: push.title,
+      body: push.body,
+      url: push.url,
+      image: items[0].image_url,
+    });
   } catch (err) {
     console.error(`In-app/push delivery failed for user ${userId}:`, err.message);
   }
@@ -164,7 +174,7 @@ const deliverDigest = async (storeId, userId, queuedItems) => {
   }
 
   const inAppItems = wants("notify_inapp");
-  if (inAppItems.length > 0) await deliverInApp(store, userId, inAppItems);
+  if (inAppItems.length > 0) await deliverInApp(store, userId, account.id, inAppItems);
 
   const notified = items.filter((item) => emailItems.includes(item) || inAppItems.includes(item));
   if (notified.length > 0) await maybeSendText({ store, account, user, items: notified });

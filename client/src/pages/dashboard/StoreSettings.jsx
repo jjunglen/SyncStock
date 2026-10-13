@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -370,6 +370,29 @@ export default function StoreSettings() {
                   onChange={(value) =>
                     run("weekly", () => api.put("/store/settings", { weekly_report: value }), value ? "Weekly email on" : "Weekly email off")
                   }
+                />
+              </div>
+            </Section>
+
+            {/* The phone app's store list — switched off until the app
+                launches */}
+            <Section
+              icon={LuSmartphone}
+              title="SyncStock app"
+              description="Let shoppers find your store in the SyncStock app for iPhone and Android, with alerts sent straight to their phone."
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-muted">List my store in the SyncStock app</span>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
+                    Coming soon
+                  </span>
+                </div>
+                <Switch
+                  label="List my store in the SyncStock app"
+                  checked={false}
+                  disabled
+                  onChange={() => {}}
                 />
               </div>
             </Section>

@@ -174,6 +174,12 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // Listed in the SyncStock phone app's store list (merchant opt-in)
+    app_listed: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     status: {
     type: DataTypes.ENUM("pending", "active", "suspended"),
     defaultValue: "pending",

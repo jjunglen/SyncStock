@@ -14,6 +14,7 @@ const StockxImageCache = require("./StockxImageCache.js");
 const PixelClaim = require("./PixelClaim.js");
 const StockxPriceCheck = require("./StockxPriceCheck.js");
 const ProductView = require("./ProductView.js");
+const DeviceToken = require("./DeviceToken.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -26,6 +27,9 @@ Store.hasMany(StockxPriceCheck, { foreignKey: "store_id", onDelete: "CASCADE" })
 // Views go when the store or the shopper's account is deleted
 Store.hasMany(ProductView, { foreignKey: "store_id", onDelete: "CASCADE" });
 Account.hasMany(ProductView, { foreignKey: "account_id", onDelete: "CASCADE" });
+// App notification devices go with the account
+Account.hasMany(DeviceToken, { foreignKey: "account_id", onDelete: "CASCADE" });
+DeviceToken.belongsTo(Account, { foreignKey: "account_id" });
 Store.hasMany(PushSubscription, {
   foreignKey: "store_id",
   onDelete: "CASCADE",
@@ -98,4 +102,5 @@ module.exports = {
   StockxImageCache,
   PixelClaim,
   StockxPriceCheck,
+  DeviceToken,
 };
