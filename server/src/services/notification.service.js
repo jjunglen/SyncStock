@@ -1,4 +1,4 @@
-const { NotificationLog, PendingNotification } = require("../models/index.js");
+const { PendingNotification } = require("../models/index.js");
 const { Op } = require("sequelize");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 
@@ -31,17 +31,6 @@ const queueNotification = async ({ store, alert, inventory }) => {
     );
     return false;
   }
-
-  const recentEmail = await NotificationLog.findOne({
-    where: {
-      store_id: store.id,
-      user_id: alert.user_id,
-      inventory_id: inventory.id,
-      channel: "email",
-      sent_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
-    },
-  });
-  if (recentEmail) return false;
 
   await PendingNotification.create({
     store_id: store.id,

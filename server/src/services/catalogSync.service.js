@@ -28,7 +28,7 @@ const PRODUCTS_QUERY = `
     products(first: ${PAGE_SIZE}, after: $cursor) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        id legacyResourceId title handle vendor productType tags isGiftCard descriptionHtml
+        id legacyResourceId title handle vendor productType tags isGiftCard descriptionHtml publishedAt
         media(first: 10) { nodes { ... on MediaImage { image { url } } } }
         variants(first: 50) {
           pageInfo { hasNextPage endCursor }
@@ -77,6 +77,7 @@ const toProductPayload = (product, variants) => {
     tags: product.tags,
     gift_card: product.isGiftCard,
     body_html: product.descriptionHtml,
+    published_at: product.publishedAt,
     images: images.map((src) => ({ src })),
     variants: variants.map((v) => ({
       id: v.legacyResourceId,
@@ -140,6 +141,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
           shopify_url: `${store.storefront_url}/products/${product.handle}`,
           image_url: product.images?.[0]?.src || null,
           image_urls: (product.images || []).map((img) => img.src),
+          published: !!product.published_at,
           description: descriptionFromHtml(product.body_html),
           last_synced_at: new Date(),
         });

@@ -36,6 +36,7 @@ const handleProductCreate = async (req, res) => {
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: data.images?.[0]?.src || null,
         image_urls: (data.images || []).map((img) => img.src),
+        published: !!data.published_at,
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
@@ -113,6 +114,20 @@ const handleProductUpdate = async (req, res) => {
     const category = categorizeProduct(data);
     if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
 
+    const isPublished = !!data.published_at;
+    const hasImage = !!imageUrl;
+
+    // Shopify sends products/update for ANY change — a sale, a photo
+    // reorder, a bulk location or tag edit. Alerts only go out for what
+    // shoppers care about, so the variants are read as they were before
+    // this update overwrites them.
+    const before = await Inventory.findAll({
+      where: { store_id: store.id, shopify_product_id: String(data.id) },
+      attributes: ["shopify_variant_id", "available", "price", "image_url", "published"],
+    });
+    const beforeByVariant = new Map(before.map((row) => [row.shopify_variant_id, row]));
+
+    const restockVariants = [];
     const priceDropVariants = [];
 
     for (const variant of variants) {
@@ -122,6 +137,24 @@ const handleProductUpdate = async (req, res) => {
       const compareAtPrice = parseFloat(variant.compare_at_price) || null;
       const isPriceDrop =
         compareAtPrice && newPrice && newPrice < compareAtPrice;
+
+      // Alert-worthy: the variant just went live (published with a photo,
+      // or is new to SyncStock), or it was sold out and is back. A price
+      // drop counts only when the price actually went down in this update.
+      const prior = beforeByVariant.get(String(variant.id));
+      const wasLive = !!prior && prior.published !== false && !!prior.image_url;
+      const wasInStock = !!prior && prior.available > 0;
+      if (variant.inventory_quantity > 0) {
+        if (!wasLive || !wasInStock) {
+          restockVariants.push(variant);
+        } else if (
+          isPriceDrop &&
+          prior.price != null &&
+          newPrice < parseFloat(prior.price)
+        ) {
+          priceDropVariants.push(variant);
+        }
+      }
 
       await Inventory.upsert({
         store_id: store.id,
@@ -140,25 +173,13 @@ const handleProductUpdate = async (req, res) => {
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: imageUrl,
         image_urls: (data.images || []).map((img) => img.src),
+        published: isPublished,
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
-
-      if (isPriceDrop && variant.inventory_quantity > 0) {
-        priceDropVariants.push({
-          variant,
-          size,
-          condition,
-          newPrice,
-          compareAtPrice,
-        });
-      }
     }
 
     res.status(200).json({ received: true });
-
-    const isPublished = !!data.published_at;
-    const hasImage = !!data.images?.[0]?.src;
 
     if (!isPublished || !hasImage) {
       console.log(
@@ -169,9 +190,7 @@ const handleProductUpdate = async (req, res) => {
 
     const notifiedUsers = new Set();
 
-    for (const variant of variants) {
-      if (!variant.inventory_quantity || variant.inventory_quantity < 1)
-        continue;
+    for (const variant of restockVariants) {
       const inventoryItem = await Inventory.findOne({
         where: { store_id: store.id, shopify_variant_id: String(variant.id) },
       });
@@ -180,14 +199,12 @@ const handleProductUpdate = async (req, res) => {
       }
     }
 
-    if (priceDropVariants.length > 0) {
-      for (const { variant } of priceDropVariants) {
-        const inventoryItem = await Inventory.findOne({
-          where: { store_id: store.id, shopify_variant_id: String(variant.id) },
-        });
-        if (inventoryItem) {
-          await checkPriceDropAlerts(store, inventoryItem, notifiedUsers);
-        }
+    for (const variant of priceDropVariants) {
+      const inventoryItem = await Inventory.findOne({
+        where: { store_id: store.id, shopify_variant_id: String(variant.id) },
+      });
+      if (inventoryItem) {
+        await checkPriceDropAlerts(store, inventoryItem, notifiedUsers);
       }
     }
   } catch (error) {

@@ -47,6 +47,11 @@ const Inventory = sequelize.define(
     available: { type: DataTypes.INTEGER, defaultValue: 0 },
     shopify_url: { type: DataTypes.STRING, allowNull: true },
     image_url: { type: DataTypes.STRING, allowNull: true },
+    // Live on the Online Store (Shopify's published_at is set). Product
+    // updates compare against it so alerts go out when a product goes
+    // live, not on every edit. Null = not known yet (rows from before
+    // this column), treated as published.
+    published: { type: DataTypes.BOOLEAN, allowNull: true },
     // The product's Shopify description, as plain text
     // (utils/productDescription.js)
     description: { type: DataTypes.TEXT, allowNull: true },
