@@ -9,13 +9,19 @@ const {
 } = require("../services/alert.service.js");
 const { attributeOrder, refreshOrderRefunds } = require("../services/attribution.service.js");
 
+// Product webhooks reply before doing any work: Shopify gives up after 5
+// seconds, and a bulk edit sends hundreds at once — saving every size
+// first queued them on the database until Shopify timed out and removed
+// the webhook. A failure after replying is logged; the nightly catalog
+// sync repairs the inventory.
 const handleProductCreate = async (req, res) => {
+  res.status(200).json({ received: true });
   try {
     const store = req.store;
     const data = JSON.parse(req.body);
     const variants = data.variants || [];
     const category = categorizeProduct(data);
-    if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
+    if (!category) return; // gift cards aren't listed
 
     for (const variant of variants) {
       const { size, condition, boxCondition } = readVariant(data, variant, category);
@@ -41,8 +47,6 @@ const handleProductCreate = async (req, res) => {
         last_synced_at: new Date(),
       });
     }
-
-    res.status(200).json({ received: true });
 
     const isPublished = !!data.published_at;
     const hasImage = !!data.images?.[0]?.src;
@@ -75,6 +79,7 @@ const handleProductCreate = async (req, res) => {
 };
 
 const handleProductDelete = async (req, res) => {
+  res.status(200).json({ received: true });
   try {
     const store = req.store;
     const data = JSON.parse(req.body);
@@ -83,8 +88,6 @@ const handleProductDelete = async (req, res) => {
       { available: 0, last_synced_at: new Date() },
       { where: { store_id: store.id, shopify_product_id: String(data.id) } },
     );
-
-    res.status(200).json({ received: true });
   } catch (error) {
     console.error("Product delete webhook error:", error.message);
   }
@@ -106,13 +109,14 @@ const handleOrderCreate = async (req, res) => {
 };
 
 const handleProductUpdate = async (req, res) => {
+  res.status(200).json({ received: true });
   try {
     const store = req.store;
     const data = JSON.parse(req.body);
     const variants = data.variants || [];
     const imageUrl = data.images?.[0]?.src || null;
     const category = categorizeProduct(data);
-    if (!category) return res.status(200).json({ received: true }); // gift cards aren't listed
+    if (!category) return; // gift cards aren't listed
 
     const isPublished = !!data.published_at;
     const hasImage = !!imageUrl;
@@ -178,8 +182,6 @@ const handleProductUpdate = async (req, res) => {
         last_synced_at: new Date(),
       });
     }
-
-    res.status(200).json({ received: true });
 
     if (!isPublished || !hasImage) {
       console.log(
