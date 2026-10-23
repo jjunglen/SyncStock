@@ -7,7 +7,7 @@ const { sizeLine, priceLine, DEFAULT_STYLE, STORY_FONTS, DEFAULT_FONT } = requir
 
 // Instagram story images (1080×1920) for new arrivals, emailed to the
 // merchant (stories.service.js). The layout, top to bottom: the
-// SyncStock logo (top right, below Instagram's own name bar), the
+// store's logo, or SyncStock's (top right, below Instagram's name bar), the
 // product's first Shopify photo, "Size 10 - Brand New" and the price in
 // boxes (black on white by default; colors are a store setting), then
 // empty space for the link sticker the merchant adds in Instagram.
@@ -74,13 +74,16 @@ const productPhoto = async (url) => {
 
 const isWhite = (hex) => /^#f[a-f0-9]f[a-f0-9]f[a-f0-9]$/i.test(hex); // near-white
 
-// The SyncStock mark on every story: dark letters on a light
-// background, white letters on a dark one
+// The logo, top right: the store's own (Store settings → Branding) when
+// it has one, otherwise the SyncStock mark — dark letters on a light
+// background, white letters on a dark one. Both fit the same 140px-tall
+// space; the store's logo has its empty border trimmed first.
 const LOGO_FILES = {
   dark: path.join(__dirname, "../assets/syncstock-mark-dark.png"),
   light: path.join(__dirname, "../assets/syncstock-mark-light.png"),
 };
 const LOGO_HEIGHT = 140;
+const LOGO_MAX_WIDTH = 380;
 const logos = {};
 const syncstockLogo = async (background) => {
   const variant = textOnColor(background) === "#ffffff" ? "light" : "dark";
@@ -90,6 +93,20 @@ const syncstockLogo = async (background) => {
   logos[variant] = { src: dataUri(png, "image/png"), width, height };
   return logos[variant];
 };
+const storeLogo = async ({ key, data }) => {
+  if (logos[key]) return logos[key];
+  let image = sharp(data);
+  try {
+    image = sharp(await image.trim().toBuffer());
+  } catch {
+    image = sharp(data); // nothing to trim
+  }
+  const png = await image.resize(LOGO_MAX_WIDTH, LOGO_HEIGHT, { fit: "inside" }).png().toBuffer();
+  const { width, height } = await sharp(png).metadata();
+  logos[key] = { src: dataUri(png, "image/png"), width, height };
+  return logos[key];
+};
+const storyLogo = (background, logo) => (logo?.data ? storeLogo(logo) : syncstockLogo(background));
 
 // Label box (size line, price); the font shrinks for long lines so the
 // box always fits the story's width
@@ -120,11 +137,12 @@ const labelBox = (text, style, font) => {
 };
 
 // One product (all its in-stock variants) → JPEG buffer.
-// style: { background, box, text, font } — see storyStyle
+// style: { background, box, text, font } — see storyStyle — plus
+// logo: { key, data } when the store has its own logo
 const renderStory = async (variants, style = DEFAULT_STYLE) => {
   const first = variants[0];
   const font = fontFor(style.font);
-  const [photo, mark] = await Promise.all([productPhoto(first.image_url), syncstockLogo(style.background)]);
+  const [photo, mark] = await Promise.all([productPhoto(first.image_url), storyLogo(style.background, style.logo)]);
   const size = sizeLine(variants);
   const price = priceLine(variants);
   // Most product photos have a white background, which would show as a

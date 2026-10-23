@@ -7,10 +7,10 @@ export default function StoreBrandMark({ name, logoUrl, subtitle }) {
   if (logoUrl) {
     return (
       <span className="flex items-center gap-2">
-        <span className="flex h-9 items-center rounded-md bg-white px-2">
-          <img src={logoUrl} alt={name} className="h-6 w-auto max-w-[120px] object-contain" />
+        <span className="flex h-12 items-center rounded-lg bg-white px-2">
+          <img src={logoUrl} alt={name} className="h-10 w-auto max-w-[180px] object-contain" />
         </span>
-        {subtitle && <span className="text-[10px] text-text-muted leading-tight">{subtitle}</span>}
+        {subtitle && <span className="text-[10px] text-text-muted leading-tight whitespace-nowrap">{subtitle}</span>}
       </span>
     );
   }

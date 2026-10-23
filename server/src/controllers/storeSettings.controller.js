@@ -180,21 +180,43 @@ const deleteLogo = async (req, res) => {
 };
 
 // GET /api/store/logo/:id — public, for the shopper site and emails
+// Logos are sent with their empty border trimmed, so a logo uploaded with
+// lots of transparent or white space around it still fills the space
+// it's shown in (shopper site header, emails). Trimmed once per version.
+const trimmedLogos = new Map();
+const MAX_TRIMMED = 50;
+const trimmedLogo = async (store) => {
+  const key = `${store.id}:${new Date(store.logo_updated_at || 0).getTime()}`;
+  if (trimmedLogos.has(key)) return trimmedLogos.get(key);
+  let logo = { data: store.logo_data, mime: store.logo_mime };
+  try {
+    const sharp = require("sharp"); // loaded on first use, not at startup
+    const trimmed = await sharp(store.logo_data).trim().png().toBuffer();
+    logo = { data: trimmed, mime: "image/png" };
+  } catch {
+    // Nothing to trim, or the image tools aren't available — send it as is
+  }
+  if (trimmedLogos.size >= MAX_TRIMMED) trimmedLogos.delete(trimmedLogos.keys().next().value);
+  trimmedLogos.set(key, logo);
+  return logo;
+};
+
 const serveLogo = async (req, res) => {
   try {
     const store = await Store.unscoped().findByPk(req.params.id, {
-      attributes: ["logo_data", "logo_mime"],
+      attributes: ["id", "logo_data", "logo_mime", "logo_updated_at"],
     });
     if (!store?.logo_data) return res.status(404).end();
+    const logo = await trimmedLogo(store);
     res.set({
-      "Content-Type": store.logo_mime,
+      "Content-Type": logo.mime,
       // The URL changes (?v=) when the logo does, so it can be cached long
       "Cache-Control": "public, max-age=604800, immutable",
       "X-Content-Type-Options": "nosniff",
       // Emails and storefronts load it from other sites
       "Cross-Origin-Resource-Policy": "cross-origin",
     });
-    return res.send(store.logo_data);
+    return res.send(logo.data);
   } catch (error) {
     // A malformed id is just "not found"
     return res.status(404).end();

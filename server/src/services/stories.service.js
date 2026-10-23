@@ -123,9 +123,22 @@ const findNewArrivals = async (store, from, to) => {
 const CACHE_MS = 60 * 60 * 1000;
 const CACHE_MAX = 300;
 const cache = new Map();
+// The store's own logo (Branding), if it has one. logo_data is left out
+// of normal store queries, so it's read here, once per logo version.
+const logoCache = new Map();
+const storeLogo = async (store) => {
+  if (!store.logo_updated_at) return null;
+  const key = `${store.id}:${new Date(store.logo_updated_at).getTime()}`;
+  if (!logoCache.has(key)) {
+    const row = await Store.unscoped().findByPk(store.id, { attributes: ["logo_data"] });
+    logoCache.set(key, row?.logo_data ? { key, data: row.logo_data } : null);
+  }
+  return logoCache.get(key);
+};
+
 const storyImage = async (store, item) => {
-  const style = storyStyle(store);
-  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}:${style.font}`;
+  const style = { ...storyStyle(store), logo: await storeLogo(store) };
+  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}:${style.font}:${style.logo?.key || "syncstock"}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.jpg;
   const jpg = await renderStory(item.variants, style);
