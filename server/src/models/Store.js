@@ -212,6 +212,12 @@ const Store = sequelize.define(
       defaultValue: "#ffffff",
       validate: { is: /^#[0-9a-f]{6}$/i },
     },
+    // Label font, a key of STORY_FONTS (utils/storyDetails.js)
+    story_font: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: "strong",
+    },
     // Listed in the SyncStock phone app's store list (merchant opt-in)
     app_listed: {
       type: DataTypes.BOOLEAN,

@@ -3,7 +3,7 @@ const path = require("path");
 const sharp = require("sharp");
 const { Resvg } = require("@resvg/resvg-js");
 const { textOnColor } = require("../utils/storeSettings.js");
-const { sizeLine, priceLine, DEFAULT_STYLE } = require("../utils/storyDetails.js");
+const { sizeLine, priceLine, DEFAULT_STYLE, STORY_FONTS, DEFAULT_FONT } = require("../utils/storyDetails.js");
 
 // Instagram story images (1080×1920) for new arrivals, emailed to the
 // merchant (stories.service.js). The layout, top to bottom: the
@@ -18,12 +18,17 @@ const HEIGHT = 1920;
 const PHOTO = { top: 470, width: 960, height: 760 };
 const LABEL_TOP = 1290;
 
-const FONT_FILE = path.join(
-  __dirname,
-  "../../node_modules/@fontsource/oswald/files/oswald-latin-500-normal.woff",
-);
-let font = null;
-const loadFont = () => (font ||= fs.readFileSync(FONT_FILE));
+// Label fonts (STORY_FONTS), read from @fontsource once each
+const fontFiles = {};
+const fontFor = (key) => {
+  const font = STORY_FONTS[key] || STORY_FONTS[DEFAULT_FONT];
+  const file = path.join(
+    __dirname,
+    `../../node_modules/@fontsource/${font.package}/files/${font.package}-latin-${font.weight}-normal.woff`,
+  );
+  fontFiles[file] ||= fs.readFileSync(file);
+  return { ...font, data: fontFiles[file] };
+};
 
 // satori is an ES module
 let satoriFn = null;
@@ -88,27 +93,37 @@ const syncstockLogo = async (background) => {
 
 // Label box (size line, price); the font shrinks for long lines so the
 // box always fits the story's width
-const labelBox = (text, style) => {
-  const fontSize = Math.min(96, Math.floor(2000 / Math.max(text.length, 1)));
+const LABEL_TEXT_WIDTH = 900;
+const labelBox = (text, style, font) => {
+  const shown = font.upper ? text.toUpperCase() : text;
+  const perChar = font.widthEm + (font.letterSpacing || 0);
+  const fontSize = Math.min(
+    Math.round(96 * (font.scale || 1)),
+    Math.floor(LABEL_TEXT_WIDTH / (Math.max(shown.length, 1) * perChar)),
+  );
   return el(
     "div",
     {
       display: "flex",
       backgroundColor: style.box,
       color: style.text,
-      fontFamily: "Oswald",
+      fontFamily: font.family,
+      fontWeight: font.weight,
       fontSize,
+      letterSpacing: font.letterSpacing ? `${font.letterSpacing}em` : undefined,
+      ...(font.stroke && { WebkitTextStroke: `${font.stroke}px ${style.text}` }),
       lineHeight: 1.15,
       padding: "6px 30px 10px",
     },
-    text,
+    shown,
   );
 };
 
 // One product (all its in-stock variants) → JPEG buffer.
-// style: { background, box, text } — see storyStyle
+// style: { background, box, text, font } — see storyStyle
 const renderStory = async (variants, style = DEFAULT_STYLE) => {
   const first = variants[0];
+  const font = fontFor(style.font);
   const [photo, mark] = await Promise.all([productPhoto(first.image_url), syncstockLogo(style.background)]);
   const size = sizeLine(variants);
   const price = priceLine(variants);
@@ -151,7 +166,7 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
           flexDirection: "column",
           alignItems: "center",
         },
-        [size && labelBox(size, style), price && labelBox(price, style)].filter(Boolean),
+        [size && labelBox(size, style, font), price && labelBox(price, style, font)].filter(Boolean),
       ),
     ],
   );
@@ -159,7 +174,7 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
   const svg = await satori(tree, {
     width: WIDTH,
     height: HEIGHT,
-    fonts: [{ name: "Oswald", data: loadFont(), weight: 500, style: "normal" }],
+    fonts: [{ name: font.family, data: font.data, weight: font.weight, style: "normal" }],
   });
   const png = new Resvg(svg, { fitTo: { mode: "width", value: WIDTH } }).render().asPng();
   return sharp(png).jpeg({ quality: 86, mozjpeg: true }).toBuffer();

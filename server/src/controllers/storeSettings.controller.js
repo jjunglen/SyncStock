@@ -6,6 +6,7 @@ const {
   logoUrl,
 } = require("../utils/storeSettings.js");
 const { APPS } = require("../utils/shopifyApps.js");
+const { STORY_FONTS } = require("../utils/storyDetails.js");
 const {
   latestItem,
   storyImage,
@@ -47,6 +48,14 @@ const settingsFor = (store) => ({
   story_background: store.story_background,
   story_box_color: store.story_box_color,
   story_text_color: store.story_text_color,
+  story_font: store.story_font,
+  story_fonts: Object.entries(STORY_FONTS).map(([key, f]) => ({
+    key,
+    label: f.label,
+    family: f.family,
+    weight: f.weight,
+    upper: !!f.upper,
+  })),
   theme_links: themeLinks(store),
 });
 
@@ -57,7 +66,8 @@ const getSettings = (req, res) =>
 // PUT /api/store/settings (store admin)
 // { enabled_categories?, brand_color? (hex or null), weekly_report?,
 //   instagram_stories?, story_frequency? ("daily" | "batch"),
-//   story_background?, story_box_color?, story_text_color? (hex) }
+//   story_background?, story_box_color?, story_text_color? (hex),
+//   story_font? (a STORY_FONTS key) }
 const updateSettings = async (req, res) => {
   try {
     const { enabled_categories, brand_color, weekly_report, instagram_stories, story_frequency } = req.body;
@@ -97,6 +107,13 @@ const updateSettings = async (req, res) => {
         return res.status(400).json({ success: false, message: "Pick when to send stories" });
       }
       changes.story_frequency = story_frequency;
+    }
+
+    if (req.body.story_font !== undefined) {
+      if (!STORY_FONTS[req.body.story_font]) {
+        return res.status(400).json({ success: false, message: "Pick a font from the list" });
+      }
+      changes.story_font = req.body.story_font;
     }
 
     for (const field of ["story_background", "story_box_color", "story_text_color"]) {

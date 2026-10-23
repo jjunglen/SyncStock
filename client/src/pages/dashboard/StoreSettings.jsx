@@ -58,6 +58,22 @@ export default function StoreSettings() {
     loadStoryPreview();
   }, []);
 
+  // The story fonts, so each option in the Font picker shows itself
+  useEffect(() => {
+    if (document.getElementById("story-fonts")) return;
+    const link = document.createElement("link");
+    link.id = "story-fonts";
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Oswald:wght@500&family=Bebas+Neue&family=Anton&family=Fredoka:wght@600&family=Poiret+One&family=Playfair+Display:wght@700&family=Courier+Prime:wght@700&family=Montserrat:wght@700&family=Inter:wght@700&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  const saveStoryFont = async (font) => {
+    await run("story-font", () => api.put("/store/settings", { story_font: font }), "Font saved");
+    loadStoryPreview();
+  };
+
   const saveStoryColors = async () => {
     await run(
       "story-colors",
@@ -531,6 +547,40 @@ export default function StoreSettings() {
                     >
                       Save story colors
                     </Button>
+                  </div>
+                </>
+              )}
+
+              {settings.story_fonts && (
+                <>
+                  <p className="text-xs text-text-muted mt-5 mb-2">Font</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Story font">
+                    {settings.story_fonts.map((font) => {
+                      const selected = settings.story_font === font.key;
+                      return (
+                        <button
+                          key={font.key}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          disabled={busy === "story-font"}
+                          onClick={() => !selected && saveStoryFont(font.key)}
+                          className={`rounded-lg border px-3 py-2 text-left transition-colors ${selected ? "border-text bg-text/5" : "border-border hover:border-text/20"}`}
+                        >
+                          <span
+                            className="block text-lg leading-tight truncate"
+                            style={{
+                              fontFamily: `"${font.family}", sans-serif`,
+                              fontWeight: font.weight,
+                              textTransform: font.upper ? "uppercase" : "none",
+                            }}
+                          >
+                            Size 10 - $165
+                          </span>
+                          <span className="block text-xs text-text-muted">{font.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}

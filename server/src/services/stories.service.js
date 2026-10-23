@@ -125,7 +125,7 @@ const CACHE_MAX = 300;
 const cache = new Map();
 const storyImage = async (store, item) => {
   const style = storyStyle(store);
-  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}`;
+  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}:${style.font}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.jpg;
   const jpg = await renderStory(item.variants, style);
