@@ -324,7 +324,8 @@ This link expires in 24 hours. If you didn't sign up, you can ignore this email.
 };
 
 // A plain send for one-off emails built elsewhere (weekly report)
-const sendStoreEmail = async ({ fromName, to, subject, html, text }) => {
+// attachments: optional [{ filename, content: Buffer }]
+const sendStoreEmail = async ({ fromName, to, subject, html, text, attachments }) => {
   if (!resend) {
     console.warn(`Skipping email (Resend not configured): ${subject}`);
     return;
@@ -335,6 +336,7 @@ const sendStoreEmail = async ({ fromName, to, subject, html, text }) => {
     subject,
     html,
     text,
+    ...(attachments?.length && { attachments }),
   });
   if (error) throw new Error(error.message || "Email failed");
 };

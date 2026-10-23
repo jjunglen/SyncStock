@@ -29,6 +29,8 @@ const {
   uploadLogo,
   deleteLogo,
   serveLogo,
+  previewStory,
+  sendTestStories,
 } = require("../controllers/storeSettings.controller.js");
 
 const admin = [authenticateAccount, resolveStoreFromAdminMembership];
@@ -66,6 +68,9 @@ router.put("/settings", ...admin, updateSettings);
 router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);
 router.delete("/logo", ...admin, deleteLogo);
 router.get("/logo/:id", serveLogo);
+// New-arrival Instagram stories (stories.service.js)
+router.get("/stories/preview", ...admin, previewStory);
+router.post("/stories/test", ...admin, sendTestStories);
 
 router.get("/customers", authenticateAccount, resolveStoreFromAdminMembership, getCustomers);
 router.delete("/customers/:id", authenticateAccount, resolveStoreFromAdminMembership, removeCustomer);

@@ -6,6 +6,12 @@ const {
   logoUrl,
 } = require("../utils/storeSettings.js");
 const { APPS } = require("../utils/shopifyApps.js");
+const {
+  latestItem,
+  storyImage,
+  sendStoriesEmail,
+  DAY_MS,
+} = require("../services/stories.service.js");
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
@@ -36,6 +42,11 @@ const settingsFor = (store) => ({
   // Phone app store list — read-only until the app launches (the
   // settings switch shows "Coming soon")
   app_listed: store.app_listed,
+  instagram_stories: store.instagram_stories,
+  story_frequency: store.story_frequency,
+  story_background: store.story_background,
+  story_box_color: store.story_box_color,
+  story_text_color: store.story_text_color,
   theme_links: themeLinks(store),
 });
 
@@ -44,10 +55,12 @@ const getSettings = (req, res) =>
   res.status(200).json({ success: true, data: settingsFor(req.store) });
 
 // PUT /api/store/settings (store admin)
-// { enabled_categories?, brand_color? (hex or null), weekly_report? }
+// { enabled_categories?, brand_color? (hex or null), weekly_report?,
+//   instagram_stories?, story_frequency? ("daily" | "batch"),
+//   story_background?, story_box_color?, story_text_color? (hex) }
 const updateSettings = async (req, res) => {
   try {
-    const { enabled_categories, brand_color, weekly_report } = req.body;
+    const { enabled_categories, brand_color, weekly_report, instagram_stories, story_frequency } = req.body;
     const changes = {};
 
     if (enabled_categories !== undefined) {
@@ -70,6 +83,29 @@ const updateSettings = async (req, res) => {
     }
 
     if (weekly_report !== undefined) changes.weekly_report = !!weekly_report;
+
+    // Turning stories on: the first email covers the last day's arrivals
+    if (instagram_stories !== undefined) {
+      changes.instagram_stories = !!instagram_stories;
+      if (instagram_stories && !req.store.instagram_stories) {
+        changes.stories_checked_at = new Date(Date.now() - DAY_MS);
+      }
+    }
+
+    if (story_frequency !== undefined) {
+      if (!["daily", "batch"].includes(story_frequency)) {
+        return res.status(400).json({ success: false, message: "Pick when to send stories" });
+      }
+      changes.story_frequency = story_frequency;
+    }
+
+    for (const field of ["story_background", "story_box_color", "story_text_color"]) {
+      if (req.body[field] === undefined) continue;
+      if (!/^#[0-9a-f]{6}$/i.test(req.body[field])) {
+        return res.status(400).json({ success: false, message: "Pick a valid color" });
+      }
+      changes[field] = req.body[field].toLowerCase();
+    }
 
     await req.store.update(changes);
     return res.status(200).json({ success: true, data: settingsFor(req.store) });
@@ -148,4 +184,42 @@ const serveLogo = async (req, res) => {
   }
 };
 
-module.exports = { getSettings, updateSettings, uploadLogo, deleteLogo, serveLogo };
+// GET /api/store/stories/preview (store admin) — the newest in-stock
+// product as an Instagram story, for the settings page
+const previewStory = async (req, res) => {
+  try {
+    const item = await latestItem(req.store);
+    if (!item) return res.status(404).json({ success: false, message: "No in-stock products with photos yet" });
+    const jpg = await storyImage(req.store, item);
+    res.set("Content-Type", "image/jpeg");
+    res.set("Cache-Control", "private, no-store");
+    return res.send(jpg);
+  } catch (error) {
+    console.error("Story preview error:", error.message);
+    return res.status(500).json({ success: false, message: "Couldn't make a preview" });
+  }
+};
+
+// POST /api/store/stories/test (store admin) — the last day's new
+// arrivals (up to 10), emailed only to the person who asked. Doesn't
+// change what the next daily email includes.
+const sendTestStories = async (req, res) => {
+  try {
+    const to = new Date();
+    const count = await sendStoriesEmail(req.store, {
+      from: new Date(to.getTime() - DAY_MS),
+      to,
+      recipients: [{ email: req.account.email, full_name: req.account.full_name }],
+      limit: 10,
+    });
+    if (!count) {
+      return res.status(200).json({ success: true, data: { sent: 0 }, message: "No new arrivals in the last 24 hours" });
+    }
+    return res.status(200).json({ success: true, data: { sent: count }, message: `Sent ${count} to ${req.account.email}` });
+  } catch (error) {
+    console.error("Test stories error:", error.message);
+    return res.status(500).json({ success: false, message: "Couldn't send the test email" });
+  }
+};
+
+module.exports = { getSettings, updateSettings, uploadLogo, deleteLogo, serveLogo, previewStory, sendTestStories };

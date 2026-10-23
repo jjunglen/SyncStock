@@ -174,6 +174,44 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // Daily email of Instagram stories for new arrivals (stories.service.js)
+    instagram_stories: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    // New arrivals first seen up to this moment have been emailed
+    stories_checked_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // "daily": 9am Central. "batch": 15 minutes after new items stop
+    // arriving, once there are 2 or more
+    story_frequency: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: "daily",
+      validate: { isIn: [["daily", "batch"]] },
+    },
+    // Story colors: background, the label boxes, and the label text
+    story_background: {
+      type: DataTypes.STRING(7),
+      allowNull: false,
+      defaultValue: "#ffffff",
+      validate: { is: /^#[0-9a-f]{6}$/i },
+    },
+    story_box_color: {
+      type: DataTypes.STRING(7),
+      allowNull: false,
+      defaultValue: "#0b0b0b",
+      validate: { is: /^#[0-9a-f]{6}$/i },
+    },
+    story_text_color: {
+      type: DataTypes.STRING(7),
+      allowNull: false,
+      defaultValue: "#ffffff",
+      validate: { is: /^#[0-9a-f]{6}$/i },
+    },
     // Listed in the SyncStock phone app's store list (merchant opt-in)
     app_listed: {
       type: DataTypes.BOOLEAN,

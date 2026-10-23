@@ -101,8 +101,29 @@ const verifyAppHandoffToken = (token) => {
   }
 };
 
+// Link in the daily Instagram stories email (routes/stories.routes.js):
+// one store's new arrivals first seen between `from` and `to`. Anyone
+// with the link sees those stories — they're made for posting publicly.
+const signStoriesToken = (storeId, from, to) =>
+  jwt.sign(
+    { store_id: storeId, from: new Date(from).toISOString(), to: new Date(to).toISOString(), purpose: "stories" },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" },
+  );
+
+const verifyStoriesToken = (token) => {
+  try {
+    const decoded = jwt.verify(String(token || ""), process.env.JWT_SECRET);
+    return decoded.purpose === "stories" ? decoded : null;
+  } catch {
+    return null;
+  }
+};
+
 module.exports = {
   SESSION_DAYS,
+  signStoriesToken,
+  verifyStoriesToken,
   signAppHandoffToken,
   verifyAppHandoffToken,
   signEmailLoginToken,

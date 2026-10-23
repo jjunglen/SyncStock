@@ -149,6 +149,21 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
     },
     { timezone: "America/Chicago" },
   );
+  // New-arrival Instagram stories (stories.service.js): 9am Central for
+  // every store that turned them on, and every 5 minutes for stores that
+  // want them 15 minutes after each batch of new items
+  cron.schedule(
+    "0 9 * * *",
+    () => {
+      const { sendDailyStories } = require("./src/services/stories.service.js");
+      sendDailyStories().catch((err) => console.error("Instagram stories error:", err.message));
+    },
+    { timezone: "America/Chicago" },
+  );
+  cron.schedule("*/5 * * * *", () => {
+    const { sendBatchStories } = require("./src/services/stories.service.js");
+    sendBatchStories().catch((err) => console.error("Instagram stories (batch) error:", err.message));
+  });
 } else {
   console.log("Digest sender off (not production). Set RUN_DIGEST=true to enable.");
 }
@@ -182,6 +197,8 @@ app.use("/api/platform", require("./src/routes/platform.routes.js"));
 app.use("/api/stockx", require("./src/routes/stockx.routes.js"));
 // The SyncStock phone app
 app.use("/api/app", require("./src/routes/app.routes.js"));
+// Links in the daily Instagram stories email
+app.use("/api/stories", require("./src/routes/stories.routes.js"));
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Syncstock API is running" });

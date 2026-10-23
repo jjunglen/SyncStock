@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -36,6 +36,54 @@ export default function StoreSettings() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const fileInput = useRef(null);
+  // Instagram stories: a preview made from the newest in-stock product
+  const [storyPreview, setStoryPreview] = useState(null);
+  const [storyNote, setStoryNote] = useState("");
+  // Story colors being edited (saved with "Save story colors")
+  const [storyColors, setStoryColors] = useState(null);
+
+  // Re-made after the colors are saved, so it always shows the real look
+  const loadStoryPreview = () =>
+    api
+      .get("/store/stories/preview", { responseType: "blob" })
+      .then((res) =>
+        setStoryPreview((old) => {
+          if (old) URL.revokeObjectURL(old);
+          return URL.createObjectURL(res.data);
+        }),
+      )
+      .catch(() => {});
+
+  useEffect(() => {
+    loadStoryPreview();
+  }, []);
+
+  const saveStoryColors = async () => {
+    await run(
+      "story-colors",
+      () =>
+        api.put("/store/settings", {
+          story_background: storyColors.background,
+          story_box_color: storyColors.box,
+          story_text_color: storyColors.text,
+        }),
+      "Story colors saved",
+    );
+    loadStoryPreview();
+  };
+
+  const sendTestStories = async () => {
+    setBusy("stories-test");
+    setStoryNote("");
+    try {
+      const res = await api.post("/store/stories/test");
+      setStoryNote(res.data.message);
+    } catch (err) {
+      setStoryNote(err.response?.data?.message || "Couldn't send the test email.");
+    } finally {
+      setBusy("");
+    }
+  };
 
   useEffect(() => {
     Promise.all([api.get("/store/settings"), getMyStore().catch(() => null)])
@@ -43,6 +91,11 @@ export default function StoreSettings() {
         const data = settingsRes.data.data;
         setSettings(data);
         if (data.brand_color) setColor(data.brand_color);
+        setStoryColors({
+          background: data.story_background,
+          box: data.story_box_color,
+          text: data.story_text_color,
+        });
         setStore(storeRes || null);
       })
       .catch(() => setError("Failed to load store settings"))
@@ -371,6 +424,133 @@ export default function StoreSettings() {
                     run("weekly", () => api.put("/store/settings", { weekly_report: value }), value ? "Weekly email on" : "Weekly email off")
                   }
                 />
+              </div>
+            </Section>
+
+            <Section
+              icon={LuInstagram}
+              title="Instagram stories"
+              description="When new items are added to Shopify, get an email with a ready-to-post Instagram story for each one (1080×1920), zipped, with each item's link for the link sticker."
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm">Email me new-arrival stories</span>
+                <Switch
+                  label="Email me new-arrival stories"
+                  checked={settings.instagram_stories}
+                  disabled={busy === "stories"}
+                  onChange={(value) =>
+                    run("stories", () => api.put("/store/settings", { instagram_stories: value }), value ? "Stories email on" : "Stories email off")
+                  }
+                />
+              </div>
+
+              <p className="text-xs text-text-muted mt-5 mb-2">When to send</p>
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="When to send stories">
+                {[
+                  { value: "daily", title: "Every morning", detail: "9 AM Central, with everything new since the last email" },
+                  { value: "batch", title: "After each batch", detail: "15 minutes after new items stop coming in, once there are 2 or more" },
+                ].map((option) => {
+                  const selected = settings.story_frequency === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={busy === "story-frequency"}
+                      onClick={() =>
+                        !selected &&
+                        run("story-frequency", () => api.put("/store/settings", { story_frequency: option.value }), "Saved")
+                      }
+                      className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${selected ? "border-text bg-text/5" : "border-border hover:border-text/20"}`}
+                    >
+                      <span className="block text-sm font-medium">{option.title}</span>
+                      <span className="block text-xs text-text-muted">{option.detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {storyColors && (
+                <>
+                  <p className="text-xs text-text-muted mt-5 mb-2">Colors</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {[
+                      { label: "Classic white", background: "#ffffff", box: "#0b0b0b", text: "#ffffff" },
+                      { label: "Black", background: "#0b0b0b", box: "#ffffff", text: "#0b0b0b" },
+                      ...(settings.brand_color
+                        ? [{ label: "Brand color", background: settings.brand_color, box: "#ffffff", text: "#0b0b0b" }]
+                        : []),
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => setStoryColors({ background: preset.background, box: preset.box, text: preset.text })}
+                        className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs hover:border-text/20"
+                      >
+                        <span
+                          className="inline-flex h-4 w-4 items-center justify-center rounded border border-border"
+                          style={{ background: preset.background }}
+                          aria-hidden="true"
+                        >
+                          <span className="h-1.5 w-2.5" style={{ background: preset.box }} />
+                        </span>
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    {[
+                      { key: "background", label: "Background" },
+                      { key: "box", label: "Label boxes" },
+                      { key: "text", label: "Label text" },
+                    ].map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="color"
+                          value={storyColors[key]}
+                          onChange={(e) => setStoryColors((c) => ({ ...c, [key]: e.target.value }))}
+                          aria-label={`Story ${label.toLowerCase()} color`}
+                          className="h-9 w-10 cursor-pointer rounded-lg border border-border bg-surface p-1"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={
+                        busy === "story-colors" ||
+                        (storyColors.background === settings.story_background &&
+                          storyColors.box === settings.story_box_color &&
+                          storyColors.text === settings.story_text_color)
+                      }
+                      onClick={saveStoryColors}
+                    >
+                      Save story colors
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-5 flex flex-col sm:flex-row gap-4 sm:items-end">
+                {storyPreview && (
+                  <img
+                    src={storyPreview}
+                    alt="Example Instagram story made from your newest product"
+                    className="w-32 aspect-[9/16] rounded-lg border border-border object-cover"
+                  />
+                )}
+                <div className="flex flex-col gap-2 items-start">
+                  <Button variant="secondary" size="sm" disabled={busy === "stories-test"} onClick={sendTestStories}>
+                    {busy === "stories-test" ? "Sending..." : "Send me a test email"}
+                  </Button>
+                  <p className="text-xs text-text-muted">
+                    {storyNote || "Uses the last 24 hours of new arrivals (up to 10)."}
+                  </p>
+                </div>
               </div>
             </Section>
 
