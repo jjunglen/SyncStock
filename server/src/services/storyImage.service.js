@@ -19,8 +19,8 @@ const PHOTO = { top: 470, width: 960, height: 760 };
 const LABEL_TOP = 1290;
 // With the item name shown (a store setting), the photo is shorter so the
 // name, size and price all fit above the link sticker's space
-const PHOTO_WITH_NAME = { top: 470, width: 960, height: 620 };
-const LABEL_TOP_WITH_NAME = 1130;
+const PHOTO_WITH_NAME = { top: 470, width: 960, height: 500 };
+const LABEL_TOP_WITH_NAME = 1000;
 
 // Label fonts (STORY_FONTS), read from @fontsource once each
 const fontFiles = {};
@@ -115,13 +115,15 @@ const storyLogo = (background, logo) => (logo?.data ? storeLogo(logo) : syncstoc
 // Label box (size line, price); the font shrinks for long lines so the
 // box always fits the story's width
 const LABEL_TEXT_WIDTH = 900;
+const perCharEm = (font) => font.widthEm + (font.letterSpacing || 0);
+const labelFontSize = (shown, font) =>
+  Math.min(
+    Math.round(96 * (font.scale || 1)),
+    Math.floor(LABEL_TEXT_WIDTH / (Math.max(shown.length, 1) * perCharEm(font))),
+  );
 const labelBox = (text, style, font) => {
   const shown = font.upper ? text.toUpperCase() : text;
-  const perChar = font.widthEm + (font.letterSpacing || 0);
-  const fontSize = Math.min(
-    Math.round(96 * (font.scale || 1)),
-    Math.floor(LABEL_TEXT_WIDTH / (Math.max(shown.length, 1) * perChar)),
-  );
+  const fontSize = labelFontSize(shown, font);
   return el(
     "div",
     {
@@ -140,24 +142,18 @@ const labelBox = (text, style, font) => {
   );
 };
 
-// The item name box: up to two lines, the font shrinking to fit; a name
-// too long even at the smallest size is cut at a word with "…"
-const NAME_MAX = 80;
-const NAME_MIN = 46;
+// The item name: plain text (no box) in the same size as the "Size -
+// Condition" box, black on a light background and white on a dark one,
+// with a gap before the size line. It wraps onto up to three lines; a
+// longer name is cut after the last whole word that fits (no "…").
+const NAME_LINES = 3;
 const NAME_FILL = 0.95; // letter widths are averages — leave some slack
-const nameBox = (name, style, font) => {
-  const perChar = font.widthEm + (font.letterSpacing || 0);
-  const twoLines = (size) => Math.floor((2 * LABEL_TEXT_WIDTH * NAME_FILL) / (size * perChar));
+const NAME_GAP = 80;
+const nameText = (name, style, font, fontSize) => {
   let text = font.upper ? name.toUpperCase() : name;
-  let fontSize = Math.min(
-    Math.round(NAME_MAX * (font.scale || 1)),
-    Math.floor((2 * LABEL_TEXT_WIDTH * NAME_FILL) / (Math.max(text.length, 1) * perChar)),
-  );
-  if (fontSize < NAME_MIN) {
-    fontSize = NAME_MIN;
-    const max = twoLines(fontSize) - 1;
-    text = `${text.slice(0, max).replace(/\s+\S*$/, "")}…`;
-  }
+  const max = Math.floor((NAME_LINES * LABEL_TEXT_WIDTH * NAME_FILL) / (fontSize * perCharEm(font)));
+  if (text.length > max) text = text.slice(0, max + 1).replace(/\s+\S*$/, "");
+  const color = textOnColor(style.background);
   return el(
     "div",
     {
@@ -165,15 +161,14 @@ const nameBox = (name, style, font) => {
       justifyContent: "center",
       textAlign: "center",
       maxWidth: LABEL_TEXT_WIDTH + 60,
-      backgroundColor: style.box,
-      color: style.text,
+      color,
       fontFamily: font.family,
       fontWeight: font.weight,
       fontSize,
       letterSpacing: font.letterSpacing ? `${font.letterSpacing}em` : undefined,
-      ...(font.stroke && { WebkitTextStroke: `${font.stroke}px ${style.text}` }),
+      ...(font.stroke && { WebkitTextStroke: `${font.stroke}px ${color}` }),
       lineHeight: 1.15,
-      padding: "6px 30px 10px",
+      padding: "0 30px",
     },
     text,
   );
@@ -230,7 +225,15 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
           alignItems: "center",
         },
         [
-          name && nameBox(name, style, font),
+          name &&
+            nameText(
+              name,
+              style,
+              font,
+              labelFontSize(font.upper ? (size || price || name).toUpperCase() : size || price || name, font),
+            ),
+          // The gap between the name and the size line
+          name && el("div", { display: "flex", height: NAME_GAP, width: 10 }, []),
           size && labelBox(size, style, font),
           price && labelBox(price, style, font),
         ].filter(Boolean),
