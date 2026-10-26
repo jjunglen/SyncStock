@@ -17,6 +17,10 @@ const WIDTH = 1080;
 const HEIGHT = 1920;
 const PHOTO = { top: 470, width: 960, height: 760 };
 const LABEL_TOP = 1290;
+// With the item name shown (a store setting), the photo is shorter so the
+// name, size and price all fit above the link sticker's space
+const PHOTO_WITH_NAME = { top: 470, width: 960, height: 620 };
+const LABEL_TOP_WITH_NAME = 1130;
 
 // Label fonts (STORY_FONTS), read from @fontsource once each
 const fontFiles = {};
@@ -55,7 +59,7 @@ const dataUri = (buffer, mime) => `data:${mime};base64,${buffer.toString("base64
 
 // The product photo, trimmed of its empty margins and fitted to the
 // photo area on white, so every shoe fills the story the same way
-const productPhoto = async (url) => {
+const productPhoto = async (url, area = PHOTO) => {
   const resp = await fetch(photoUrl(url));
   if (!resp.ok) throw new Error(`Photo download failed (${resp.status})`);
   const original = Buffer.from(await resp.arrayBuffer());
@@ -66,7 +70,7 @@ const productPhoto = async (url) => {
     image = sharp(original).flatten({ background: "#ffffff" }); // nothing to trim
   }
   const fitted = await image
-    .resize(PHOTO.width - 40, PHOTO.height - 40, { fit: "inside", withoutEnlargement: false })
+    .resize(area.width - 40, area.height - 40, { fit: "inside", withoutEnlargement: false })
     .png()
     .toBuffer();
   return dataUri(fitted, "image/png");
@@ -136,13 +140,54 @@ const labelBox = (text, style, font) => {
   );
 };
 
+// The item name box: up to two lines, the font shrinking to fit; a name
+// too long even at the smallest size is cut at a word with "…"
+const NAME_MAX = 80;
+const NAME_MIN = 46;
+const NAME_FILL = 0.95; // letter widths are averages — leave some slack
+const nameBox = (name, style, font) => {
+  const perChar = font.widthEm + (font.letterSpacing || 0);
+  const twoLines = (size) => Math.floor((2 * LABEL_TEXT_WIDTH * NAME_FILL) / (size * perChar));
+  let text = font.upper ? name.toUpperCase() : name;
+  let fontSize = Math.min(
+    Math.round(NAME_MAX * (font.scale || 1)),
+    Math.floor((2 * LABEL_TEXT_WIDTH * NAME_FILL) / (Math.max(text.length, 1) * perChar)),
+  );
+  if (fontSize < NAME_MIN) {
+    fontSize = NAME_MIN;
+    const max = twoLines(fontSize) - 1;
+    text = `${text.slice(0, max).replace(/\s+\S*$/, "")}…`;
+  }
+  return el(
+    "div",
+    {
+      display: "flex",
+      justifyContent: "center",
+      textAlign: "center",
+      maxWidth: LABEL_TEXT_WIDTH + 60,
+      backgroundColor: style.box,
+      color: style.text,
+      fontFamily: font.family,
+      fontWeight: font.weight,
+      fontSize,
+      letterSpacing: font.letterSpacing ? `${font.letterSpacing}em` : undefined,
+      ...(font.stroke && { WebkitTextStroke: `${font.stroke}px ${style.text}` }),
+      lineHeight: 1.15,
+      padding: "6px 30px 10px",
+    },
+    text,
+  );
+};
+
 // One product (all its in-stock variants) → JPEG buffer.
-// style: { background, box, text, font } — see storyStyle — plus
+// style: { background, box, text, font, showName } — see storyStyle — plus
 // logo: { key, data } when the store has its own logo
 const renderStory = async (variants, style = DEFAULT_STYLE) => {
   const first = variants[0];
   const font = fontFor(style.font);
-  const [photo, mark] = await Promise.all([productPhoto(first.image_url), storyLogo(style.background, style.logo)]);
+  const area = style.showName ? PHOTO_WITH_NAME : PHOTO;
+  const [photo, mark] = await Promise.all([productPhoto(first.image_url, area), storyLogo(style.background, style.logo)]);
+  const name = style.showName ? first.product_name : null;
   const size = sizeLine(variants);
   const price = priceLine(variants);
   // Most product photos have a white background, which would show as a
@@ -162,10 +207,10 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
         "div",
         {
           position: "absolute",
-          top: PHOTO.top,
-          left: (WIDTH - PHOTO.width) / 2,
-          width: PHOTO.width,
-          height: PHOTO.height,
+          top: area.top,
+          left: (WIDTH - area.width) / 2,
+          width: area.width,
+          height: area.height,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -177,14 +222,18 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
         "div",
         {
           position: "absolute",
-          top: LABEL_TOP,
+          top: style.showName ? LABEL_TOP_WITH_NAME : LABEL_TOP,
           left: 0,
           width: WIDTH,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
         },
-        [size && labelBox(size, style, font), price && labelBox(price, style, font)].filter(Boolean),
+        [
+          name && nameBox(name, style, font),
+          size && labelBox(size, style, font),
+          price && labelBox(price, style, font),
+        ].filter(Boolean),
       ),
     ],
   );

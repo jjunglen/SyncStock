@@ -74,14 +74,15 @@ const STORY_FONTS = {
 const DEFAULT_FONT = "strong";
 
 // The store's story look (Store settings), with the classic one — white
-// background, black boxes, white text, Strong — as the default
-const DEFAULT_STYLE = { background: "#ffffff", box: "#0b0b0b", text: "#ffffff", font: DEFAULT_FONT };
+// background, black boxes, white text, Strong, no item name — as the default
+const DEFAULT_STYLE = { background: "#ffffff", box: "#0b0b0b", text: "#ffffff", font: DEFAULT_FONT, showName: false };
 const HEX = /^#[0-9a-f]{6}$/i;
 const storyStyle = (store) => ({
   background: HEX.test(store?.story_background) ? store.story_background : DEFAULT_STYLE.background,
   box: HEX.test(store?.story_box_color) ? store.story_box_color : DEFAULT_STYLE.box,
   text: HEX.test(store?.story_text_color) ? store.story_text_color : DEFAULT_STYLE.text,
   font: STORY_FONTS[store?.story_font] ? store.story_font : DEFAULT_FONT,
+  showName: !!store?.story_show_name,
 });
 
 module.exports = { shortSize, sizeLine, priceLine, storyStyle, DEFAULT_STYLE, STORY_FONTS, DEFAULT_FONT };

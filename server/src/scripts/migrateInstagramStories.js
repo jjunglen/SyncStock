@@ -9,6 +9,7 @@ const { sequelize } = require("../config/database.js");
 //   story_frequency    — "daily" (9am) or "batch" (15 min after a batch)
 //   story_background, story_box_color, story_text_color — story colors
 //   story_font         — label font (utils/storyDetails.js STORY_FONTS)
+//   story_show_name    — show the item's name above the size and price
 // Additive only; safe for older deployed code and safe to re-run.
 //
 // Run BEFORE starting a server with the updated Store model.
@@ -22,6 +23,7 @@ const STATEMENTS = [
   `ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS story_box_color VARCHAR(7) NOT NULL DEFAULT '#0b0b0b'`,
   `ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS story_text_color VARCHAR(7) NOT NULL DEFAULT '#ffffff'`,
   `ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS story_font VARCHAR(20) NOT NULL DEFAULT 'strong'`,
+  `ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS story_show_name BOOLEAN NOT NULL DEFAULT false`,
 ];
 
 const run = async () => {

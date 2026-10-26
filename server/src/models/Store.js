@@ -218,6 +218,12 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: "strong",
     },
+    // Show the item's name above the size and price
+    story_show_name: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     // Listed in the SyncStock phone app's store list (merchant opt-in)
     app_listed: {
       type: DataTypes.BOOLEAN,

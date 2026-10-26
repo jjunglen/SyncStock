@@ -138,7 +138,7 @@ const storeLogo = async (store) => {
 
 const storyImage = async (store, item) => {
   const style = { ...storyStyle(store), logo: await storeLogo(store) };
-  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}:${style.font}:${style.logo?.key || "syncstock"}`;
+  const key = `${store.id}:${item.product_id}:${item.size}:${item.price}:${style.background}${style.box}${style.text}:${style.font}:${style.showName ? "name" : ""}:${style.logo?.key || "syncstock"}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.jpg;
   const jpg = await renderStory(item.variants, style);

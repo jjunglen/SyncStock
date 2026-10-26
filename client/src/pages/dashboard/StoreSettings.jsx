@@ -551,6 +551,26 @@ export default function StoreSettings() {
                 </>
               )}
 
+              <div className="mt-5 flex items-center justify-between gap-4">
+                <span className="text-sm">
+                  Show item name
+                  <span className="block text-xs text-text-muted">Above the size and price</span>
+                </span>
+                <Switch
+                  label="Show item name"
+                  checked={!!settings.story_show_name}
+                  disabled={busy === "story-name"}
+                  onChange={async (value) => {
+                    await run(
+                      "story-name",
+                      () => api.put("/store/settings", { story_show_name: value }),
+                      value ? "Item name on" : "Item name off",
+                    );
+                    loadStoryPreview();
+                  }}
+                />
+              </div>
+
               {settings.story_fonts && (
                 <>
                   <p className="text-xs text-text-muted mt-5 mb-2">Font</p>
