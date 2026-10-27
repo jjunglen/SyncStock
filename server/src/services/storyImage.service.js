@@ -72,8 +72,10 @@ const productPhoto = async (url, area = PHOTO) => {
   const fitted = await image
     .resize(area.width - 40, area.height - 40, { fit: "inside", withoutEnlargement: false })
     .png()
-    .toBuffer();
-  return dataUri(fitted, "image/png");
+    .toBuffer({ resolveWithObject: true });
+  // Its exact size goes with it — satori stretches an image to fill its
+  // box when only max sizes are given
+  return { src: dataUri(fitted.data, "image/png"), width: fitted.info.width, height: fitted.info.height };
 };
 
 const isWhite = (hex) => /^#f[a-f0-9]f[a-f0-9]f[a-f0-9]$/i.test(hex); // near-white
@@ -211,7 +213,7 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
           justifyContent: "center",
           ...(card && { backgroundColor: "#ffffff", borderRadius: 36 }),
         },
-        { type: "img", props: { src: photo, style: { maxWidth: "100%", maxHeight: "100%" } } },
+        { type: "img", props: { src: photo.src, width: photo.width, height: photo.height } },
       ),
       el(
         "div",
