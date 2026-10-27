@@ -1,38 +1,80 @@
-/* SyncStock theme blocks. Kept light so the theme's own fonts, colors
-   and button styles show through; only layout and fallbacks here. */
-.syncstock-banner {
-  padding: 48px 20px;
+/* SyncStock theme blocks. The theme's own fonts, colors and button
+   styles show through; only layout and fallbacks here. */
+/* "Restock alerts" section (blocks/restock-banner.liquid). Text, fonts
+   and the button follow the theme; the alert preview is a dark phone so
+   it reads the same on light and dark themes. */
+.syncstock-alerts {
+  padding: 56px 20px;
 }
-.syncstock-banner__inner {
-  max-width: 640px;
+.syncstock-alerts__inner {
+  max-width: 1040px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "copy phone"
+    "cta  phone";
+  column-gap: 48px;
+  row-gap: 24px;
+  align-items: center;
 }
-.syncstock-banner--center .syncstock-banner__inner {
+.syncstock-alerts__inner--solo {
+  max-width: 640px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "copy" "cta";
   text-align: center;
 }
-.syncstock-banner__heading {
-  margin: 0 0 8px;
+.syncstock-alerts__copy { grid-area: copy; align-self: end; }
+.syncstock-alerts__cta { grid-area: cta; align-self: start; }
+.syncstock-alerts__phone { grid-area: phone; }
+
+.syncstock-alerts__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
-.syncstock-banner__text {
-  margin: 0 0 20px;
-  opacity: 0.8;
+.syncstock-alerts__brand img {
+  height: 30px;
+  width: auto;
+}
+.syncstock-alerts__heading {
+  margin: 0 0 12px;
+}
+.syncstock-alerts__text {
+  margin: 0;
+  opacity: 0.75;
+  line-height: 1.55;
+}
+
+.syncstock-alerts__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+}
+.syncstock-alerts__inner--solo .syncstock-alerts__cta {
+  flex-direction: column;
 }
 /* A solid, rounded button with its label centered. Colors come from the
    theme's button colors when it sets them (Dawn-style themes use
    --color-button / --color-button-text as "R, G, B"), else black on white. */
-.syncstock-banner .syncstock-banner__button {
+.syncstock-alerts .syncstock-alerts__button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 48px;
-  padding: 12px 28px;
+  min-height: 50px;
+  padding: 14px 28px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgb(var(--color-button, 18, 18, 18));
   color: rgb(var(--color-button-text, 255, 255, 255));
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -40,18 +82,120 @@
   cursor: pointer;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.syncstock-banner .syncstock-banner__button:hover {
+.syncstock-alerts .syncstock-alerts__button:hover {
   opacity: 0.88;
   transform: translateY(-1px);
 }
-.syncstock-banner .syncstock-banner__button:focus-visible {
+.syncstock-alerts .syncstock-alerts__button:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
 }
-.syncstock-banner__note {
-  margin: 12px 0 0;
-  font-size: 0.85em;
-  opacity: 0.65;
+.syncstock-alerts__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  opacity: 0.75;
+}
+.syncstock-alerts__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1fe5a1;
+  box-shadow: 0 0 0 4px rgba(31, 229, 161, 0.2);
+}
+
+/* The phone with the example alerts */
+.syncstock-alerts__phone {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 360px;
+  justify-self: end;
+  padding: 18px;
+  border-radius: 28px;
+  background: #0b0b0b;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.syncstock-alerts__time {
+  margin-bottom: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.syncstock-alerts__notif {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+.syncstock-alerts__notif + .syncstock-alerts__notif {
+  margin-top: 10px;
+}
+.syncstock-alerts__notif--older {
+  opacity: 0.55;
+}
+.syncstock-alerts__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #fff;
+}
+.syncstock-alerts__icon img {
+  height: 22px;
+  width: auto;
+}
+.syncstock-alerts__notif-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.syncstock-alerts__notif-body small {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.syncstock-alerts__notif-body strong {
+  font-size: 14px;
+  color: #fff;
+}
+.syncstock-alerts__notif-body span {
+  overflow: hidden;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Phones: logo, heading and text, then the alert, then the button */
+@media (max-width: 749px) {
+  .syncstock-alerts {
+    padding: 40px 16px;
+  }
+  .syncstock-alerts__inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "copy" "phone" "cta";
+    row-gap: 24px;
+  }
+  .syncstock-alerts__phone {
+    max-width: none;
+    justify-self: stretch;
+  }
+  .syncstock-alerts__cta {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .syncstock-alerts__note {
+    justify-content: center;
+  }
 }
 
 .syncstock-float {
