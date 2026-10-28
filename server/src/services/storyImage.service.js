@@ -15,12 +15,21 @@ const { sizeLine, priceLine, DEFAULT_STYLE, STORY_FONTS, DEFAULT_FONT } = requir
 // buttons, so nothing important sits there.
 const WIDTH = 1080;
 const HEIGHT = 1920;
-const PHOTO = { top: 470, width: 960, height: 760 };
-const LABEL_TOP = 1290;
-// With the item name shown (a store setting), the photo is shorter so the
-// name, size and price all fit above the link sticker's space
-const PHOTO_WITH_NAME = { top: 470, width: 960, height: 500 };
-const LABEL_TOP_WITH_NAME = 1000;
+// Where things go and how big the text is: the photo and label
+// positions without and with the item name (a store setting), and the
+// largest the label text gets (it shrinks further for long lines). The
+// shoe is the star — the text stays about two thirds of its old size.
+// With the name shown the photo is a little shorter so the name, size
+// and price all fit above the link sticker's space.
+const DEFAULT_LAYOUT = {
+  photo: { top: 470, width: 960, height: 820 },
+  labelTop: 1350,
+  photoWithName: { top: 470, width: 960, height: 660 },
+  labelTopWithName: 1180,
+  maxFont: 64,
+  nameGap: 44,
+};
+const PHOTO = DEFAULT_LAYOUT.photo;
 
 // Label fonts (STORY_FONTS), read from @fontsource once each
 const fontFiles = {};
@@ -118,14 +127,14 @@ const storyLogo = (background, logo) => (logo?.data ? storeLogo(logo) : syncstoc
 // box always fits the story's width
 const LABEL_TEXT_WIDTH = 900;
 const perCharEm = (font) => font.widthEm + (font.letterSpacing || 0);
-const labelFontSize = (shown, font) =>
+const labelFontSize = (shown, font, maxFont = DEFAULT_LAYOUT.maxFont) =>
   Math.min(
-    Math.round(96 * (font.scale || 1)),
+    Math.round(maxFont * (font.scale || 1)),
     Math.floor(LABEL_TEXT_WIDTH / (Math.max(shown.length, 1) * perCharEm(font))),
   );
-const labelBox = (text, style, font) => {
+const labelBox = (text, style, font, maxFont) => {
   const shown = font.upper ? text.toUpperCase() : text;
-  const fontSize = labelFontSize(shown, font);
+  const fontSize = labelFontSize(shown, font, maxFont);
   return el(
     "div",
     {
@@ -138,7 +147,7 @@ const labelBox = (text, style, font) => {
       letterSpacing: font.letterSpacing ? `${font.letterSpacing}em` : undefined,
       ...(font.stroke && { WebkitTextStroke: `${font.stroke}px ${style.text}` }),
       lineHeight: 1.15,
-      padding: "6px 30px 10px",
+      padding: `${Math.round(fontSize * 0.06)}px ${Math.round(fontSize * 0.31)}px ${Math.round(fontSize * 0.1)}px`,
     },
     shown,
   );
@@ -150,7 +159,6 @@ const labelBox = (text, style, font) => {
 // longer name is cut after the last whole word that fits (no "…").
 const NAME_LINES = 3;
 const NAME_FILL = 0.95; // letter widths are averages — leave some slack
-const NAME_GAP = 80;
 const nameText = (name, style, font, fontSize) => {
   let text = font.upper ? name.toUpperCase() : name;
   const max = Math.floor((NAME_LINES * LABEL_TEXT_WIDTH * NAME_FILL) / (fontSize * perCharEm(font)));
@@ -179,10 +187,10 @@ const nameText = (name, style, font, fontSize) => {
 // One product (all its in-stock variants) → JPEG buffer.
 // style: { background, box, text, font, showName } — see storyStyle — plus
 // logo: { key, data } when the store has its own logo
-const renderStory = async (variants, style = DEFAULT_STYLE) => {
+const renderStory = async (variants, style = DEFAULT_STYLE, layout = DEFAULT_LAYOUT) => {
   const first = variants[0];
   const font = fontFor(style.font);
-  const area = style.showName ? PHOTO_WITH_NAME : PHOTO;
+  const area = style.showName ? layout.photoWithName : layout.photo;
   const [photo, mark] = await Promise.all([productPhoto(first.image_url, area), storyLogo(style.background, style.logo)]);
   const name = style.showName ? first.product_name : null;
   const size = sizeLine(variants);
@@ -219,7 +227,7 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
         "div",
         {
           position: "absolute",
-          top: style.showName ? LABEL_TOP_WITH_NAME : LABEL_TOP,
+          top: style.showName ? layout.labelTopWithName : layout.labelTop,
           left: 0,
           width: WIDTH,
           display: "flex",
@@ -232,12 +240,12 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
               name,
               style,
               font,
-              labelFontSize(font.upper ? (size || price || name).toUpperCase() : size || price || name, font),
+              labelFontSize(font.upper ? (size || price || name).toUpperCase() : size || price || name, font, layout.maxFont),
             ),
           // The gap between the name and the size line
-          name && el("div", { display: "flex", height: NAME_GAP, width: 10 }, []),
-          size && labelBox(size, style, font),
-          price && labelBox(price, style, font),
+          name && el("div", { display: "flex", height: layout.nameGap, width: 10 }, []),
+          size && labelBox(size, style, font, layout.maxFont),
+          price && labelBox(price, style, font, layout.maxFont),
         ].filter(Boolean),
       ),
     ],
@@ -252,4 +260,4 @@ const renderStory = async (variants, style = DEFAULT_STYLE) => {
   return sharp(png).jpeg({ quality: 86, mozjpeg: true }).toBuffer();
 };
 
-module.exports = { renderStory };
+module.exports = { renderStory, DEFAULT_LAYOUT };
