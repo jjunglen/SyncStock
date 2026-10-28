@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const { Op } = require("sequelize");
 const { Store, Inventory, User, Account } = require("../models/index.js");
 const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../utils/storeSettings.js");
-const { REF_COOKIE, SOURCES, refCookieOptions } = require("../utils/signupSource.js");
+const { REF_COOKIE, WEBSITE_SOURCES, IN_STORE_SOURCE, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
 const { tokenFields } = require("../utils/shopifyToken.js");
@@ -639,13 +639,35 @@ const goToStore = async (req, res) => {
     if (!store || store.status !== "active") return res.redirect(process.env.FRONTEND_URL);
 
     const source = `shopify_${req.query.src}`;
-    if (SOURCES.includes(source)) {
+    if (WEBSITE_SOURCES.includes(source)) {
       res.cookie(REF_COOKIE, source, refCookieOptions());
       await store.increment("widget_clicks");
     }
     return res.redirect(`${storeBaseUrl(store)}/`);
   } catch (error) {
     console.error("Store go-link error:", error.message);
+    return res.redirect(process.env.FRONTEND_URL);
+  }
+};
+
+// GET /api/store/qr/:subdomain — the in-store QR sign (Store settings →
+// In-store sign) links here. Remembers the shopper came from the store for
+// 30 days (so their signup counts as "In store" on the dashboard) and
+// opens the store's sign-up page; once in, they land on Browse
+// inventory. Unknown or offline stores go to syncstock.io.
+const scanInStore = async (req, res) => {
+  try {
+    const subdomain = String(req.params.subdomain || "").toLowerCase();
+    const store = /^[a-z0-9-]{1,63}$/.test(subdomain)
+      ? await Store.findOne({ where: { subdomain } })
+      : null;
+    if (!store || store.status !== "active") return res.redirect(process.env.FRONTEND_URL);
+
+    res.cookie(REF_COOKIE, IN_STORE_SOURCE, refCookieOptions());
+    const params = new URLSearchParams({ from: "instore", redirect: "/store/dashboard?tab=browse" });
+    return res.redirect(`${storeBaseUrl(store)}/store/signup?${params.toString()}`);
+  } catch (error) {
+    console.error("In-store QR link error:", error.message);
     return res.redirect(process.env.FRONTEND_URL);
   }
 };
@@ -748,6 +770,7 @@ module.exports = {
   shopifyAppsStatus,
   shopifyAppEntry,
   goToStore,
+  scanInStore,
   billingCallback,
   getMyStore,
   initiateShopifyConnect,

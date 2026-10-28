@@ -2,7 +2,7 @@ const { sequelize } = require("../config/database.js");
 const { QueryTypes, Op } = require("sequelize");
 const { Alert, NotificationLog, AlertClick, Purchase, User, Account } = require("../models/index.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
-const { SOURCES } = require("../utils/signupSource.js");
+const { WEBSITE_SOURCES, IN_STORE_SOURCE } = require("../utils/signupSource.js");
 
 const getSourcingDemand = async (req, res) => {
   try {
@@ -92,13 +92,19 @@ const getFunnel = async (req, res) => {
 
 const getCustomerCount = async (req, res) => {
   try {
-    const [count, fromWebsite] = await Promise.all([
+    const [count, fromWebsite, inStore] = await Promise.all([
       User.count({ where: { store_id: req.store.id } }),
-      User.count({ where: { store_id: req.store.id, signup_source: SOURCES } }),
+      User.count({ where: { store_id: req.store.id, signup_source: WEBSITE_SOURCES } }),
+      User.count({ where: { store_id: req.store.id, signup_source: IN_STORE_SOURCE } }),
     ]);
     return res.status(200).json({
       success: true,
-      data: { count, from_website: fromWebsite, website_clicks: req.store.widget_clicks || 0 },
+      data: {
+        count,
+        from_website: fromWebsite,
+        website_clicks: req.store.widget_clicks || 0,
+        in_store: inStore,
+      },
     });
   } catch (error) {
     console.error("Get customer count error:", error.message);

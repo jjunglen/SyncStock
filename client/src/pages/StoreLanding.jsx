@@ -4,7 +4,6 @@ import {
   LuArrowRight,
   LuBellRing,
   LuMail,
-  LuMessageSquare,
   LuSmartphone,
   LuRuler,
   LuTrendingDown,
@@ -40,18 +39,18 @@ const FAQS = [
   },
   {
     q: "How do I stop alerts?",
-    a: "Turn any channel off in your profile, delete an alert, or reply STOP to a text.",
+    a: "Turn any channel off in your profile, or delete an alert.",
   },
 ];
 
 const formatPrice = (price) =>
   price ? `$${parseFloat(price).toFixed(0)}` : "";
 
-// The hero's "live notification" — built from a real in-stock item
+// The hero's "live notification" — built from a real in-stock item.
+// Only the channels shoppers can turn on today (texts are coming soon).
 function NotificationCard({ item, storeName }) {
   const channels = [
     { label: "Email sent", icon: LuMail },
-    { label: "Text sent", icon: LuMessageSquare },
     { label: "Push sent", icon: LuSmartphone },
   ];
   return (
@@ -130,12 +129,16 @@ export default function StoreLanding() {
   const [inventory, setInventory] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(true);
+  // The store's name fills the headline; until it arrives the headline
+  // waits (hidden, holding its space) rather than flashing "This store"
+  const [storeLoaded, setStoreLoaded] = useState(false);
 
   useEffect(() => {
     api
       .get("/store")
       .then((res) => setStore(res.data.data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setStoreLoaded(true));
     api
       .get("/inventory/categories")
       .then((res) => setCategories(res.data.data || []))
@@ -196,7 +199,7 @@ export default function StoreLanding() {
             <span className="animate-appear inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-text-muted">
               <SignalDot tone="live" size="sm" /> Real-time restock alerts
             </span>
-            <h1 className="animate-appear font-display relative z-10 max-w-4xl bg-linear-to-r from-text to-text-muted bg-clip-text text-4xl leading-tight font-semibold text-balance text-transparent sm:text-6xl sm:leading-tight">
+            <h1 className={`${storeLoaded ? "animate-appear" : "invisible"} font-display relative z-10 max-w-4xl bg-linear-to-r from-text to-text-muted bg-clip-text text-4xl leading-tight font-semibold text-balance text-transparent sm:text-6xl sm:leading-tight`}>
               Never miss your size at {storeName}
             </h1>
             <p className="animate-appear opacity-0 [animation-delay:100ms] relative z-10 max-w-2xl text-base sm:text-xl font-medium text-text-muted text-balance">
@@ -217,7 +220,7 @@ export default function StoreLanding() {
             </div>
 
             <div className="relative w-full pt-8 sm:pt-12 pb-16 sm:pb-24">
-              <div className="animate-appear opacity-0 [animation-delay:700ms] relative z-10 mx-auto flex w-fit max-w-full rounded-2xl bg-border/50 p-2">
+              <div className={`${storeLoaded ? "animate-appear" : "invisible"} opacity-0 [animation-delay:700ms] relative z-10 mx-auto flex w-fit max-w-full rounded-2xl bg-border/50 p-2`}>
                 <NotificationCard item={featured} storeName={storeName} />
               </div>
               <Glow

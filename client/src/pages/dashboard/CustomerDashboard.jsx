@@ -11,6 +11,7 @@ import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import ProductCard from "../../components/dashboard/ProductCard.jsx";
 import ProductModal from "../../components/dashboard/ProductModal.jsx";
 import AlertCard from "../../components/dashboard/AlertCard.jsx";
+import AddToHomeScreen from "../../components/store/AddToHomeScreen.jsx";
 import Button from "../../components/ui/Button.jsx";
 import {
   ContainerToggle,
@@ -492,6 +493,7 @@ export default function CustomerDashboard() {
           )}
 
           <div className="flex-1 min-w-0">
+          <AddToHomeScreen />
           {tab === "instock" && (
             <>
               <div className="flex items-center justify-between flex-wrap gap-4 mb-6">

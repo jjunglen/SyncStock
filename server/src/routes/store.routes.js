@@ -20,6 +20,7 @@ const {
   getMyStore,
   billingCallback,
   goToStore,
+  scanInStore,
   shopifyAppEntry,
   shopifyAppsStatus,
 } = require("../controllers/store.controller.js");
@@ -55,6 +56,8 @@ router.put("/plan", requireOnboardingOwner, selectPlan);
 router.get("/billing/callback", billingCallback);
 // The "Restock alerts" blocks on merchants' own Shopify sites link here
 router.get("/go", goToStore);
+// The in-store QR sign links here
+router.get("/qr/:subdomain", scanInStore);
 
 router.get("/", resolveStoreFromSubdomain, getStore);
 

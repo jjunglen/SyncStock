@@ -1,9 +1,12 @@
-// Where a shopper came from when they joined a store — e.g. the
-// "Restock alerts" section or floating button on the merchant's own
-// Shopify site (GET /api/store/go sets the cookie). Saved on the
-// membership so the dashboard can count signups from the website.
+// Where a shopper came from when they joined a store — the "Restock
+// alerts" section or floating button on the merchant's own Shopify site
+// (GET /api/store/go sets the cookie), or the in-store QR sign (GET
+// /api/store/qr/:subdomain). Saved on the membership so the dashboard
+// can count signups from each.
 const REF_COOKIE = "ss_ref";
-const SOURCES = ["shopify_banner", "shopify_floating"];
+const WEBSITE_SOURCES = ["shopify_banner", "shopify_floating"];
+const IN_STORE_SOURCE = "instore";
+const SOURCES = [...WEBSITE_SOURCES, IN_STORE_SOURCE];
 const REF_DAYS = 30;
 
 const refCookieOptions = () => ({
@@ -19,4 +22,4 @@ const signupSource = (req) => {
   return SOURCES.includes(value) ? value : null;
 };
 
-module.exports = { REF_COOKIE, SOURCES, refCookieOptions, signupSource };
+module.exports = { REF_COOKIE, SOURCES, WEBSITE_SOURCES, IN_STORE_SOURCE, refCookieOptions, signupSource };

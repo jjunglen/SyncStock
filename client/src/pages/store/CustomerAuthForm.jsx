@@ -99,6 +99,18 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [lastLoginMethod] = useState(getLastLoginMethod);
   const redirectTo = safeRedirect(searchParams.get("redirect"), null);
+  // Scanned the store's in-store QR sign (GET /api/store/qr/:subdomain)
+  const inStore = searchParams.get("from") === "instore";
+
+  // Someone who scans the sign while already signed in goes straight
+  // to browsing
+  useEffect(() => {
+    if (!inStore) return;
+    api
+      .get("/auth/me")
+      .then(() => navigate(redirectTo || "/store/dashboard?tab=browse", { replace: true }))
+      .catch(() => {});
+  }, [inStore, navigate, redirectTo]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -341,12 +353,18 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
 
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold mb-1">
-          {authMode === "login" ? "Welcome back" : "Create your account"}
+          {authMode === "login"
+            ? "Welcome back"
+            : inStore
+              ? "Welcome in. See every pair in your size."
+              : "Create your account"}
         </h2>
         <p className="text-text-muted text-sm">
           {authMode === "login"
             ? "Sign in to manage your alerts"
-            : "Start tracking restocks in seconds"}
+            : inStore
+              ? "Make a free account to browse the store and get an alert when your size restocks."
+              : "Start tracking restocks in seconds"}
         </p>
       </div>
 

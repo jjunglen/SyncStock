@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter } from "react-icons/lu";
+import { Link } from "react-router-dom";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
@@ -8,6 +9,7 @@ import api from "../../lib/api.js";
 import { getMyStore } from "../../lib/myStore.js";
 import { CATEGORY_META } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
+import InStoreSign from "../../components/store/InStoreSign.jsx";
 
 const MAX_LOGO_BYTES = 300 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -242,6 +244,43 @@ export default function StoreSettings() {
                   </li>
                 ))}
               </ol>
+            </Section>
+
+            <Section
+              icon={LuQrCode}
+              title="In-store sign"
+              description="A 4 × 6 counter card with your logo and a QR code. Shoppers scan it, make a free account, and browse everything in their size. Sign-ups from it show as in-store on your dashboard."
+            >
+              <div className="flex flex-col sm:flex-row gap-6 sm:items-end">
+                {store?.subdomain ? (
+                  <div
+                    className="shrink-0 overflow-hidden rounded-lg border border-border"
+                    style={{ width: 230, height: 346 }}
+                  >
+                    <div style={{ transform: "scale(0.6)", transformOrigin: "top left" }}>
+                      <InStoreSign
+                        name={store.name}
+                        subdomain={store.subdomain}
+                        logoUrl={settings.logo_url}
+                        brandColor={settings.brand_color}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <div className="space-y-3">
+                  <p className="text-xs text-text-muted">
+                    Uses your logo and brand color from Branding below. Put it by the register, on
+                    the shoe wall, or in the window.
+                  </p>
+                  <Link to="/settings/sign" target="_blank" rel="noopener">
+                    <Button variant="primary" size="sm">
+                      <span className="flex items-center gap-1.5">
+                        <LuPrinter size={14} /> Print or save as PDF
+                      </span>
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </Section>
 
             <Section

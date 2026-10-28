@@ -167,9 +167,13 @@ export function DashboardBody({
           value={customerCount === null ? "…" : count(customerCount)}
           to="/customers"
           hint={
-            fromWebsite?.website_clicks
-              ? `${count(fromWebsite.from_website)} joined from your website (${count(fromWebsite.website_clicks)} clicks)`
-              : "See customers"
+            [
+              fromWebsite?.website_clicks &&
+                `${count(fromWebsite.from_website)} joined from your website (${count(fromWebsite.website_clicks)} clicks)`,
+              fromWebsite?.in_store > 0 && `${count(fromWebsite.in_store)} in store`,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "See customers"
           }
         />
         <StatCard
