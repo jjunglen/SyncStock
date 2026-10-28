@@ -42,6 +42,7 @@ const isMerchantSignup = (store) => !!store && store.onboarding_step === "accoun
 
 const {
   setSessionCookie,
+  startSession,
   clearSessionCookies,
   findSessionAccount,
   issuedBeforeCutoff,
@@ -170,8 +171,8 @@ const login = async (req, res) => {
           await ensureMembership(account, req.store, signupSource(req));
         }
 
-        const token = signToken(account);
-        setSessionCookie(res, token);
+        // "Remember me" (on unless unticked)
+        startSession(res, account, { remember: req.body.remember !== false });
 
         return res.status(200).json({ success: true, data: { id: account.id, email: account.email, full_name: account.full_name } });
 
@@ -205,8 +206,9 @@ const merchantLogin = async (req, res) => {
             include: [{ model: Store, attributes: ["onboarding_step"] }],
         });
         // SyncStock's own admin login (owns no store) — goes to /platform
+        const remember = req.body.remember !== false; // "Remember me"
         if (!adminMembership && isPlatformAdmin(account)) {
-            setSessionCookie(res, signToken(account));
+            startSession(res, account, { remember });
             return res.status(200).json({
                 success: true,
                 data: { id: account.id, email: account.email, full_name: account.full_name, platform_admin: true },
@@ -220,8 +222,7 @@ const merchantLogin = async (req, res) => {
         }
         if (needsVerification(account)) return res.status(403).json(NOT_VERIFIED);
 
-        const token = signToken(account);
-        setSessionCookie(res, token);
+        startSession(res, account, { remember });
 
         return res.status(200).json({
             success: true,

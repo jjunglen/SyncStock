@@ -29,6 +29,8 @@ router.get("/google", storeFromQuery, resolveStoreFromSubdomain, (req, res, next
     state: JSON.stringify({
       store_id: req.store.id,
       redirect: safeRedirectPath(req.query.redirect),
+      // "Remember me" unticked on the login page
+      ...(req.query.remember === "0" && { remember: false }),
     }),
   })(req, res, next);
 });

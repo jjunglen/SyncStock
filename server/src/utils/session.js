@@ -12,6 +12,10 @@ const COOKIE_OPTIONS = {
   maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
 };
 
+// Clearing needs the cookie's identity (domain, path, flags) but not its
+// lifetime — Express deprecates passing maxAge to clearCookie
+const { maxAge: _maxAge, ...CLEAR_COOKIE_OPTIONS } = COOKIE_OPTIONS;
+
 // Before NODE_ENV=production was set, the cookie belonged to the API host
 // only (no Domain). Browsers that still hold one send it FIRST, ahead of
 // the current .syncstock.io cookie — so it's cleared on login and logout.
@@ -69,21 +73,28 @@ const findSessionAccount = async (req, Account) => {
 };
 
 // Keeps regular shoppers logged in: once a day of use, the 60-day clock
-// restarts. Keeps how the session started (normal or email link).
+// restarts. A "Remember me"-unticked login renews every hour of use
+// instead (its token lasts 12 hours). Keeps how the session started
+// (normal or email link, remembered or not).
 const RENEW_AFTER_SECONDS = 24 * 60 * 60;
+const RENEW_SHORT_AFTER_SECONDS = 60 * 60;
 const renewSession = (res, account, session) => {
-  if (!session?.iat || Date.now() / 1000 - session.iat < RENEW_AFTER_SECONDS) return;
-  setSessionCookie(res, signToken(account, { via: session.via }));
+  const remember = session?.remember !== false;
+  const after = remember ? RENEW_AFTER_SECONDS : RENEW_SHORT_AFTER_SECONDS;
+  if (!session?.iat || Date.now() / 1000 - session.iat < after) return;
+  setSessionCookie(res, signToken(account, { via: session.via, remember }), { remember });
 };
 
-const setSessionCookie = (res, token) => {
+// remember: false ("Remember me" unticked) — a cookie with no expiry
+// date, which the browser drops when it closes
+const setSessionCookie = (res, token, { remember = true } = {}) => {
   if (COOKIE_OPTIONS.domain) res.clearCookie(SESSION_COOKIE, LEGACY_COOKIE_OPTIONS);
-  res.cookie(SESSION_COOKIE, token, COOKIE_OPTIONS);
+  res.cookie(SESSION_COOKIE, token, remember ? COOKIE_OPTIONS : CLEAR_COOKIE_OPTIONS);
 };
 
-// Clearing needs the cookie's identity (domain, path, flags) but not its
-// lifetime — Express deprecates passing maxAge to clearCookie
-const { maxAge: _maxAge, ...CLEAR_COOKIE_OPTIONS } = COOKIE_OPTIONS;
+// Signs in: the token and its cookie together
+const startSession = (res, account, { via, remember = true } = {}) =>
+  setSessionCookie(res, signToken(account, { via, remember }), { remember });
 
 const clearSessionCookies = (res) => {
   res.clearCookie(SESSION_COOKIE, CLEAR_COOKIE_OPTIONS);
@@ -96,5 +107,6 @@ module.exports = {
   COOKIE_OPTIONS,
   findSessionAccount,
   setSessionCookie,
+  startSession,
   clearSessionCookies,
 };

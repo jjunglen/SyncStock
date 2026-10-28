@@ -15,6 +15,8 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import UnverifiedNotice from "../../components/auth/UnverifiedNotice.jsx";
 import { getSubdomain } from "../../lib/getSubdomain.js";
 import { safeRedirect } from "../../lib/safeRedirect.js";
+import RememberMe from "../../components/auth/RememberMe.jsx";
+import { savedRememberMe, saveRememberMe } from "../../lib/rememberMe.js";
 import {
   getLastLoginMethod,
   setLastLoginMethod,
@@ -98,6 +100,7 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [lastLoginMethod] = useState(getLastLoginMethod);
+  const [remember, setRemember] = useState(savedRememberMe);
   const redirectTo = safeRedirect(searchParams.get("redirect"), null);
   // Scanned the store's in-store QR sign (GET /api/store/qr/:subdomain)
   const inStore = searchParams.get("from") === "instore";
@@ -233,7 +236,9 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
         await api.post("/auth/login", {
           email: formData.email,
           password: formData.password,
+          remember,
         });
+        saveRememberMe(remember);
         localStorage.setItem("syncstock_customer_email", formData.email);
         setLastLoginMethod("password");
       } else {
@@ -277,6 +282,11 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
     const params = new URLSearchParams();
     if (store) params.set("store", store);
     if (redirectTo) params.set("redirect", redirectTo);
+    // The box only shows when logging in; a new account is remembered
+    if (authMode === "login") {
+      saveRememberMe(remember);
+      if (!remember) params.set("remember", "0");
+    }
     setLastLoginMethod("google");
     window.location.href = `${api.defaults.baseURL}/auth/google?${params.toString()}`;
   };
@@ -512,7 +522,8 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
         )}
 
         {authMode === "login" ? (
-          <div className="text-right">
+          <div className="flex items-center justify-between gap-4">
+            <RememberMe checked={remember} onChange={setRemember} />
             <button
               type="button"
               onClick={() => switchMode("reset")}

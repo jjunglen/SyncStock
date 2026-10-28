@@ -12,6 +12,8 @@ import {
 import api from "../../lib/api.js";
 import Spinner from "../ui/Spinner.jsx";
 import UnverifiedNotice from "./UnverifiedNotice.jsx";
+import RememberMe from "./RememberMe.jsx";
+import { savedRememberMe, saveRememberMe } from "../../lib/rememberMe.js";
 
 const calculatePasswordStrength = (password) => {
   const requirements = {
@@ -76,6 +78,7 @@ export default function AuthForm({ initialMode = "login" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [remember, setRemember] = useState(savedRememberMe);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -166,7 +169,9 @@ export default function AuthForm({ initialMode = "login" }) {
       const res = await api.post("/auth/merchant/login", {
         email: formData.email,
         password: formData.password,
+        remember,
       });
+      saveRememberMe(remember);
       localStorage.setItem("syncstock_email", formData.email);
       // SyncStock's own admin login
       if (res.data.data?.platform_admin) {
@@ -344,7 +349,8 @@ export default function AuthForm({ initialMode = "login" }) {
               )}
             </div>
 
-            <div className="text-right">
+            <div className="flex items-center justify-between gap-4">
+              <RememberMe checked={remember} onChange={setRemember} />
               <button
                 type="button"
                 onClick={() => setAuthMode("reset")}

@@ -5,16 +5,20 @@ const crypto = require("crypto");
 // How long a login lasts. It renews as the shopper uses the site
 // (renewSession in session.js), so regular visitors stay logged in.
 const SESSION_DAYS = 60;
+// With "Remember me" unticked: the login also ends when the browser
+// closes (session.js), and at most this long after the last visit
+const SHORT_SESSION_HOURS = 12;
 
 // The session token, set as a cookie after login. `via: "email-link"`
 // marks a login from a link in an alert email — those can browse and set
 // alerts, but changing the email, phone or deleting the account needs a
-// normal login (requireFullLogin).
-const signToken = (account, { via } = {}) =>
+// normal login (requireFullLogin). `remember: false` marks a login with
+// "Remember me" unticked.
+const signToken = (account, { via, remember = true } = {}) =>
   jwt.sign(
-    { id: account.id, email: account.email, ...(via && { via }) },
+    { id: account.id, email: account.email, ...(via && { via }), ...(!remember && { remember: false }) },
     process.env.JWT_SECRET,
-    { expiresIn: `${SESSION_DAYS}d` },
+    { expiresIn: remember ? `${SESSION_DAYS}d` : `${SHORT_SESSION_HOURS}h` },
   );
 
 // Sign-in link for one shopper at one store, used in alert emails: tapping

@@ -1,9 +1,8 @@
 const { sequelize, Account, Store } = require("../models/index.js");
-const { signToken } = require("../utils/jwt.js");
 const { storeBaseUrl, safeRedirectPath } = require("../utils/storeUrl.js");
 const { ensureMembership } = require("./auth.controller.js");
 const { signupSource } = require("../utils/signupSource.js");
-const { setSessionCookie } = require("../utils/session.js");
+const { startSession } = require("../utils/session.js");
 
 // Which store this login started from and the page to return to
 // afterwards — both carried through Google's OAuth roundtrip in state
@@ -13,9 +12,10 @@ const readState = (req) => {
         return {
             storeId: state.store_id || null,
             redirectPath: safeRedirectPath(state.redirect),
+            remember: state.remember !== false, // "Remember me"
         };
     } catch (error) {
-        return { storeId: null, redirectPath: null };
+        return { storeId: null, redirectPath: null, remember: true };
     }
 };
 
@@ -35,7 +35,7 @@ const googleCallback = async (req, res) => {
         const email = emails[0].value;
         const avatarUrl = photos?.[0]?.value || null;
 
-        const { storeId, redirectPath } = readState(req);
+        const { storeId, redirectPath, remember } = readState(req);
 
         const store = storeId ? await Store.findByPk(storeId) : null;
         if (!store) {
@@ -76,8 +76,7 @@ const googleCallback = async (req, res) => {
         
         await ensureMembership(account, store, signupSource(req));
 
-        const token = signToken(account);
-        setSessionCookie(res, token);
+        startSession(res, account, { remember });
 
         // New customers pick their sizes first, then continue on to
         // wherever they were headed
