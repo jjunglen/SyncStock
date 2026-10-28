@@ -19,6 +19,7 @@ import {
 } from "../../components/ui/AnimatedToggleLayout.jsx";
 import api from "../../lib/api.js";
 import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
+import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 
 const TABS = [
   { key: "instock", label: "In stock" },
@@ -79,7 +80,9 @@ export default function CustomerDashboard() {
   const [loadingBrowse, setLoadingBrowse] = useState(true);
   const [browseQuery, setBrowseQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [selectedSize, setSelectedSize] = useState("All sizes");
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  // As a string so picking sizes only refetches when the picks change
+  const sizeKey = selectedSizes.join(",");
 
   // Brand + price filters apply to both In stock and Browse
   const [brandFilter, setBrandFilter] = useState("");
@@ -111,7 +114,7 @@ export default function CustomerDashboard() {
     setCategory(key);
     setInStockPage(1);
     setBrowsePage(1);
-    setSelectedSize("All sizes");
+    setSelectedSizes([]);
     setBrandFilter("");
     setPriceFilter("");
   };
@@ -178,7 +181,7 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load brands:", err));
   }, [tab, category]);
 
-  const fetchBrowse = useCallback((page, query, size, cat, brand, price, order) => {
+  const fetchBrowse = useCallback((page, query, sizes, cat, brand, price, order) => {
     setLoadingBrowse(true);
     const params = new URLSearchParams({
       category: cat,
@@ -186,7 +189,7 @@ export default function CustomerDashboard() {
       limit: String(PAGE_SIZE),
     });
     if (query) params.set("q", query);
-    if (size && size !== "All sizes") params.set("size", size);
+    if (sizes) params.set("size", sizes); // one or more, comma-separated
     addFilters(params, brand, price, order);
 
     api
@@ -209,14 +212,14 @@ export default function CustomerDashboard() {
   useEffect(() => {
     setBrowsePage(1);
     setInStockPage(1);
-  }, [debouncedQuery, selectedSize]);
+  }, [debouncedQuery, sizeKey]);
 
   // Single source of truth: any change to page, query, or size
   // triggers exactly one fetch — Previous/Next just changes browsePage
   // and this picks it up the same way a filter change does.
   useEffect(() => {
-    fetchBrowse(browsePage, debouncedQuery, selectedSize, category, brandFilter, priceFilter, sort);
-  }, [browsePage, debouncedQuery, selectedSize, category, brandFilter, priceFilter, sort, fetchBrowse]);
+    fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort);
+  }, [browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, fetchBrowse]);
 
   const loadAlerts = useCallback(() => {
     api
@@ -278,7 +281,6 @@ export default function CustomerDashboard() {
   };
 
   const categorySizes = SIZES_BY_CATEGORY[category] || [];
-  const availableSizes = ["All sizes", ...categorySizes];
   const mySizesHere = mySizes.filter((s) => categorySizes.includes(s));
   const isCards = category === "trading_cards";
   const showSwitcher = categories.length > 1;
@@ -423,24 +425,7 @@ export default function CustomerDashboard() {
   );
 
   const sizeFilter = categorySizes.length > 0 && (
-    <div className="relative">
-      <select
-        value={selectedSize}
-        onChange={(e) => setSelectedSize(e.target.value)}
-        aria-label="Size"
-        className="w-full appearance-none text-sm border border-border bg-surface text-text-muted pl-4 pr-9 py-2.5 rounded-lg focus:outline-none cursor-pointer"
-      >
-        {availableSizes.map((size) => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
-      <LuChevronDown
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
-        size={14}
-      />
-    </div>
+    <SizeFilter value={selectedSizes} onChange={setSelectedSizes} sizes={categorySizes} mySizes={mySizesHere} />
   );
 
   return (

@@ -126,7 +126,7 @@ const recordProductView = async (req, res) => {
   }
 };
 
-// GET /api/inventory/search?q=jordan&size=10M/11.5W&category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
+// GET /api/inventory/search?q=jordan&size=10M/11.5W,10.5M/12W&category=sneakers&brand=Nike&min_price=100&max_price=300&page=1&limit=20
 const searchInventory = async (req, res) => {
   try {
     const { q, size, category } = req.query;
@@ -135,9 +135,10 @@ const searchInventory = async (req, res) => {
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
     const where = listable(req.store, category);
 
-    if (size) {
-      where.size = size;
-    }
+    // One size, or several comma-separated (sizes never contain commas)
+    const sizes = [...new Set(String(size || "").split(",").map((s) => s.trim()).filter(Boolean))].slice(0, 40);
+    if (sizes.length === 1) where.size = sizes[0];
+    else if (sizes.length > 1) where.size = { [Op.in]: sizes };
 
     applyFilters(where, req.query);
 
