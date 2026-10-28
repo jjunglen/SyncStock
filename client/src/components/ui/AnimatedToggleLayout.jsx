@@ -49,9 +49,14 @@ const LayoutButton = ({ isSelected, onClick, isMiddle, label, mode }) => (
   </div>
 );
 
+// Phones and tablets (narrow screens, or a touch screen such as an iPad
+// in landscape) start in List view; computers start in 2 columns
+const startIndex = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches ? 0 : 1;
+
 export const ContainerToggle = React.forwardRef(
   ({ children, className = "", ...props }, ref) => {
-    const [modeIndex, setModeIndex] = React.useState(1);
+    const [modeIndex, setModeIndex] = React.useState(startIndex);
     const currentConfig = LAYOUT_CONFIGS[modeIndex];
 
     return (
