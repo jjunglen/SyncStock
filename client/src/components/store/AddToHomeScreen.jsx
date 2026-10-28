@@ -84,9 +84,12 @@ export default function AddToHomeScreen() {
           <p className="text-xs text-text-muted mt-0.5">Open the store like an app, one tap away.</p>
         ) : (
           <p className="text-xs text-text-muted mt-0.5">
-            Tap <LuShare size={12} className="inline -mt-0.5" aria-label="Share" /> at the bottom of
-            Safari, then <span className="text-text">Add to Home Screen</span>. It opens like an app
-            and can send you alerts.
+            In Safari, tap <span className="text-text">•••</span> then{" "}
+            <span className="text-text">
+              Share <LuShare size={12} className="inline -mt-0.5" aria-hidden="true" />
+            </span>{" "}
+            (or tap Share directly), then <span className="text-text">Add to Home Screen</span>. It
+            opens like an app and can send you alerts.
           </p>
         )}
         <div className="mt-3 flex items-center gap-2">
