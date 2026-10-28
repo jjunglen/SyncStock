@@ -33,17 +33,19 @@ function DetailsButton({ open, onToggle, large }) {
   );
 }
 
-// Slides up over the card with the product's description from Shopify
+// Slides up over the card with the product's description from Shopify.
+// Always white text on a dark panel (in both themes): fixed colors also
+// keep older iPhone/iPad Safari from drawing dark text on a dark panel.
 function DetailsPanel({ item, open, onClose }) {
   return (
     <div
       onClick={keepInCard}
       aria-hidden={!open}
-      className={`absolute inset-0 z-10 flex flex-col bg-surface/95 backdrop-blur-sm text-text transition-transform duration-300 ease-out ${
+      className={`absolute inset-0 z-10 flex flex-col bg-neutral-950/95 backdrop-blur-sm text-white transition-transform duration-300 ease-out ${
         open ? "translate-y-0" : "translate-y-full pointer-events-none"
       }`}
     >
-      <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2 border-b border-border">
+      <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2 border-b border-white/10">
         <p className="text-xs font-semibold leading-tight line-clamp-2">{item.product_name}</p>
         <button
           type="button"
@@ -53,7 +55,7 @@ function DetailsPanel({ item, open, onClose }) {
           }}
           tabIndex={open ? 0 : -1}
           aria-label="Close details"
-          className="shrink-0 p-1 -m-1 text-text-muted hover:text-text"
+          className="shrink-0 p-1 -m-1 text-white/60 hover:text-white"
         >
           <LuX size={16} />
         </button>
