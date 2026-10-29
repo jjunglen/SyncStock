@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../lib/api.js";
+import { PLAN } from "../../lib/plan.js";
 import { openInWholeWindow, shopifyIdToken, startShopifyInstall } from "../../lib/shopifyAdmin.js";
 
 // The SyncStock sales channel's home in the Shopify admin (the first page
@@ -58,10 +59,13 @@ export default function ChannelHome() {
 
   // A permission the channel needs isn't granted yet: Shopify's approval
   // screen, in the whole window
-  const reviewPermissions = async () => {
+  // withPublishing: also automatic publishing's permission (turned on).
+  // Kept whenever it's on, so approving one never drops the other.
+  const reviewPermissions = async (withPublishing = !!data?.auto_publish && data.auto_publish.mode !== "off") => {
     const token = await shopifyIdToken();
     if (!token) return;
-    openInWholeWindow(`${api.defaults.baseURL}/store/shopify/reauthorize?id_token=${encodeURIComponent(token)}`);
+    const extra = withPublishing ? "&with=publications" : "";
+    openInWholeWindow(`${api.defaults.baseURL}/store/shopify/reauthorize?id_token=${encodeURIComponent(token)}${extra}`);
   };
 
   const connected = !!data?.connection;
@@ -84,7 +88,16 @@ export default function ChannelHome() {
         {data && <StatusBanner data={data} onSetup={() => navigate("/onboarding/setup")} onPermissions={reviewPermissions} />}
 
         {data && (
-          <s-section heading="Account">
+          <Annotated
+            title="SyncStock account"
+            description={
+              <>
+                SyncStock is for stores selling in the United States. Setup takes a few minutes: your
+                account, your shopper site address, and the Pro plan (${PLAN.price}/month, billed by Shopify, with a{" "}
+                {PLAN.trialDays}-day free trial). SyncStock takes no commission on your sales.
+              </>
+            }
+          >
             <s-stack direction="block" gap="base">
               <s-stack direction="inline" gap="small-200" alignItems="center">
                 <s-text type="strong">SyncStock</s-text>
@@ -139,10 +152,17 @@ export default function ChannelHome() {
                 </s-stack>
               )}
             </s-stack>
-          </s-section>
+          </Annotated>
         )}
 
-        {data?.publishing && <Publishing publishing={data.publishing} />}
+        {data?.publishing && (
+          <Publishing
+            publishing={data.publishing}
+            autoPublish={data.auto_publish}
+            onPermission={() => reviewPermissions(true)}
+            onSaved={load}
+          />
+        )}
 
         {data?.setup_complete && (
           <s-section heading="Your SyncStock site">
@@ -180,9 +200,10 @@ export default function ChannelHome() {
 function StatusBanner({ data, onSetup, onPermissions }) {
   if (data.needs_permission) {
     return (
-      <s-banner tone="warning" heading="Approve SyncStock's channel permission">
-        SyncStock needs permission to see which products you publish to it.
-        <s-button slot="secondary-actions" onClick={onPermissions}>
+      <s-banner tone="warning" heading="Approve SyncStock's channel permissions">
+        SyncStock's sales channel needs a few permissions: to see which products you publish to it, credit its sales
+        to the channel, and flag products it can't show.
+        <s-button slot="secondary-actions" onClick={() => onPermissions()}>
           Review permission
         </s-button>
       </s-banner>
@@ -223,17 +244,25 @@ function StatusBanner({ data, onSetup, onPermissions }) {
 }
 
 // Publishing section (5.7.4, 5.7.9, 5.7.11)
-function Publishing({ publishing }) {
-  const { published_count, total_count, no_photo, products_filter } = publishing;
+function Publishing({ publishing, autoPublish, onPermission, onSaved }) {
+  const { published_count, total_count, no_photo, products_filter, sample_ids = [] } = publishing;
   const productsLink = `shopify://admin/products?query=${encodeURIComponent(products_filter)}`;
+  // Shopify's bulk editor, opened on the published products (5.7.4)
+  const bulkLink = sample_ids.length
+    ? `shopify://admin/bulk?resource_name=Product&edit=status,title,vendor,product_type&ids=${sample_ids.join(",")}`
+    : null;
   return (
-    <s-section heading="Publishing">
+    <Annotated
+      title="Publishing"
+      description="Products you publish to SyncStock appear on your SyncStock site. Shoppers see the ones that are in stock and have a photo."
+    >
       <s-stack direction="block" gap="base">
         <s-paragraph>
           <s-text type="strong">{published_count.toLocaleString()}</s-text> of {total_count.toLocaleString()} products
           are published to SyncStock.
         </s-paragraph>
         <s-stack direction="inline" gap="small-200">
+          {bulkLink && <s-button href={bulkLink}>Bulk edit published products</s-button>}
           <s-button href={productsLink}>Manage published products</s-button>
           <s-button variant="tertiary" href="shopify://admin/products">
             Publish more products
@@ -245,6 +274,7 @@ function Publishing({ publishing }) {
             see published products that are in stock and have a photo.
           </s-text>
         </s-paragraph>
+        {autoPublish && <AutoPublish autoPublish={autoPublish} onPermission={onPermission} onSaved={onSaved} />}
         {no_photo.length > 0 && (
           <s-banner tone="warning" heading={`${no_photo.length} published ${no_photo.length === 1 ? "product has" : "products have"} no photo`}>
             SyncStock can't show these until they have a photo:
@@ -258,6 +288,101 @@ function Publishing({ publishing }) {
           </s-banner>
         )}
       </s-stack>
-    </s-section>
+    </Annotated>
+  );
+}
+
+// Shopify's annotated layout (5.7.9): title and description on the left,
+// the card on the right
+function Annotated({ title, description, children }) {
+  return (
+    <s-grid gridTemplateColumns="1fr 2fr" gap="large">
+      <s-grid-item>
+        <s-stack direction="block" gap="small-200">
+          <s-heading>{title}</s-heading>
+          <s-paragraph>
+            <s-text color="subdued">{description}</s-text>
+          </s-paragraph>
+        </s-stack>
+      </s-grid-item>
+      <s-grid-item>
+        <s-section>{children}</s-section>
+      </s-grid-item>
+    </s-grid>
+  );
+}
+
+// Automatic publishing (opt-in): for stores whose products arrive through
+// tools like Copyt, which never tick SyncStock themselves. Turning it on
+// asks Shopify for the publishing permission (the merchant's approval).
+const AUTO_MODES = [
+  { mode: "off", label: "Off", help: "You choose which products are published to SyncStock." },
+  {
+    mode: "online_store",
+    label: "Match my Online Store",
+    help: "Products live on your website are published to SyncStock automatically, and unpublished when they come off it.",
+  },
+  {
+    mode: "all_active",
+    label: "Everything that's active",
+    help: "Every active product is published to SyncStock, including ones that aren't on your website (in-store only).",
+  },
+];
+
+function AutoPublish({ autoPublish, onPermission, onSaved }) {
+  const [mode, setMode] = useState(autoPublish.mode);
+  const [saving, setSaving] = useState("");
+  const [error, setError] = useState("");
+  const current = AUTO_MODES.find((m) => m.mode === mode) || AUTO_MODES[0];
+  const needsPermission = mode !== "off" && !autoPublish.has_permission;
+
+  const choose = async (next) => {
+    if (next === mode || saving) return;
+    setSaving(next);
+    setError("");
+    try {
+      const res = await api.put("/store/channel/auto-publish", { mode: next });
+      setMode(next);
+      if (res.data.data.needs_permission) onPermission();
+      else onSaved();
+    } catch (err) {
+      setError(err.response?.data?.message || "Couldn't save. Try again.");
+    } finally {
+      setSaving("");
+    }
+  };
+
+  return (
+    <s-stack direction="block" gap="small-200">
+      <s-heading>Automatic publishing</s-heading>
+      <s-stack direction="inline" gap="small-200">
+        {AUTO_MODES.map((m) => (
+          <s-button
+            key={m.mode}
+            variant={m.mode === mode ? "primary" : "secondary"}
+            loading={saving === m.mode || undefined}
+            onClick={() => choose(m.mode)}
+          >
+            {m.label}
+          </s-button>
+        ))}
+      </s-stack>
+      <s-paragraph>
+        <s-text color="subdued">
+          {current.help}
+          {mode !== "off" &&
+            " SyncStock keeps this in step as products change; to hand-pick products instead, turn this off."}
+        </s-text>
+      </s-paragraph>
+      {needsPermission && (
+        <s-banner tone="warning" heading="Approve publishing to turn this on">
+          SyncStock needs your permission to publish products to its channel.
+          <s-button slot="secondary-actions" onClick={() => onPermission()}>
+            Approve publishing
+          </s-button>
+        </s-banner>
+      )}
+      {error && <s-banner tone="critical">{error}</s-banner>}
+    </s-stack>
   );
 }

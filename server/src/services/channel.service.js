@@ -11,9 +11,10 @@ const SPECIFICATION = "syncstock-us";
 // Permissions the channel needs: read_product_listings to create the
 // connection and read what's published to it; the unauthenticated one
 // so checkout links can carry SyncStock's storefront token (sales
-// credit). Also in store.controller.js (appScopes) and
-// shopify-app/shopify.app.public.toml.
-const CHANNEL_SCOPES = ["read_product_listings", "unauthenticated_read_product_listings"];
+// credit); write_resource_feedbacks to tell merchants in Shopify why a
+// product can't show (productFeedback). Also in store.controller.js
+// (appScopes) and shopify-app/shopify.app.public.toml.
+const CHANNEL_SCOPES = ["read_product_listings", "unauthenticated_read_product_listings", "write_resource_feedbacks"];
 
 // Stores on the public app are sales-channel stores: what shoppers see is
 // what the merchant published to SyncStock. The Lab (custom app) isn't.
@@ -108,6 +109,8 @@ const publishing = async (store, appHandle) => {
     no_photo: data.sample.nodes
       .filter((p) => !p.featuredMedia)
       .map((p) => ({ id: p.legacyResourceId, title: p.title })),
+    // For the bulk editor link (up to 50 published products)
+    sample_ids: data.sample.nodes.map((p) => p.legacyResourceId),
     // Shopify's products list, filtered to what's published to SyncStock
     // (bulk editing is available from there)
     products_filter: published,
@@ -174,7 +177,50 @@ const salesCreditParam = async (store) => {
   }
 };
 
+// Product feedback (App Store 5.7.3): for a product published to SyncStock,
+// tells Shopify whether SyncStock can show it. Shopify shows "needs
+// action" and the reason on the product in the merchant's admin.
+// product: webhook shape ({ id, updated_at, images, gift_card }).
+const feedbackFor = (product) => {
+  const messages = [];
+  if (product.gift_card) messages.push("Gift cards can't be listed on SyncStock.");
+  if (!product.images?.[0]?.src) messages.push("Add a product photo: SyncStock only shows products that have one.");
+  return messages.length ? { state: "REQUIRES_ACTION", messages } : { state: "ACCEPTED", messages: [] };
+};
+const sendProductFeedback = async (store, product) => {
+  if (!isChannelStore(store) || !product?.id) return null;
+  const { state, messages } = feedbackFor(product);
+  const now = new Date().toISOString();
+  try {
+    const data = await shopifyGraphql(
+      store,
+      `mutation ($feedbackInput: [ProductResourceFeedbackInput!]!) {
+        bulkProductResourceFeedbackCreate(feedbackInput: $feedbackInput) { userErrors { message } }
+      }`,
+      {
+        feedbackInput: [
+          {
+            productId: `gid://shopify/Product/${product.id}`,
+            state,
+            messages,
+            feedbackGeneratedAt: now,
+            productUpdatedAt: product.updated_at || now,
+          },
+        ],
+      },
+    );
+    const errors = data.bulkProductResourceFeedbackCreate.userErrors;
+    if (errors.length) throw new Error(errors.map((e) => e.message).join("; "));
+    return state;
+  } catch (error) {
+    console.error(`Product feedback failed for ${product.id} on ${store.shopify_domain}:`, error.message);
+    return null;
+  }
+};
+
 module.exports = {
+  feedbackFor,
+  sendProductFeedback,
   SPECIFICATION,
   CHANNEL_SCOPES,
   isChannelStore,

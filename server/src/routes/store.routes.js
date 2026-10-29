@@ -30,6 +30,7 @@ const {
   getChannel,
   connectChannel,
   disconnectChannel,
+  setAutoPublish,
 } = require("../controllers/channel.controller.js");
 const {
   getSettings,
@@ -57,6 +58,7 @@ router.get("/shopify/reauthorize", reauthorizeShopify);
 router.get("/channel", requireShopifyStore, getChannel);
 router.post("/channel/connect", requireShopifyStore, connectChannel);
 router.post("/channel/disconnect", requireShopifyStore, disconnectChannel);
+router.put("/channel/auto-publish", requireShopifyStore, setAutoPublish);
 // Which app keys the server has (no secrets) — for checking Railway
 router.get("/shopify/status", shopifyAppsStatus);
 

@@ -5,7 +5,7 @@
 # Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "6400fce3b0764e4ecad29fb44d6de683"
-name = "SyncStock"
+name = "SyncStock: Restock Alerts"
 # Its extensions: the web pixel, the theme blocks, and the sales channel
 # (channel-config — the Lab's custom app leaves that one out)
 extension_directories = [ "extensions/syncstock-pixel", "extensions/syncstock-theme", "extensions/channel-config" ]
@@ -26,9 +26,11 @@ embedded = true
 # server/src/services/channel.service.js): read_product_listings (the
 # channel connection, what's published to SyncStock) and
 # unauthenticated_read_product_listings (checkout links credited to
-# SyncStock)
-scopes = "read_orders,read_products,write_pixels,read_customer_events,read_product_listings,unauthenticated_read_product_listings"
-optional_scopes = [ ]
+# SyncStock) and write_resource_feedbacks (product feedback in Shopify)
+scopes = "read_orders,read_products,write_pixels,read_customer_events,read_product_listings,unauthenticated_read_product_listings,write_resource_feedbacks"
+# Asked for only when a merchant turns on automatic publishing on the
+# channel page (PUBLISHING_SCOPES in server/src/services/autoPublish.service.js)
+optional_scopes = [ "read_publications", "write_publications" ]
 use_legacy_install_flow = true
 
 [auth]

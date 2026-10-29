@@ -200,6 +200,14 @@ const syncAllCatalogs = async (stores) => {
         `Nightly catalog sync ${store.subdomain}: ${result.products} products, ${result.variants} variants, ` +
           `${result.removed} taken off sale${result.complete ? "" : " (incomplete — nothing removed)"}`,
       );
+      // Automatic publishing (sales-channel stores that turned it on):
+      // catches anything a webhook missed
+      if (isChannelStore(store)) {
+        const fixed = await require("./autoPublish.service.js").reconcileStore(store);
+        if (fixed.published || fixed.unpublished) {
+          console.log(`Auto-publish ${store.subdomain} (${fixed.mode}): ${fixed.published} published, ${fixed.unpublished} unpublished`);
+        }
+      }
     } catch (error) {
       console.error(`Nightly catalog sync failed for ${store.subdomain}:`, error.message);
     }

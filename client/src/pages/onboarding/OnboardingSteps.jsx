@@ -73,7 +73,13 @@ export default function OnboardingSteps() {
   // X-Onboarding-Token by lib/api.js); after that, their login does.
   useEffect(() => {
     const token = searchParams.get("onboarding_token");
-    if (token) sessionStorage.setItem("onboarding_token", token);
+    if (token) {
+      try {
+        sessionStorage.setItem("onboarding_token", token);
+      } catch {
+        // storage blocked (e.g. inside the Shopify admin): not needed there
+      }
+    }
 
     api
       .get("/store/onboarding")
@@ -133,7 +139,11 @@ export default function OnboardingSteps() {
       setIsSubmitting(true);
       try {
         const res = await api.post("/auth/signup", { email, password, full_name: fullName });
-        sessionStorage.removeItem("onboarding_token");
+        try {
+          sessionStorage.removeItem("onboarding_token");
+        } catch {
+          // storage blocked: nothing saved to remove
+        }
         // Inside the Shopify admin, Shopify already signs them in, so setup
         // carries on; the verification email still goes out for later
         if (res.data.data?.needs_verification && !IN_SHOPIFY_ADMIN) {

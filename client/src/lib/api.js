@@ -17,7 +17,14 @@ api.interceptors.request.use(async (config) => {
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
 
-  const onboardingToken = sessionStorage.getItem("onboarding_token");
+  // Guarded: inside the Shopify admin's frame a browser may block storage
+  // (App Store 1.1.1) — that must never stop every request
+  let onboardingToken = null;
+  try {
+    onboardingToken = sessionStorage.getItem("onboarding_token");
+  } catch {
+    // storage blocked: no setup link to send
+  }
   if (onboardingToken) {
     config.headers["X-Onboarding-Token"] = onboardingToken;
   }

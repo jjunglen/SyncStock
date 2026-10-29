@@ -8,7 +8,8 @@ const {
   checkPriceDropAlerts,
 } = require("../services/alert.service.js");
 const { attributeOrder, refreshOrderRefunds } = require("../services/attribution.service.js");
-const { isChannelStore } = require("../services/channel.service.js");
+const { isChannelStore, sendProductFeedback } = require("../services/channel.service.js");
+const autoPublish = require("../services/autoPublish.service.js");
 
 // What "published" means for a store:
 //   the Lab (custom app): live on its Online Store (Shopify's published_at)
@@ -63,6 +64,10 @@ const handleProductCreate = async (req, res) => {
     const isPublished = channel
       ? (await Inventory.count({ where: { store_id: store.id, shopify_product_id: String(data.id), published: true } })) > 0
       : !!data.published_at;
+
+    // Automatic publishing (if the merchant turned it on): publish it to
+    // SyncStock; Shopify's listing webhook then shows it and alerts
+    if (channel) await autoPublish.applyToProduct(store, data, isPublished);
     const hasImage = !!data.images?.[0]?.src;
 
     if (!isPublished || !hasImage) {
@@ -147,6 +152,10 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
     // stores: published to SyncStock (this listing webhook, or already)
     const isPublished = channel ? listed || before.some((row) => row.published === true) : !!data.published_at;
     const hasImage = !!imageUrl;
+
+    // Automatic publishing (if on): bring SyncStock in line with this
+    // change — e.g. Copyt just put it live on the Online Store
+    if (channel && !listed) await autoPublish.applyToProduct(store, data, isPublished);
 
     const restockVariants = [];
     const priceDropVariants = [];
@@ -250,7 +259,10 @@ const handleListingAddOrUpdate = async (req, res) => {
     if (!isChannelStore(req.store)) return;
     const listing = JSON.parse(req.body).product_listing;
     if (!listing?.product_id) return;
-    await processProductUpdate(req.store, { ...listing, id: listing.product_id }, { listed: true });
+    const product = { ...listing, id: listing.product_id };
+    await processProductUpdate(req.store, product, { listed: true });
+    // Tell the merchant in Shopify whether SyncStock can show it
+    await sendProductFeedback(req.store, product);
   } catch (error) {
     console.error("Product listing webhook error:", error.message);
   }

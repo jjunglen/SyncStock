@@ -4,6 +4,7 @@ const { shopifySession } = require("../utils/shopifySession.js");
 const { shopifyStore } = require("../utils/session.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const channel = require("../services/channel.service.js");
+const autoPublish = require("../services/autoPublish.service.js");
 
 // The sales channel page inside the Shopify admin (client
 // pages/shopify/ChannelHome.jsx): account section (connect / disconnect),
@@ -66,6 +67,7 @@ const getChannel = async (req, res) => {
     needs_permission: false,
     connection: null,
     publishing: null,
+    auto_publish: null,
   };
   try {
     const { appHandle, scopes } = await channel.appInstallation(store);
@@ -77,6 +79,10 @@ const getChannel = async (req, res) => {
       const connection = await channel.getConnection(store);
       data.connection = connection && { id: connection.id, account_name: connection.accountName };
       if (connection) data.publishing = await channel.publishing(store, appHandle);
+      data.auto_publish = {
+        mode: await autoPublish.getMode(store),
+        has_permission: autoPublish.hasPublishingScopes(scopes),
+      };
     }
     return res.status(200).json({ success: true, data });
   } catch (error) {
@@ -113,4 +119,34 @@ const disconnectChannel = async (req, res) => {
   }
 };
 
-module.exports = { requireShopifyStore, getChannel, connectChannel, disconnectChannel };
+// Brings the catalog in line with the setting, in the background
+const reconcileInBackground = (store) => {
+  autoPublish
+    .reconcileStore(store)
+    .then((r) => console.log(`Auto-publish ${store.shopify_domain} (${r.mode}): ${r.published} published, ${r.unpublished} unpublished`))
+    .catch((error) => console.error(`Auto-publish catch-up failed for ${store.shopify_domain}:`, error.message));
+};
+
+// PUT /api/store/channel/auto-publish { mode } — the merchant's choice.
+// Saved even before the publishing permission is approved; the reply says
+// whether Shopify still needs to ask (the page then opens the approval).
+const setAutoPublish = async (req, res) => {
+  const { mode } = req.body || {};
+  if (!autoPublish.MODES.includes(mode)) {
+    return res.status(400).json({ success: false, message: "Choose Off, Match my Online Store, or Everything that's active" });
+  }
+  try {
+    await autoPublish.setMode(req.store, mode);
+    const { scopes } = await channel.appInstallation(req.store);
+    const hasPermission = autoPublish.hasPublishingScopes(scopes);
+    if (mode !== "off" && hasPermission) reconcileInBackground(req.store);
+    return res.status(200).json({
+      success: true,
+      data: { mode, has_permission: hasPermission, needs_permission: mode !== "off" && !hasPermission },
+    });
+  } catch (error) {
+    return fail(res, error, "Couldn't save automatic publishing");
+  }
+};
+
+module.exports = { requireShopifyStore, getChannel, connectChannel, disconnectChannel, setAutoPublish };

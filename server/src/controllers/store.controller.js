@@ -22,6 +22,7 @@ const {
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { verifySessionToken } = require("../utils/shopifySession.js");
 const { connect: connectChannel, CHANNEL_SCOPES, isChannelStore } = require("../services/channel.service.js");
+const { PUBLISHING_SCOPES } = require("../services/autoPublish.service.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
 const RESERVED_SUBDOMAINS = [
@@ -221,24 +222,28 @@ const connectChannelAfterSetup = async (store) => {
 // window from the channel page when the store hasn't granted a permission
 // the app now needs (e.g. read_product_listings for the channel). Shopify's
 // session token says which shop; Shopify's approval screen does the rest.
+// ?with=publications also asks for automatic publishing's permissions (the
+// merchant turned it on)
 const reauthorizeShopify = (req, res) => {
   const session = verifySessionToken(String(req.query.id_token || ""));
   if (!session) return res.redirect(process.env.FRONTEND_URL);
-  return startOAuth(res, session.shop, "public");
+  return startOAuth(res, session.shop, "public", req.query.with === "publications" ? PUBLISHING_SCOPES : []);
 };
 
 // The permissions each app asks for. The public app is a sales channel
 // and also needs the channel's permissions (CHANNEL_SCOPES — only channels
 // can have them, so the Lab's custom app must never ask for them). Must
 // match the scopes in shopify-app/shopify.app.public.toml / shopify.app.toml.
-const appScopes = (appKey) => {
+// extra: permissions a merchant opts into later (automatic publishing's
+// PUBLISHING_SCOPES) — never part of a normal install
+const appScopes = (appKey, extra = []) => {
   const base = (process.env.SHOPIFY_APP_SCOPES || "").split(",").map((s) => s.trim()).filter(Boolean);
-  return [...new Set(appKey === "public" ? [...base, ...CHANNEL_SCOPES] : base)].join(",");
+  return [...new Set(appKey === "public" ? [...base, ...CHANNEL_SCOPES, ...extra] : base)].join(",");
 };
 
 // Sends the merchant to Shopify to approve SyncStock (OAuth), for one of
 // the two apps. Remembers the app and a CSRF state for the callback.
-const startOAuth = (res, shop, appKey) => {
+const startOAuth = (res, shop, appKey, extraScopes = []) => {
   const { clientId } = appCredentials(appKey);
 
   const state = crypto.randomBytes(16).toString("hex");
@@ -252,7 +257,7 @@ const startOAuth = (res, shop, appKey) => {
   res.cookie("shopify_oauth_app", appKey, oauthCookie);
 
   const redirectUri = `${process.env.BACKEND_URL}/api/store/shopify/callback`;
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${appScopes(appKey)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${appScopes(appKey, extraScopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
   return res.redirect(installUrl);
 };
