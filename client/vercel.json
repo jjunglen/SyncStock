@@ -1,3 +1,15 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/shopify", "destination": "/shopify.html" },
+    { "source": "/shopify/(.*)", "destination": "/shopify.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/shopify(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "frame-ancestors https://*.myshopify.com https://admin.shopify.com" }
+      ]
+    }
+  ]
 }

@@ -6,13 +6,17 @@
 
 client_id = "6400fce3b0764e4ecad29fb44d6de683"
 name = "SyncStock"
+# Its extensions: the web pixel, the theme blocks, and the sales channel
+# (channel-config — the Lab's custom app leaves that one out)
+extension_directories = [ "extensions/syncstock-pixel", "extensions/syncstock-theme", "extensions/channel-config" ]
 # Where Shopify sends merchants who install or open the app: the server
-# checks Shopify's signature, then starts connecting the store, or opens
-# the merchant dashboard (syncstock.io) if it's already connected
+# checks Shopify's signature, then starts connecting the store (in the
+# whole window), or — already connected — opens the dashboard's admin
+# version (syncstock.io/shopify/...) inside the admin
 application_url = "https://api.syncstock.io/api/store/shopify/app"
-# The merchant dashboard is syncstock.io itself, not a page inside the
-# Shopify admin
-embedded = false
+# A sales channel lives inside the Shopify admin. Turn on together with
+# Railway's SHOPIFY_PUBLIC_EMBEDDED=true (store.controller.js).
+embedded = true
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes

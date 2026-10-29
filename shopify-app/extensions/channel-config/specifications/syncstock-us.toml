@@ -1,0 +1,25 @@
+# The SyncStock channel: each store's shopper site ({store}.syncstock.io),
+# where shoppers browse in their sizes, get restock alerts, and buy
+# through the store's own Shopify checkout (cart links).
+handle = "syncstock-us"
+label = "SyncStock"
+name = "SyncStock United States"
+description = "Your store's SyncStock site: shoppers browse in their size and get restock alerts, then check out on your Shopify store."
+icon = "syncstock-icon.svg"
+# Shopify keeps the product feed in step with what's published
+productFeedManagement = "automatic"
+
+[capabilities]
+unlistedProducts = false
+
+[requirements]
+# A referral channel: shoppers go back to the merchant's own store to buy,
+# at the store's own prices
+expectsOnlineStoreParity = true
+# The merchant's checkout takes the payment, not SyncStock
+merchantOfRecord = "merchant"
+
+[[countries]]
+code = "US"
+languages = ["en"]
+currency = "USD"

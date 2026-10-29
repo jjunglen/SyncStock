@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { IN_SHOPIFY_ADMIN } from "./lib/shopifyAdmin.js";
 import Landing from "./pages/Landing.jsx";
 import PricingPage from "./pages/Pricing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
@@ -49,7 +50,11 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={subdomain ? <StoreLanding /> : <Landing />} />
+      {/* Opening the app in the Shopify admin starts at the dashboard */}
+      <Route
+        path="/"
+        element={IN_SHOPIFY_ADMIN ? <Navigate to="/dashboard" replace /> : subdomain ? <StoreLanding /> : <Landing />}
+      />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />

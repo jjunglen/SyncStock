@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import "./App.css"
 import App from './App.jsx'
+import { IN_SHOPIFY_ADMIN, SHOPIFY_ADMIN_BASE } from "./lib/shopifyAdmin.js";
 
 // Error alerts for the browser side. Off unless VITE_SENTRY_DSN is set
 // (set it on Vercel only). No performance tracing or session replays.
@@ -21,7 +22,8 @@ ReachDOM.createRoot(document.getElementById('root'), {
   onRecoverableError: Sentry.reactErrorHandler(),
 }).render(
   <React.StrictMode>
-    <BrowserRouter>
+    {/* Inside the Shopify admin, every page lives under /shopify */}
+    <BrowserRouter basename={IN_SHOPIFY_ADMIN ? SHOPIFY_ADMIN_BASE : undefined}>
       <App />
     </BrowserRouter>
   </React.StrictMode>

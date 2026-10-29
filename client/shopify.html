@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The merchant dashboard inside the Shopify admin (served at
+         /shopify/... — see vercel.json and src/lib/shopifyAdmin.js).
+         Shopify requires App Bridge to load first, with the public app's
+         client ID (public, not a secret — same as client_id in
+         shopify-app/shopify.app.public.toml). -->
+    <meta name="shopify-api-key" content="6400fce3b0764e4ecad29fb44d6de683" />
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+    <title>SyncStock</title>
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -16,6 +16,7 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import BlackHoleBackground from "../../components/ui/BlackHoleBackground.jsx";
 import api from "../../lib/api.js";
 import { PLAN } from "../../lib/plan.js";
+import { IN_SHOPIFY_ADMIN, openInWholeWindow } from "../../lib/shopifyAdmin.js";
 
 // Merchant setup, after connecting Shopify (step 1):
 //   2. Create account → verify email (/email-verification)
@@ -127,7 +128,9 @@ export default function OnboardingSteps() {
       try {
         const res = await api.post("/auth/signup", { email, password, full_name: fullName });
         sessionStorage.removeItem("onboarding_token");
-        if (res.data.data?.needs_verification) {
+        // Inside the Shopify admin, Shopify already signs them in, so setup
+        // carries on; the verification email still goes out for later
+        if (res.data.data?.needs_verification && !IN_SHOPIFY_ADMIN) {
           const params = new URLSearchParams({ type: "merchant", email: res.data.data.email });
           navigate(`/email-verification?${params.toString()}`);
           return;
@@ -166,7 +169,10 @@ export default function OnboardingSteps() {
         // Paying stores approve the subscription in Shopify, which sends
         // them back to the dashboard once it's active
         if (approvalUrl) {
-          window.location.assign(approvalUrl);
+          // Inside the Shopify admin, Shopify's approval page takes the
+          // whole window (it can't open inside the app's frame)
+          if (IN_SHOPIFY_ADMIN) openInWholeWindow(approvalUrl);
+          else window.location.assign(approvalUrl);
           return;
         }
         navigate("/dashboard", { replace: true });
@@ -186,6 +192,12 @@ export default function OnboardingSteps() {
           <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 text-center space-y-4">
             <LuTriangleAlert size={28} className="mx-auto text-danger" aria-hidden="true" />
             <p className="text-sm text-text-muted">{loadError}</p>
+            {/* Inside the Shopify admin, reloading is the only fix (no login) */}
+            {IN_SHOPIFY_ADMIN ? (
+              <Button variant="primary" className="w-full" onClick={() => window.location.reload()}>
+                Try again
+              </Button>
+            ) : (
             <div className="flex gap-2">
               <Link to="/login?redirect=%2Fonboarding%2Fsetup" className="flex-1">
                 <Button variant="primary" className="w-full">Log in</Button>
@@ -194,6 +206,7 @@ export default function OnboardingSteps() {
                 <Button variant="secondary" className="w-full">Connect Shopify</Button>
               </Link>
             </div>
+            )}
           </div>
         )}
       </div>

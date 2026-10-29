@@ -1,0 +1,10 @@
+# Makes SyncStock a Shopify sales channel (App Store requirement 4.5.1):
+# it shows under Sales channels in the admin, and merchants choose which
+# products to publish to it. The channel's details are in specifications/.
+# PUBLIC APP ONLY — shopify.app.public.toml lists this folder; the Lab's
+# custom app (shopify.app.toml) doesn't, so deploying that never adds it.
+# https://shopify.dev/docs/apps/build/sales-channels/channel-config-extension
+[[extensions]]
+type = "channel_config"
+name = "channel-config"
+handle = "channel-config"

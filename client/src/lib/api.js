@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getSubdomain } from "./getSubdomain";
+import { IN_SHOPIFY_ADMIN, shopifyIdToken } from "./shopifyAdmin.js";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
@@ -9,7 +10,13 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  // Inside the Shopify admin, Shopify's session token is the login
+  if (IN_SHOPIFY_ADMIN) {
+    const token = await shopifyIdToken();
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+
   const onboardingToken = sessionStorage.getItem("onboarding_token");
   if (onboardingToken) {
     config.headers["X-Onboarding-Token"] = onboardingToken;

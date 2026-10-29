@@ -4,6 +4,9 @@ client_id = "cf70348ce0945f58573c6c01ed082309"
 application_url = "https://syncstock.io"
 embedded = true
 name = "Syncstock"
+# Only the extensions this app has: the sales channel (channel-config) is
+# the public app's alone — the Lab stays as it is
+extension_directories = [ "extensions/syncstock-pixel", "extensions/syncstock-theme" ]
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes

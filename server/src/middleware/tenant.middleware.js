@@ -1,7 +1,8 @@
 const { Op } = require("sequelize");
 const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
-const { findSessionAccount, renewSession } = require("../utils/session.js");
+const { findSessionAccount, renewSession, shopifyStore } = require("../utils/session.js");
+const { shopifySession } = require("../utils/shopifySession.js");
 
 const NOT_STORES = ["www", "api"];
 
@@ -113,6 +114,16 @@ const attachStoreIfPresent = async (req, res, next) => {
 
 const resolveStoreForOnboarding = async (req, res, next) => {
   try {
+    // Inside the Shopify admin: the store Shopify's session token is for
+    const shopify = shopifySession(req);
+    if (shopify) {
+      const store = await shopifyStore(shopify.shop);
+      if (store) {
+        req.store = store;
+        return next();
+      }
+    }
+
     const token = req.headers["x-onboarding-token"];
 
     if (token) {
@@ -147,6 +158,16 @@ const resolveStoreForOnboarding = async (req, res, next) => {
 // which is what lets them leave and resume later.
 const findOnboardingStore = async (req) => {
   const { account } = await findSessionAccount(req, Account);
+
+  // Inside the Shopify admin, Shopify's session token says which store
+  // this is — no setup link needed
+  const shopify = shopifySession(req);
+  if (shopify) {
+    const store = await shopifyStore(shopify.shop);
+    if (store && store.onboarding_step !== "complete") return { store, account, expired: false };
+    return { store: null, account, expired: false };
+  }
+
   if (account) {
     const membership = await User.findOne({
       where: { account_id: account.id, role: "admin" },

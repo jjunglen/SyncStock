@@ -133,6 +133,42 @@ const BETA_CLOSED_MESSAGE =
 // A bare x.myshopify.com domain — nothing else may reach our token requests
 const isShopDomain = (shop) => typeof shop === "string" && /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop);
 
+// The public app opens inside the Shopify admin once its app config says
+// embedded = true (shopify-app/shopify.app.public.toml). Railway's
+// SHOPIFY_PUBLIC_EMBEDDED=true switches the redirects below over at the
+// same time, so the two never disagree.
+const publicAppEmbedded = () => process.env.SHOPIFY_PUBLIC_EMBEDDED === "true";
+
+// The app inside this store's Shopify admin, optionally at a page
+// ("/onboarding/setup") — Shopify forwards the rest of the path to the app
+const adminAppUrl = (shop, path = "") => {
+  const { clientId } = appCredentials("public");
+  return `https://${shop}/admin/apps/${clientId}${path}`;
+};
+
+// Was this request made inside a frame (the Shopify admin)? Browsers say
+// so in Sec-Fetch-Dest. Only without that header does Shopify's
+// embedded=1 decide — the link keeps it when reopened in the whole window.
+const inFrame = (req) => {
+  const dest = req.headers["sec-fetch-dest"];
+  return dest ? dest === "iframe" : req.query.embedded === "1";
+};
+
+// A page inside the admin's frame can't send the browser to Shopify's
+// approval screen itself (browsers block it, and cookies set in the frame
+// are dropped). This tiny page loads App Bridge, which asks the admin to
+// open `url` in the whole window — where the install can start normally.
+const breakOutOfFrame = (res, url) => {
+  const { clientId } = appCredentials("public");
+  const safe = JSON.stringify(url.replace(/[<>"]/g, "")); // a real link never contains these
+  res.set("Content-Security-Policy", "frame-ancestors https://*.myshopify.com https://admin.shopify.com");
+  return res.status(200).type("html").send(`<!doctype html>
+<html><head><meta charset="utf-8" />
+<meta name="shopify-api-key" content="${clientId}" />
+<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+</head><body><script>open(${safe}, "_top");</script></body></html>`);
+};
+
 const canConnect = async (shop) => {
   if (process.env.MERCHANT_SIGNUPS_OPEN === "true") return true;
   const invited = (process.env.BETA_SHOP_DOMAINS || "")
@@ -353,6 +389,11 @@ const handleShopifyCallback = async (req, res) => {
 
     res.clearCookie("shopify_oauth_state");
     res.clearCookie("shopify_oauth_app");
+    // The public app, once it lives in the admin: back into the admin,
+    // where setup (or the dashboard) continues signed in through Shopify
+    if (appKey === "public" && publicAppEmbedded()) {
+      return res.redirect(adminAppUrl(shop, store.onboarding_step === "complete" ? "" : "/onboarding/setup"));
+    }
     // Reconnecting a live store just goes to the dashboard (login if needed)
     if (store.onboarding_step === "complete") {
       return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
@@ -508,9 +549,16 @@ const selectPlan = async (req, res) => {
 // here after they approve or decline. The result is read from Shopify,
 // not from this link, so visiting it by hand changes nothing.
 const billingCallback = async (req, res) => {
-  const setupUrl = (reason) => `${process.env.FRONTEND_URL}/onboarding/setup?billing=${reason}`;
+  let store = null;
+  // Back to where setup happens: inside the Shopify admin for the public
+  // app once it's embedded, otherwise syncstock.io
+  const inAdmin = () => store?.shopify_app === "public" && publicAppEmbedded();
+  const setupUrl = (reason) =>
+    inAdmin()
+      ? adminAppUrl(store.shopify_domain, `/onboarding/setup?billing=${reason}`)
+      : `${process.env.FRONTEND_URL}/onboarding/setup?billing=${reason}`;
   try {
-    const store = /^[0-9a-f-]{36}$/i.test(req.query.store || "")
+    store = /^[0-9a-f-]{36}$/i.test(req.query.store || "")
       ? await Store.findByPk(req.query.store)
       : null;
     if (!store?.shopify_subscription_id) return res.redirect(setupUrl("error"));
@@ -529,7 +577,7 @@ const billingCallback = async (req, res) => {
       onboarding_step: "complete",
       status: "active",
     });
-    return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+    return res.redirect(inAdmin() ? adminAppUrl(store.shopify_domain) : `${process.env.FRONTEND_URL}/dashboard`);
   } catch (error) {
     console.error("Billing callback error:", error.message);
     return res.redirect(setupUrl("error"));
@@ -589,7 +637,22 @@ const shopifyAppEntry = async (req, res) => {
     }
 
     const connected = store && store.shopify_app === appKey && !store.uninstalled_at;
-    if (!connected) return startOAuth(res, shop, appKey);
+    const framed = appKey === "public" && inFrame(req);
+
+    // Inside the admin, the install must continue in the whole window:
+    // this same signed link, reopened there, comes back here unframed
+    if (!connected) {
+      return framed ? breakOutOfFrame(res, `${process.env.BACKEND_URL}${req.originalUrl}`) : startOAuth(res, shop, appKey);
+    }
+
+    // Opened inside the admin: the dashboard's admin version
+    // (client/shopify.html), at the page Shopify asked for. It signs in
+    // with Shopify's session token, so no SyncStock login.
+    if (framed) {
+      const page = (req.params[0] || "").replace(/[^a-zA-Z0-9/_-]/g, "");
+      const query = req.originalUrl.split("?")[1] || "";
+      return res.redirect(`${process.env.FRONTEND_URL}/shopify${page}${query ? `?${query}` : ""}`);
+    }
 
     return res.redirect(
       store.onboarding_step === "complete"

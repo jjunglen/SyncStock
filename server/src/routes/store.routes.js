@@ -41,7 +41,8 @@ router.post("/check-domain", checkDomain);
 router.get("/shopify/connect", initiateShopifyConnect);
 router.get("/shopify/callback", handleShopifyCallback);
 // The app's address in Shopify: installs and "open app" land here
-router.get("/shopify/app", shopifyAppEntry);
+// (and any page under it — Shopify forwards admin paths like /onboarding/setup)
+router.get(/^\/shopify\/app(\/[a-zA-Z0-9/_-]*)?$/, shopifyAppEntry);
 // Which app keys the server has (no secrets) — for checking Railway
 router.get("/shopify/status", shopifyAppsStatus);
 

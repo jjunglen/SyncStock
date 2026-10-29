@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import api from "../lib/api.js";
 import { getSubdomain } from "../lib/getSubdomain.js";
+import { IN_SHOPIFY_ADMIN } from "../lib/shopifyAdmin.js";
 
 // loginPath: customer pages pass "/store/login" so shoppers get the
 // store's login, not the merchant one.
@@ -33,6 +34,12 @@ export default function ProtectedRoute({
         setStatus("ok");
       })
       .catch(() => {
+        // Inside the Shopify admin there's no login page: Shopify signs
+        // the merchant in, so no account yet means setup isn't finished
+        if (IN_SHOPIFY_ADMIN) {
+          navigate("/onboarding/setup", { replace: true });
+          return;
+        }
         const redirectTarget = location.pathname + location.search;
         navigate(`${loginPath}?redirect=${encodeURIComponent(redirectTarget)}`);
         setStatus("unauthorized");

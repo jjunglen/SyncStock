@@ -1,4 +1,23 @@
 const { verifyToken, signToken, SESSION_DAYS } = require("./jwt.js");
+const { shopifySession } = require("./shopifySession.js");
+
+// The public-app store installed on this Shopify shop, and its owner's
+// account (the first admin), for a Shopify session token
+const shopifyStore = async (shop) => {
+  const { Store } = require("../models/index.js"); // loaded late: models load this file's users
+  return Store.findOne({ where: { shopify_domain: shop, shopify_app: "public", uninstalled_at: null } });
+};
+const shopifyStoreOwner = async (shop) => {
+  const { User, Account } = require("../models/index.js");
+  const store = await shopifyStore(shop);
+  if (!store) return null;
+  const owner = await User.findOne({
+    where: { store_id: store.id, role: "admin" },
+    include: [{ model: Account }],
+    order: [["created_at", "ASC"]],
+  });
+  return owner?.Account || null;
+};
 
 const SESSION_COOKIE = "session_token";
 const isProduction = process.env.NODE_ENV === "production";
@@ -54,6 +73,17 @@ const issuedBeforeCutoff = (decoded, account) =>
 // Only session tokens count — not other signed links (email
 // verification, email sign-in), which carry a `purpose`.
 const findSessionAccount = async (req, Account) => {
+  // Inside the Shopify admin: Shopify's session token stands in for the
+  // login — it's the store's owner (its first admin). Before setup has
+  // created that account, there's no one to be yet (setup itself finds
+  // the store from the token — tenant.middleware.js).
+  const shopify = shopifySession(req);
+  if (shopify) {
+    const account = await shopifyStoreOwner(shopify.shop);
+    if (account) return { account, session: { via: "shopify", iat: shopify.claims.iat }, reason: null };
+    return { account: null, reason: "missing" };
+  }
+
   const tokens = sessionTokens(req);
   if (tokens.length === 0) return { account: null, reason: "missing" };
 
@@ -102,6 +132,7 @@ const clearSessionCookies = (res) => {
 };
 
 module.exports = {
+  shopifyStore,
   issuedBeforeCutoff,
   renewSession,
   COOKIE_OPTIONS,

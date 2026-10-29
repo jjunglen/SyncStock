@@ -18,5 +18,10 @@ export default defineConfig({
   build: {
     target: BROWSERS,
     cssTarget: BROWSERS,
+    // Two pages, same app: the site, and the dashboard inside the Shopify
+    // admin (shopify.html, which loads Shopify's App Bridge first)
+    rolldownOptions: {
+      input: { main: 'index.html', shopify: 'shopify.html' },
+    },
   },
 })
