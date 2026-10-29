@@ -21,7 +21,7 @@ const {
 } = require("../services/billing.service.js");
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { verifySessionToken } = require("../utils/shopifySession.js");
-const { connect: connectChannel } = require("../services/channel.service.js");
+const { connect: connectChannel, CHANNEL_SCOPES, isChannelStore } = require("../services/channel.service.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
 const RESERVED_SUBDOMAINS = [
@@ -77,6 +77,11 @@ const WEBHOOK_TOPICS = [
   // Subscription cancelled / payment problems (billing.controller.js)
   "app_subscriptions/update",
 ];
+// Sales-channel stores (public app) also hear when a product is published
+// to SyncStock, changed while published, or unpublished — that decides
+// what their shoppers see (webhook.controller.js)
+const CHANNEL_WEBHOOK_TOPICS = ["product_listings/add", "product_listings/update", "product_listings/remove"];
+const topicsFor = (store) => (isChannelStore(store) ? [...WEBHOOK_TOPICS, ...CHANNEL_WEBHOOK_TOPICS] : WEBHOOK_TOPICS);
 // "products/create" → GraphQL's PRODUCTS_CREATE
 const topicEnum = (topic) => topic.replace("/", "_").toUpperCase();
 const webhookUri = (topic) => `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`;
@@ -91,7 +96,7 @@ const registerShopifyWebhooks = async (store) => {
     console.error(`Couldn't list webhooks for ${shop}:`, error.message);
   }
 
-  for (const topic of WEBHOOK_TOPICS) {
+  for (const topic of topicsFor(store)) {
     if (existing.has(`${topicEnum(topic)} ${webhookUri(topic)}`)) {
       console.log(`Webhook already registered, skipping: ${topic}`);
       continue;
@@ -206,6 +211,7 @@ const connectChannelAfterSetup = async (store) => {
   if (store.shopify_app !== "public") return;
   try {
     await connectChannel(store);
+    backfillInventory(store); // background: marks what's published to SyncStock
   } catch (error) {
     console.error(`Channel connect after setup failed for ${store.shopify_domain}:`, error.message);
   }
@@ -222,13 +228,12 @@ const reauthorizeShopify = (req, res) => {
 };
 
 // The permissions each app asks for. The public app is a sales channel
-// and also needs read_product_listings (only channels can have it — the
-// Lab's custom app must never ask for it). Must match the scopes in
-// shopify-app/shopify.app.public.toml / shopify.app.toml.
-const PUBLIC_EXTRA_SCOPES = ["read_product_listings"];
+// and also needs the channel's permissions (CHANNEL_SCOPES — only channels
+// can have them, so the Lab's custom app must never ask for them). Must
+// match the scopes in shopify-app/shopify.app.public.toml / shopify.app.toml.
 const appScopes = (appKey) => {
   const base = (process.env.SHOPIFY_APP_SCOPES || "").split(",").map((s) => s.trim()).filter(Boolean);
-  return [...new Set(appKey === "public" ? [...base, ...PUBLIC_EXTRA_SCOPES] : base)].join(",");
+  return [...new Set(appKey === "public" ? [...base, ...CHANNEL_SCOPES] : base)].join(",");
 };
 
 // Sends the merchant to Shopify to approve SyncStock (OAuth), for one of

@@ -7,6 +7,7 @@ const {
 } = require("../models/index.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { CLICK_ATTRIBUTE, UUID_RE } = require("../services/attribution.service.js");
+const { salesCreditParam } = require("../services/channel.service.js");
 
 // Tracking codes Shopify keeps in the order's visit history, so a
 // shopper who leaves and comes back later still connects to their click
@@ -81,7 +82,9 @@ const trackRedirect = async (req, res) => {
     // checkout. The tag stays on that cart while the shopper keeps
     // browsing the store, so the sale still counts if they check out
     // later (attribution.service.js); the web pixel also picks it up here.
-    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?storefront=true&attributes[${CLICK_ATTRIBUTE}]=${click.id}&${utmFor(click.id)}`;
+    // Sales-channel stores: plus SyncStock's storefront token, so Shopify
+    // credits the order to the SyncStock channel (salesCreditParam)
+    const cartUrl = `${store.storefront_url}/cart/${item.shopify_variant_id}:1?storefront=true&attributes[${CLICK_ATTRIBUTE}]=${click.id}&${utmFor(click.id)}${await salesCreditParam(store)}`;
 
     return res.redirect(cartUrl);
   } catch (error) {
@@ -144,7 +147,7 @@ const createCartCheckout = async (req, res) => {
       .join("&");
     // Visit history holds one utm_content, so it carries the first click;
     // every item still has its own cart tag
-    const url = `${store.storefront_url}/cart/${lines}?storefront=true&${tags}&${utmFor(clicks[0].id)}`;
+    const url = `${store.storefront_url}/cart/${lines}?storefront=true&${tags}&${utmFor(clicks[0].id)}${await salesCreditParam(store)}`;
 
     return res.status(200).json({ success: true, data: { url, unavailable: [] } });
   } catch (error) {

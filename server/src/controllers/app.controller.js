@@ -1,3 +1,4 @@
+const { shopperVisible } = require("../services/channel.service.js");
 const bcrypt = require("bcryptjs");
 const { Op } = require("sequelize");
 const { Account, User, Store, Inventory, DeviceToken } = require("../models/index.js");
@@ -140,6 +141,7 @@ const inYourSizes = async (store, sizes) => {
   return Inventory.count({
     where: {
       store_id: store.id,
+      ...shopperVisible(store),
       available: { [Op.gt]: 0 },
       image_url: { [Op.ne]: null },
       category: { [Op.in]: enabledCategories(store).filter((c) => c !== "trading_cards") },

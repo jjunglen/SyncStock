@@ -1,3 +1,4 @@
+const { shopperVisible } = require("../services/channel.service.js");
 const { Op, fn, col } = require("sequelize");
 const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
@@ -14,6 +15,7 @@ const listable = (store, category) => {
   const shown = enabledCategories(store);
   return {
     store_id: store.id,
+    ...shopperVisible(store), // sales-channel stores: published to SyncStock only
     available: { [Op.gt]: 0 },
     image_url: { [Op.ne]: null },
     category: category
@@ -79,7 +81,7 @@ const getInventory = async (req, res) => {
 const getInventoryItem = async (req, res) => {
   try {
     const item = await Inventory.findOne({
-      where: { id: req.params.id, store_id: req.store.id },
+      where: { id: req.params.id, store_id: req.store.id, ...shopperVisible(req.store) },
     });
 
     if (!item) {

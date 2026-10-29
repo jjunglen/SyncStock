@@ -1,4 +1,5 @@
-const { User, Account } = require("../models/index.js");
+const { User, Account, Inventory } = require("../models/index.js");
+const { syncCatalog } = require("../services/catalogSync.service.js");
 const { shopifySession } = require("../utils/shopifySession.js");
 const { shopifyStore } = require("../utils/session.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
@@ -35,6 +36,14 @@ const ownerEmail = async (store) => {
 };
 
 const setupDone = (store) => store.onboarding_step === "complete";
+
+// Re-reads the catalog in the background, so shoppers see exactly what's
+// published to SyncStock (the channel page doesn't wait for it)
+const resyncInBackground = (store) => {
+  syncCatalog(store)
+    .then(({ products }) => console.log(`Channel resync for ${store.shopify_domain}: ${products} products`))
+    .catch((error) => console.error(`Channel resync failed for ${store.shopify_domain}:`, error.message));
+};
 
 const fail = (res, error, fallback) => {
   console.error(`${fallback}:`, error.message);
@@ -82,6 +91,7 @@ const connectChannel = async (req, res) => {
   }
   try {
     const connection = await channel.connect(req.store);
+    resyncInBackground(req.store);
     return res.status(200).json({ success: true, data: { id: connection.id, account_name: connection.accountName } });
   } catch (error) {
     return fail(res, error, "Couldn't connect SyncStock");
@@ -94,6 +104,9 @@ const connectChannel = async (req, res) => {
 const disconnectChannel = async (req, res) => {
   try {
     await channel.disconnect(req.store);
+    // Nothing is published to a disconnected channel: hidden from shoppers
+    // now (Connect re-reads what's published)
+    await Inventory.update({ published: false }, { where: { store_id: req.store.id } });
     return res.status(200).json({ success: true });
   } catch (error) {
     return fail(res, error, "Couldn't disconnect SyncStock");

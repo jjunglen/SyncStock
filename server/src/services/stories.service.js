@@ -13,6 +13,7 @@ const { renderEmail, button, escapeHtml } = require("./emailLayout.js");
 const { sendStoreEmail } = require("./email.service.js");
 const { enabledCategories } = require("../utils/storeSettings.js");
 const { signStoriesToken } = require("../utils/jwt.js");
+const { shopperVisible } = require("./channel.service.js");
 
 // New-arrival Instagram stories, emailed to stores that turned them on
 // (Store settings). Each email covers every product first seen since the
@@ -82,6 +83,7 @@ const findNewArrivals = async (store, from, to) => {
     where: {
       store_id: store.id,
       shopify_product_id: { [Op.in]: ids },
+      ...shopperVisible(store), // sales-channel stores: published to SyncStock only
       available: { [Op.gt]: 0 },
       image_url: { [Op.ne]: null },
       category: { [Op.in]: enabledCategories(store) },
@@ -354,6 +356,7 @@ const latestItem = async (store) => {
   const newest = await Inventory.findOne({
     where: {
       store_id: store.id,
+      ...shopperVisible(store),
       available: { [Op.gt]: 0 },
       image_url: { [Op.ne]: null },
       category: { [Op.in]: enabledCategories(store) },

@@ -14,6 +14,8 @@ const {
   handleOrderCreate,
   handleOrderCancelled,
   handleRefundCreate,
+  handleListingAddOrUpdate,
+  handleListingRemove,
 } = require("../controllers/webhook.controller.js");
 const {
   handleComplianceWebhook,
@@ -33,6 +35,10 @@ router.use(resolveStoreFromShopifyDomain, verifyShopifyWebhook);
 router.post("/products/create", handleProductCreate);
 router.post("/products/update", handleProductUpdate);
 router.post("/products/delete", handleProductDelete);
+// Sales-channel stores: published to / changed on / removed from SyncStock
+router.post("/product_listings/add", handleListingAddOrUpdate);
+router.post("/product_listings/update", handleListingAddOrUpdate);
+router.post("/product_listings/remove", handleListingRemove);
 router.post("/orders/create", handleOrderCreate);
 router.post("/orders/cancelled", handleOrderCancelled);
 router.post("/refunds/create", handleRefundCreate);

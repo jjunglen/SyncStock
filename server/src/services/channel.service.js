@@ -8,8 +8,21 @@ const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 // https://shopify.dev/docs/apps/build/sales-channels/channel-connections
 
 const SPECIFICATION = "syncstock-us";
-// Needed to create the connection and read what's published to it
-const CHANNEL_SCOPE = "read_product_listings";
+// Permissions the channel needs: read_product_listings to create the
+// connection and read what's published to it; the unauthenticated one
+// so checkout links can carry SyncStock's storefront token (sales
+// credit). Also in store.controller.js (appScopes) and
+// shopify-app/shopify.app.public.toml.
+const CHANNEL_SCOPES = ["read_product_listings", "unauthenticated_read_product_listings"];
+
+// Stores on the public app are sales-channel stores: what shoppers see is
+// what the merchant published to SyncStock. The Lab (custom app) isn't.
+const isChannelStore = (store) => store?.shopify_app === "public";
+
+// Added to every shopper-facing inventory query: sales-channel stores show
+// only what's published to SyncStock; the Lab shows everything as before
+// (its in-store-only items included)
+const shopperVisible = (store) => (isChannelStore(store) ? { published: true } : {});
 
 // The app's handle (for "published to SyncStock" product searches) and
 // the permissions the merchant has granted
@@ -19,7 +32,7 @@ const appInstallation = async (store) => {
   return { appHandle: inst.app.handle, scopes: inst.accessScopes.map((s) => s.handle) };
 };
 
-const hasChannelScope = (scopes) => scopes.includes(CHANNEL_SCOPE);
+const hasChannelScope = (scopes) => CHANNEL_SCOPES.every((scope) => scopes.includes(scope));
 
 // This store's SyncStock connection, or null when disconnected
 const getConnection = async (store) => {
@@ -101,9 +114,74 @@ const publishing = async (store, appHandle) => {
   };
 };
 
+// Every product published to SyncStock, as Shopify product IDs (strings)
+// — the catalog sync uses it to mark what shoppers may see
+const publishedProductIds = async (store) => {
+  const { appHandle } = await appInstallation(store);
+  const ids = new Set();
+  let cursor = null;
+  for (let page = 0; page < 400; page++) {
+    const data = await shopifyGraphql(
+      store,
+      `query ($q: String!, $cursor: String) {
+        products(first: 250, after: $cursor, query: $q) { pageInfo { hasNextPage endCursor } nodes { legacyResourceId } }
+      }`,
+      { q: `published_status:${appHandle}-published`, cursor },
+    );
+    for (const p of data.products.nodes) ids.add(String(p.legacyResourceId));
+    if (!data.products.pageInfo.hasNextPage) return ids;
+    cursor = data.products.pageInfo.endCursor;
+  }
+  throw new Error("Too many published products to list");
+};
+
+// SyncStock's storefront access token for this store: checkout links
+// carry it (access_token=…), so Shopify credits the order to the SyncStock
+// channel (App Store 5.7.16). One token per store, reused — found on
+// Shopify by its title, created the first time. Kept in memory after.
+const TOKEN_TITLE = "SyncStock checkout";
+const storefrontTokens = new Map();
+const storefrontToken = async (store) => {
+  if (storefrontTokens.has(store.id)) return storefrontTokens.get(store.id);
+  const data = await shopifyGraphql(store, `{ shop { storefrontAccessTokens(first: 50) { nodes { accessToken title } } } }`);
+  let token = data.shop.storefrontAccessTokens.nodes.find((t) => t.title === TOKEN_TITLE)?.accessToken;
+  if (!token) {
+    const created = await shopifyGraphql(
+      store,
+      `mutation ($input: StorefrontAccessTokenInput!) {
+        storefrontAccessTokenCreate(input: $input) { storefrontAccessToken { accessToken } userErrors { message } }
+      }`,
+      { input: { title: TOKEN_TITLE } },
+    );
+    const err = userError(created.storefrontAccessTokenCreate.userErrors);
+    if (err) throw err;
+    token = created.storefrontAccessTokenCreate.storefrontAccessToken.accessToken;
+  }
+  storefrontTokens.set(store.id, token);
+  return token;
+};
+
+// The cart-link addition that credits the sale to SyncStock, or "" (the
+// Lab, or Shopify not answering — the link still works, just without
+// the channel credit)
+const salesCreditParam = async (store) => {
+  if (!isChannelStore(store)) return "";
+  try {
+    return `&access_token=${encodeURIComponent(await storefrontToken(store))}`;
+  } catch (error) {
+    console.error(`No storefront token for ${store.shopify_domain}:`, error.message);
+    return "";
+  }
+};
+
 module.exports = {
   SPECIFICATION,
-  CHANNEL_SCOPE,
+  CHANNEL_SCOPES,
+  isChannelStore,
+  shopperVisible,
+  publishedProductIds,
+  storefrontToken,
+  salesCreditParam,
   appInstallation,
   hasChannelScope,
   getConnection,

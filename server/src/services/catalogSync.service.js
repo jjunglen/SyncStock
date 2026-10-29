@@ -5,6 +5,7 @@ const { detectBrand } = require("../utils/brand.js");
 const { readVariant } = require("../utils/variantDetails.js");
 const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 const { descriptionFromHtml } = require("../utils/productDescription.js");
+const { isChannelStore, publishedProductIds } = require("./channel.service.js");
 
 // Loads a store's whole Shopify catalog into Syncstock's inventory.
 // Used when a store connects, and nightly as a safety net for product
@@ -99,6 +100,25 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
   let pages = 0;
   let complete = true;
 
+  // Sales-channel stores (public app): "published" means published to
+  // SyncStock, read from Shopify up front. If that can't be read (e.g. the
+  // channel permission isn't approved yet), published flags are left as
+  // they are rather than guessed.
+  let channelPublished = null;
+  if (isChannelStore(store)) {
+    try {
+      channelPublished = await publishedProductIds(store);
+    } catch (error) {
+      console.error(`Catalog sync for ${shop}: couldn't read what's published to SyncStock — published flags unchanged:`, error.message);
+    }
+  }
+  const publishedFields = (product) =>
+    !isChannelStore(store)
+      ? { published: !!product.published_at }
+      : channelPublished
+        ? { published: channelPublished.has(String(product.id)) }
+        : {};
+
   while (hasNextPage) {
     if (pages >= MAX_PAGES) {
       complete = false;
@@ -141,7 +161,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
           shopify_url: `${store.storefront_url}/products/${product.handle}`,
           image_url: product.images?.[0]?.src || null,
           image_urls: (product.images || []).map((img) => img.src),
-          published: !!product.published_at,
+          ...publishedFields(product),
           description: descriptionFromHtml(product.body_html),
           last_synced_at: new Date(),
         });

@@ -8,6 +8,15 @@ const {
   checkPriceDropAlerts,
 } = require("../services/alert.service.js");
 const { attributeOrder, refreshOrderRefunds } = require("../services/attribution.service.js");
+const { isChannelStore } = require("../services/channel.service.js");
+
+// What "published" means for a store:
+//   the Lab (custom app): live on its Online Store (Shopify's published_at)
+//   sales-channel stores (public app): published to the SyncStock channel —
+//     set only by the product_listings webhooks below and the catalog sync,
+//     never by the product webhooks (which don't say)
+// Shoppers of sales-channel stores only see published items
+// (inventory.controller.js listable).
 
 // Product webhooks reply before doing any work: Shopify gives up after 5
 // seconds, and a bulk edit sends hundreds at once — saving every size
@@ -23,6 +32,7 @@ const handleProductCreate = async (req, res) => {
     const category = categorizeProduct(data);
     if (!category) return; // gift cards aren't listed
 
+    const channel = isChannelStore(store);
     for (const variant of variants) {
       const { size, condition, boxCondition } = readVariant(data, variant, category);
 
@@ -42,13 +52,17 @@ const handleProductCreate = async (req, res) => {
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: data.images?.[0]?.src || null,
         image_urls: (data.images || []).map((img) => img.src),
-        published: !!data.published_at,
+        // Sales-channel stores: left as is (a listing webhook may already
+        // have marked it published)
+        ...(!channel && { published: !!data.published_at }),
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
     }
 
-    const isPublished = !!data.published_at;
+    const isPublished = channel
+      ? (await Inventory.count({ where: { store_id: store.id, shopify_product_id: String(data.id), published: true } })) > 0
+      : !!data.published_at;
     const hasImage = !!data.images?.[0]?.src;
 
     if (!isPublished || !hasImage) {
@@ -108,18 +122,16 @@ const handleOrderCreate = async (req, res) => {
   }
 };
 
-const handleProductUpdate = async (req, res) => {
-  res.status(200).json({ received: true });
-  try {
-    const store = req.store;
-    const data = JSON.parse(req.body);
+// A product changed (products/update), or — for sales-channel stores — it
+// was published to SyncStock or changed while published (product_listings
+// add/update: listed = true). Saves every size, then sends restock and
+// price-drop alerts for what changed.
+const processProductUpdate = async (store, data, { listed = false } = {}) => {
     const variants = data.variants || [];
     const imageUrl = data.images?.[0]?.src || null;
     const category = categorizeProduct(data);
     if (!category) return; // gift cards aren't listed
-
-    const isPublished = !!data.published_at;
-    const hasImage = !!imageUrl;
+    const channel = isChannelStore(store);
 
     // Shopify sends products/update for ANY change — a sale, a photo
     // reorder, a bulk location or tag edit. Alerts only go out for what
@@ -130,6 +142,11 @@ const handleProductUpdate = async (req, res) => {
       attributes: ["shopify_variant_id", "available", "price", "image_url", "published"],
     });
     const beforeByVariant = new Map(before.map((row) => [row.shopify_variant_id, row]));
+
+    // Live for shoppers? The Lab: on its Online Store. Sales-channel
+    // stores: published to SyncStock (this listing webhook, or already)
+    const isPublished = channel ? listed || before.some((row) => row.published === true) : !!data.published_at;
+    const hasImage = !!imageUrl;
 
     const restockVariants = [];
     const priceDropVariants = [];
@@ -146,7 +163,9 @@ const handleProductUpdate = async (req, res) => {
       // or is new to SyncStock), or it was sold out and is back. A price
       // drop counts only when the price actually went down in this update.
       const prior = beforeByVariant.get(String(variant.id));
-      const wasLive = !!prior && prior.published !== false && !!prior.image_url;
+      const wasLive = channel
+        ? !!prior && prior.published === true && !!prior.image_url
+        : !!prior && prior.published !== false && !!prior.image_url;
       const wasInStock = !!prior && prior.available > 0;
       if (variant.inventory_quantity > 0) {
         if (!wasLive || !wasInStock) {
@@ -173,11 +192,13 @@ const handleProductUpdate = async (req, res) => {
         box_status: boxCondition,
         price: newPrice,
         compare_at_price: compareAtPrice || null,
-        available: variant.inventory_quantity || 0,
+        // A listing payload without stock counts leaves them as they are
+        ...(variant.inventory_quantity !== undefined || !listed ? { available: variant.inventory_quantity || 0 } : {}),
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
         image_url: imageUrl,
         image_urls: (data.images || []).map((img) => img.src),
-        published: isPublished,
+        // Sales-channel stores: only a listing webhook marks it published
+        ...(channel ? (listed ? { published: true } : {}) : { published: isPublished }),
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
@@ -209,8 +230,46 @@ const handleProductUpdate = async (req, res) => {
         await checkPriceDropAlerts(store, inventoryItem, notifiedUsers);
       }
     }
+};
+
+const handleProductUpdate = async (req, res) => {
+  res.status(200).json({ received: true });
+  try {
+    await processProductUpdate(req.store, JSON.parse(req.body));
   } catch (error) {
     console.error("Product update webhook error:", error.message);
+  }
+};
+
+// product_listings/add and /update (sales-channel stores): the product is
+// published to SyncStock — saved as published, with alerts if it just went
+// live. The payload is the product under product_listing, keyed product_id.
+const handleListingAddOrUpdate = async (req, res) => {
+  res.status(200).json({ received: true });
+  try {
+    if (!isChannelStore(req.store)) return;
+    const listing = JSON.parse(req.body).product_listing;
+    if (!listing?.product_id) return;
+    await processProductUpdate(req.store, { ...listing, id: listing.product_id }, { listed: true });
+  } catch (error) {
+    console.error("Product listing webhook error:", error.message);
+  }
+};
+
+// product_listings/remove: unpublished from SyncStock — hidden from
+// shoppers (kept, so publishing again restores it)
+const handleListingRemove = async (req, res) => {
+  res.status(200).json({ received: true });
+  try {
+    if (!isChannelStore(req.store)) return;
+    const productId = JSON.parse(req.body).product_listing?.product_id;
+    if (!productId) return;
+    await Inventory.update(
+      { published: false, last_synced_at: new Date() },
+      { where: { store_id: req.store.id, shopify_product_id: String(productId) } },
+    );
+  } catch (error) {
+    console.error("Product listing remove webhook error:", error.message);
   }
 };
 
@@ -238,6 +297,8 @@ const handleRefundCreate = async (req, res) => {
 };
 
 module.exports = {
+  handleListingAddOrUpdate,
+  handleListingRemove,
   handleProductCreate,
   handleProductDelete,
   handleProductUpdate,
