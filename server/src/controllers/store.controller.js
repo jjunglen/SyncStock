@@ -20,6 +20,8 @@ const {
   subscriptionStatus,
 } = require("../services/billing.service.js");
 const { signOnboardingToken } = require("../utils/jwt.js");
+const { verifySessionToken } = require("../utils/shopifySession.js");
+const { connect: connectChannel } = require("../services/channel.service.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 
 const RESERVED_SUBDOMAINS = [
@@ -196,6 +198,39 @@ const initiateShopifyConnect = async (req, res) => {
   return startOAuth(res, shop, appForConnect(req.query.app, existing));
 };
 
+// Setup just finished: a public-app store is connected to the SyncStock
+// sales channel straight away (merchants can disconnect it later on the
+// channel page). Never blocks going live — a failure is logged, and the
+// channel page offers Connect.
+const connectChannelAfterSetup = async (store) => {
+  if (store.shopify_app !== "public") return;
+  try {
+    await connectChannel(store);
+  } catch (error) {
+    console.error(`Channel connect after setup failed for ${store.shopify_domain}:`, error.message);
+  }
+};
+
+// GET /api/store/shopify/reauthorize?id_token=… — opened in the whole
+// window from the channel page when the store hasn't granted a permission
+// the app now needs (e.g. read_product_listings for the channel). Shopify's
+// session token says which shop; Shopify's approval screen does the rest.
+const reauthorizeShopify = (req, res) => {
+  const session = verifySessionToken(String(req.query.id_token || ""));
+  if (!session) return res.redirect(process.env.FRONTEND_URL);
+  return startOAuth(res, session.shop, "public");
+};
+
+// The permissions each app asks for. The public app is a sales channel
+// and also needs read_product_listings (only channels can have it — the
+// Lab's custom app must never ask for it). Must match the scopes in
+// shopify-app/shopify.app.public.toml / shopify.app.toml.
+const PUBLIC_EXTRA_SCOPES = ["read_product_listings"];
+const appScopes = (appKey) => {
+  const base = (process.env.SHOPIFY_APP_SCOPES || "").split(",").map((s) => s.trim()).filter(Boolean);
+  return [...new Set(appKey === "public" ? [...base, ...PUBLIC_EXTRA_SCOPES] : base)].join(",");
+};
+
 // Sends the merchant to Shopify to approve SyncStock (OAuth), for one of
 // the two apps. Remembers the app and a CSRF state for the callback.
 const startOAuth = (res, shop, appKey) => {
@@ -212,7 +247,7 @@ const startOAuth = (res, shop, appKey) => {
   res.cookie("shopify_oauth_app", appKey, oauthCookie);
 
   const redirectUri = `${process.env.BACKEND_URL}/api/store/shopify/callback`;
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${process.env.SHOPIFY_APP_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=${appScopes(appKey)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
   return res.redirect(installUrl);
 };
@@ -525,6 +560,7 @@ const selectPlan = async (req, res) => {
         onboarding_step: "complete",
         status: "active",
       });
+      await connectChannelAfterSetup(req.store);
       return res.status(200).json({
         success: true,
         data: { plan: req.store.plan, status: req.store.status, confirmation_url: null },
@@ -577,6 +613,7 @@ const billingCallback = async (req, res) => {
       onboarding_step: "complete",
       status: "active",
     });
+    await connectChannelAfterSetup(store);
     return res.redirect(inAdmin() ? adminAppUrl(store.shopify_domain) : `${process.env.FRONTEND_URL}/dashboard`);
   } catch (error) {
     console.error("Billing callback error:", error.message);
@@ -835,6 +872,7 @@ const removeCustomer = async (req, res) => {
 };
 
 module.exports = {
+  reauthorizeShopify,
   // Also run nightly (server.js), so existing stores get new topics
   registerShopifyWebhooks,
   shopifyAppsStatus,

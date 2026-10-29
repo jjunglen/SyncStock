@@ -246,8 +246,16 @@ const resolveStoreFromAdminMembership = async (req, res, next) => {
       });
     }
 
+    // Inside the Shopify admin: always the shop being viewed (an owner of
+    // two stores must never see the other one there)
+    const shopify = shopifySession(req);
+    const shopifyStoreId = shopify ? (await shopifyStore(shopify.shop))?.id : null;
+    if (shopify && !shopifyStoreId) {
+      return res.status(404).json({ success: false, message: "Store not found" });
+    }
+
     const membership = await User.findOne({
-      where: { account_id: req.account.id, role: "admin" },
+      where: { account_id: req.account.id, role: "admin", ...(shopifyStoreId && { store_id: shopifyStoreId }) },
     });
 
     if (!membership) {

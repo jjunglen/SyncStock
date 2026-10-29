@@ -23,7 +23,14 @@ const {
   scanInStore,
   shopifyAppEntry,
   shopifyAppsStatus,
+  reauthorizeShopify,
 } = require("../controllers/store.controller.js");
+const {
+  requireShopifyStore,
+  getChannel,
+  connectChannel,
+  disconnectChannel,
+} = require("../controllers/channel.controller.js");
 const {
   getSettings,
   updateSettings,
@@ -43,6 +50,13 @@ router.get("/shopify/callback", handleShopifyCallback);
 // The app's address in Shopify: installs and "open app" land here
 // (and any page under it — Shopify forwards admin paths like /onboarding/setup)
 router.get(/^\/shopify\/app(\/[a-zA-Z0-9/_-]*)?$/, shopifyAppEntry);
+// Opened in the whole window to re-ask Shopify for permissions the app
+// now needs (the channel page sends merchants here)
+router.get("/shopify/reauthorize", reauthorizeShopify);
+// The sales channel page inside the Shopify admin (Shopify session only)
+router.get("/channel", requireShopifyStore, getChannel);
+router.post("/channel/connect", requireShopifyStore, connectChannel);
+router.post("/channel/disconnect", requireShopifyStore, disconnectChannel);
 // Which app keys the server has (no secrets) — for checking Railway
 router.get("/shopify/status", shopifyAppsStatus);
 

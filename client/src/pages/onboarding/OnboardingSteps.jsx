@@ -35,6 +35,9 @@ const isValidSubdomainFormat = (value) => {
 };
 
 const STEPS = ["account", "subdomain", "plan"]; // carousel slides, in order
+// Where finished setup goes: the channel page inside the Shopify admin
+// (its account section — App Store 5.7.10), else the dashboard
+const DONE_PATH = IN_SHOPIFY_ADMIN ? "/channel" : "/dashboard";
 const GLOBAL_STEP_OFFSET = 2; // "Connect Shopify" was step 1
 const TOTAL_STEPS = 4;
 
@@ -77,7 +80,7 @@ export default function OnboardingSteps() {
       .then((res) => {
         const { step, logged_in, store_name, subdomain: saved } = res.data.data;
         if (step === "complete") {
-          navigate("/dashboard", { replace: true });
+          navigate(DONE_PATH, { replace: true });
           return;
         }
         // Past the account step, only the logged-in owner can continue
@@ -178,7 +181,7 @@ export default function OnboardingSteps() {
           else window.location.assign(approvalUrl);
           return;
         }
-        navigate("/dashboard", { replace: true });
+        navigate(DONE_PATH, { replace: true });
       } catch (err) {
         failWith(err);
         setIsSubmitting(false);

@@ -46,7 +46,9 @@ const {
   clearSessionCookies,
   findSessionAccount,
   issuedBeforeCutoff,
+  shopifyStore,
 } = require("../utils/session.js");
+const { shopifySession } = require("../utils/shopifySession.js");
 
 const ensureMembership = async (account, store, source = null) => {
   let membership = await User.findOne({
@@ -373,9 +375,12 @@ const getMe = async (req, res) => {
                 .json({ success: false, message: "Not logged in" });
         }
 
-        // Owns at least one store — decides access to merchant pages
+        // Owns at least one store — decides access to merchant pages.
+        // Inside the Shopify admin, it's the shop being viewed.
+        const shopify = shopifySession(req);
+        const shopifyStoreId = shopify ? (await shopifyStore(shopify.shop))?.id : null;
         const adminMembership = await User.findOne({
-            where: { account_id: req.account.id, role: "admin" },
+            where: { account_id: req.account.id, role: "admin", ...(shopifyStoreId && { store_id: shopifyStoreId }) },
             include: [{ model: Store, attributes: ["onboarding_step"] }],
         });
         const isMerchant = !!adminMembership;

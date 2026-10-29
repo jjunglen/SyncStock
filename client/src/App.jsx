@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { IN_SHOPIFY_ADMIN } from "./lib/shopifyAdmin.js";
+import ChannelHome from "./pages/shopify/ChannelHome.jsx";
 import Landing from "./pages/Landing.jsx";
 import PricingPage from "./pages/Pricing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
@@ -50,11 +51,13 @@ function App() {
 
   return (
     <Routes>
-      {/* Opening the app in the Shopify admin starts at the dashboard */}
+      {/* Opening the app in the Shopify admin starts at the channel page */}
       <Route
         path="/"
-        element={IN_SHOPIFY_ADMIN ? <Navigate to="/dashboard" replace /> : subdomain ? <StoreLanding /> : <Landing />}
+        element={IN_SHOPIFY_ADMIN ? <Navigate to="/channel" replace /> : subdomain ? <StoreLanding /> : <Landing />}
       />
+      {/* The sales channel page — only inside the Shopify admin */}
+      <Route path="/channel" element={IN_SHOPIFY_ADMIN ? <ChannelHome /> : <Navigate to="/dashboard" replace />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
