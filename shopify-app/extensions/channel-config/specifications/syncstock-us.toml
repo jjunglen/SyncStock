@@ -1,10 +1,9 @@
 # The SyncStock channel: each store's shopper site ({store}.syncstock.io),
 # where shoppers browse in their sizes, get restock alerts, and buy
 # through the store's own Shopify checkout (cart links).
+# (Shopify refuses "name" and "description" here, despite its docs.)
 handle = "syncstock-us"
 label = "SyncStock"
-name = "SyncStock United States"
-description = "Your store's SyncStock site: shoppers browse in their size and get restock alerts, then check out on your Shopify store."
 icon = "syncstock-icon.svg"
 # Shopify keeps the product feed in step with what's published
 productFeedManagement = "automatic"

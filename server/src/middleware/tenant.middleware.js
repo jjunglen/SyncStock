@@ -165,7 +165,9 @@ const findOnboardingStore = async (req) => {
   if (shopify) {
     const store = await shopifyStore(shopify.shop);
     if (store && store.onboarding_step !== "complete") return { store, account, expired: false };
-    return { store: null, account, expired: false };
+    // No store yet: the app is open in the admin but SyncStock hasn't been
+    // approved on this shop (the page then starts the install)
+    return { store: null, account, expired: false, notInstalled: !store };
   }
 
   if (account) {
@@ -189,10 +191,11 @@ const findOnboardingStore = async (req) => {
 // GET /store/onboarding — link or owner session
 const resolveOnboardingStore = async (req, res, next) => {
   try {
-    const { store, account, expired } = await findOnboardingStore(req);
+    const { store, account, expired, notInstalled } = await findOnboardingStore(req);
     if (!store) {
       return res.status(401).json({
         success: false,
+        ...(notInstalled && { code: "SHOPIFY_NOT_INSTALLED" }),
         message: expired
           ? "Your setup link expired — log in, or reconnect your Shopify store"
           : "Log in to continue setting up your store",

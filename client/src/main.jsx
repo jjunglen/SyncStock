@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import "./App.css"
 import App from './App.jsx'
-import { IN_SHOPIFY_ADMIN, SHOPIFY_ADMIN_BASE } from "./lib/shopifyAdmin.js";
+import { IN_SHOPIFY_ADMIN, SHOPIFY_ADMIN_BASE, leaveIfOutsideAdmin } from "./lib/shopifyAdmin.js";
 
 // Error alerts for the browser side. Off unless VITE_SENTRY_DSN is set
 // (set it on Vercel only). No performance tracing or session replays.
@@ -16,7 +16,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-ReachDOM.createRoot(document.getElementById('root'), {
+// The admin page opened outside the Shopify admin hands over instead
+if (!leaveIfOutsideAdmin()) ReachDOM.createRoot(document.getElementById('root'), {
   // React 19 hands crashes here instead of the console
   onUncaughtError: Sentry.reactErrorHandler(),
   onRecoverableError: Sentry.reactErrorHandler(),

@@ -9,11 +9,13 @@ name = "SyncStock"
 # Its extensions: the web pixel, the theme blocks, and the sales channel
 # (channel-config — the Lab's custom app leaves that one out)
 extension_directories = [ "extensions/syncstock-pixel", "extensions/syncstock-theme", "extensions/channel-config" ]
-# Where Shopify sends merchants who install or open the app: the server
-# checks Shopify's signature, then starts connecting the store (in the
-# whole window), or — already connected — opens the dashboard's admin
-# version (syncstock.io/shopify/...) inside the admin
-application_url = "https://api.syncstock.io/api/store/shopify/app"
+# The dashboard's admin version (client/shopify.html). It must be the
+# app's own address: App Bridge keeps the frame on it (pointing this at
+# the API sent the frame to API pages — "Route not found"). With www, as
+# syncstock.io redirects there. If SyncStock isn't approved on the shop
+# yet, the page hands Shopify's signed link to the server's app entry
+# (api.syncstock.io/api/store/shopify/app), which starts the install.
+application_url = "https://www.syncstock.io/shopify"
 # A sales channel lives inside the Shopify admin. Turn on together with
 # Railway's SHOPIFY_PUBLIC_EMBEDDED=true (store.controller.js).
 embedded = true

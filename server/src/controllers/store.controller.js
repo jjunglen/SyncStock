@@ -654,6 +654,13 @@ const shopifyAppEntry = async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL}/shopify${page}${query ? `?${query}` : ""}`);
     }
 
+    // The whole window, already installed, and the public app lives in
+    // the admin: back into the admin (the admin page sends the whole
+    // window here when it's opened outside Shopify)
+    if (appKey === "public" && publicAppEmbedded()) {
+      return res.redirect(adminAppUrl(shop, (req.params[0] || "").replace(/[^a-zA-Z0-9/_-]/g, "")));
+    }
+
     return res.redirect(
       store.onboarding_step === "complete"
         ? `${process.env.FRONTEND_URL}/dashboard`

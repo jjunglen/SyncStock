@@ -16,7 +16,7 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import BlackHoleBackground from "../../components/ui/BlackHoleBackground.jsx";
 import api from "../../lib/api.js";
 import { PLAN } from "../../lib/plan.js";
-import { IN_SHOPIFY_ADMIN, openInWholeWindow } from "../../lib/shopifyAdmin.js";
+import { IN_SHOPIFY_ADMIN, openInWholeWindow, startShopifyInstall } from "../../lib/shopifyAdmin.js";
 
 // Merchant setup, after connecting Shopify (step 1):
 //   2. Create account → verify email (/email-verification)
@@ -91,6 +91,9 @@ export default function OnboardingSteps() {
         setStatus("ready");
       })
       .catch((err) => {
+        // Open in the Shopify admin before SyncStock was approved on the
+        // shop: Shopify's approval screen first
+        if (err.response?.data?.code === "SHOPIFY_NOT_INSTALLED" && startShopifyInstall()) return;
         setLoadError(
           err.response?.data?.message || "We couldn't load your setup. Try again.",
         );
