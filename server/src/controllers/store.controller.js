@@ -148,10 +148,13 @@ const isShopDomain = (shop) => typeof shop === "string" && /^[a-z0-9][a-z0-9-]*\
 const publicAppEmbedded = () => process.env.SHOPIFY_PUBLIC_EMBEDDED === "true";
 
 // The app inside this store's Shopify admin, optionally at a page
-// ("/onboarding/setup") — Shopify forwards the rest of the path to the app
+// ("/onboarding/setup"). Shopify loads the rest of the admin path as the
+// frame's path from the site's root — so a page must include the admin
+// version's /shopify prefix, or the frame opens the normal site (no
+// Shopify sign-in: "Log in to continue setting up your store").
 const adminAppUrl = (shop, path = "") => {
   const { clientId } = appCredentials("public");
-  return `https://${shop}/admin/apps/${clientId}${path}`;
+  return `https://${shop}/admin/apps/${clientId}${path ? `/shopify${path}` : ""}`;
 };
 
 // Was this request made inside a frame (the Shopify admin)? Browsers say

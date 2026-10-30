@@ -46,8 +46,20 @@ export const startShopifyInstall = () => {
 // Opened outside the Shopify admin (an install sends the whole window
 // here): hand over to the server, which starts Shopify's approval or goes
 // back into the admin. Without Shopify's link, it's the normal dashboard.
+// Also the reverse: the normal site opened INSIDE the admin's frame
+// (Shopify's embedded=1&shop=… on a page without /shopify) switches to the
+// admin version of the same page, which signs in through Shopify.
 // Returns true when the page is leaving.
 export const leaveIfOutsideAdmin = () => {
+  if (typeof window === "undefined") return false;
+  if (!IN_SHOPIFY_ADMIN && IN_FRAME) {
+    const params = new URLSearchParams(LAUNCH_QUERY);
+    if (params.get("embedded") === "1" && /\.myshopify\.com$/i.test(params.get("shop") || "")) {
+      window.location.replace(`/shopify${window.location.pathname}${LAUNCH_QUERY}`);
+      return true;
+    }
+    return false;
+  }
   if (!IN_SHOPIFY_ADMIN || IN_FRAME) return false;
   if (new URLSearchParams(LAUNCH_QUERY).get("shop")) window.location.replace(serverEntryUrl());
   else window.location.replace("/dashboard");
