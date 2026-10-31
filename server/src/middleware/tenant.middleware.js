@@ -1,3 +1,4 @@
+const { verifyShopifyHmac } = require("./shopify.middleware.js");
 const { Op } = require("sequelize");
 const { Store, Account, User } = require("../models/index.js");
 const { verifyOnboardingToken } = require("../utils/jwt.js");
@@ -56,10 +57,14 @@ const resolveStoreFromShopifyDomain = async (req, res, next) => {
     const store = await Store.findOne({
       where: { shopify_domain: shopDomain },
     });
+    // No store: its data was deleted (shop/redact, 48 hours after an
+    // uninstall) or it never finished installing. A genuine Shopify
+    // webhook is acknowledged and ignored — a 404 makes Shopify retry and
+    // log failures. A bad signature still gets its 401.
     if (!store) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No store for this shop domain" });
+      return verifyShopifyHmac(req, res, () =>
+        res.status(200).json({ received: true, ignored: true }),
+      );
     }
     req.store = store;
     next();

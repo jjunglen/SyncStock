@@ -96,6 +96,9 @@ function App() {
       <Route path="/onboarding/size" element={<ProtectedRoute loginPath="/store/login"><SelectSizes /></ProtectedRoute>} />
       <Route path="/store/login" element={<StoreAuthLayout><CustomerAuthForm initialMode="login" /></StoreAuthLayout>} />
       <Route path="/store/signup" element={<StoreAuthLayout><CustomerAuthForm initialMode="signup" /></StoreAuthLayout>} />
+      {/* Any other address: the app's start page instead of a blank screen
+          (Shopify can open admin paths the app doesn't have) */}
+      <Route path="*" element={<Navigate to={IN_SHOPIFY_ADMIN ? "/channel" : "/"} replace />} />
     </Routes>
   );
 }

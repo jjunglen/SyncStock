@@ -34,12 +34,55 @@ export const IN_FRAME = typeof window !== "undefined" && window.top !== window.s
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const serverEntryUrl = () => `${API_BASE}/store/shopify/app${LAUNCH_QUERY}`;
 
-// SyncStock isn't approved on this shop yet: Shopify's approval screen,
-// in the whole window (it can't open inside the frame)
-export const startShopifyInstall = () => {
+// Shopify's approval screen, in the whole window (it can't open inside
+// the frame) — the fallback when a token exchange isn't possible
+const openShopifyApproval = () => {
   if (!new URLSearchParams(LAUNCH_QUERY).get("shop")) return false;
   if (IN_FRAME) openInWholeWindow(serverEntryUrl());
   else window.location.assign(serverEntryUrl());
+  return true;
+};
+
+// One try per page visit within a minute, so a failing exchange can't
+// reload forever
+const EXCHANGE_KEY = "syncstock_token_exchange";
+const recentlyTried = () => {
+  try {
+    return Date.now() - Number(sessionStorage.getItem(EXCHANGE_KEY) || 0) < 60_000;
+  } catch {
+    return false;
+  }
+};
+const markTried = () => {
+  try {
+    sessionStorage.setItem(EXCHANGE_KEY, String(Date.now()));
+  } catch {
+    // private mode: no loop guard needed beyond this visit
+  }
+};
+
+// The app is open in the admin but SyncStock has no working access for
+// this shop (Shopify installed it without our install link — e.g. a
+// reinstall). Ask the server to trade Shopify's session token for access,
+// then reload. Only if Shopify refuses does it fall back to the approval
+// screen. Returns true when the page is moving on (reload or redirect).
+export const startShopifyInstall = () => {
+  if (!IN_SHOPIFY_ADMIN || recentlyTried()) return openShopifyApproval();
+  markTried();
+  (async () => {
+    try {
+      const token = await shopifyIdToken();
+      if (!token) throw new Error("no session token");
+      const resp = await fetch(`${API_BASE}/store/shopify/token-exchange`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) throw new Error(`exchange ${resp.status}`);
+      window.location.reload();
+    } catch {
+      openShopifyApproval();
+    }
+  })();
   return true;
 };
 

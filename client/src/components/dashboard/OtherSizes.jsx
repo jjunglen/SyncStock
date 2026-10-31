@@ -6,14 +6,14 @@ import api from "../../lib/api.js";
 import { SIZES_BY_CATEGORY } from "../../lib/categories.js";
 
 // "Need a different size?" in the product popup. Shows every size for
-// this product: ones in stock open that listing; any other size can get
-// an alert, so a shopper who finds a shoe in the wrong size can still
-// track it in theirs.
+// this product: ones in stock open that listing; any other sizes (one or
+// several) can get alerts in one go, so a shopper who finds a shoe in the
+// wrong size can still track it in theirs.
 export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreated }) {
   const allSizes = SIZES_BY_CATEGORY[item.category] || [];
   const [open, setOpen] = useState(false);
   const [inStock, setInStock] = useState(null); // size -> inventory id
-  const [picked, setPicked] = useState(null);
+  const [picked, setPicked] = useState([]);
   const [saving, setSaving] = useState(false);
   const [justAlerted, setJustAlerted] = useState([]);
   const [message, setMessage] = useState("");
@@ -49,16 +49,21 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
     setSaving(true);
     setMessage("");
     try {
-      await api.post("/alerts", {
+      const res = await api.post("/alerts", {
         product_name: item.product_name,
         category: item.category,
-        size: picked,
+        sizes: picked,
         sku: item.sku || null,
         image_url: item.image_urls?.[0] || item.image_url || null,
         notify_email: true,
         notify_inapp: true,
       });
-      setMessage(`Alert set — we'll let you know when size ${picked} lands.`);
+      const made = res.data.created || picked;
+      setMessage(
+        made.length === 1
+          ? `Alert set — we'll let you know when size ${made[0]} lands.`
+          : `Alerts set for sizes ${made.join(", ")} — we'll let you know when each lands.`,
+      );
       onAlertCreated?.();
     } catch (err) {
       // Already tracking this size counts as done, not an error
@@ -67,10 +72,10 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
         setSaving(false);
         return;
       }
-      setMessage(`You're already tracking size ${picked}.`);
+      setMessage(`You're already tracking ${picked.length === 1 ? `size ${picked[0]}` : "those sizes"}.`);
     }
-    setJustAlerted((prev) => [...prev, picked]);
-    setPicked(null);
+    setJustAlerted((prev) => [...prev, ...picked]);
+    setPicked([]);
     setSaving(false);
   };
 
@@ -97,22 +102,23 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
           ) : (
             <>
               <p className="text-xs text-text-muted mb-3">
-                Sizes in stock open that listing. Pick any other size to get an alert when it lands.
+                Sizes in stock open that listing. Pick one or more other sizes to get alerts when they land.
               </p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {allSizes.map((size) => {
                   const current = size === item.size;
                   const stockId = inStock[size];
                   const hasAlert = alerted.has(size);
-                  const selected = picked === size;
+                  const selected = picked.includes(size);
                   return (
                     <button
                       key={size}
                       disabled={current || (hasAlert && !stockId)}
+                      aria-pressed={stockId || current ? undefined : selected}
                       onClick={() => {
                         setMessage("");
                         if (stockId) onOpenItem?.(stockId);
-                        else setPicked(selected ? null : size);
+                        else setPicked((prev) => (selected ? prev.filter((s) => s !== size) : [...prev, size]));
                       }}
                       className={`flex flex-col items-center rounded-lg border px-1 py-2 text-xs transition-colors ${
                         current
@@ -143,7 +149,7 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
                 })}
               </div>
 
-              {picked && (
+              {picked.length > 0 && (
                 <Button
                   variant="primary"
                   fullWidth
@@ -155,7 +161,10 @@ export default function OtherSizes({ item, alerts = [], onOpenItem, onAlertCreat
                     <Spinner size={18} />
                   ) : (
                     <span className="flex items-center justify-center gap-2">
-                      <LuBell size={16} /> Alert me when size {picked} is in
+                      <LuBell size={16} />{" "}
+                      {picked.length === 1
+                        ? `Alert me when size ${picked[0]} is in`
+                        : `Alert me for ${picked.length} sizes`}
                     </span>
                   )}
                 </Button>

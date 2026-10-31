@@ -29,7 +29,7 @@ export default function TrackShoe() {
   const [results, setResults] = useState([]);
   const [selectedShoe, setSelectedShoe] = useState(null);
   const [searching, setSearching] = useState(false);
-  const [size, setSize] = useState(null);
+  const [sizes, setSizes] = useState([]);
   const [priceRange, setPriceRange] = useState([PRICE_MIN, PRICE_MAX]);
   const [condition, setCondition] = useState("either");
   const [emailNotif, setEmailNotif] = useState(true);
@@ -41,11 +41,11 @@ export default function TrackShoe() {
   const [category, setCategory] = useState(() =>
     TRACKABLE.includes(searchParams.get("category")) ? searchParams.get("category") : "sneakers",
   );
-  // A size only makes sense for its category — clear it on a switch
+  // Sizes only make sense for their category — clear them on a switch
   const switchCategory = (next) => {
     if (next === category) return;
     setCategory(next);
-    setSize(null);
+    setSizes([]);
   };
 
   const navigate = useNavigate();
@@ -89,17 +89,17 @@ export default function TrackShoe() {
   }, [query]);
 
   const handleSubmit = async () => {
-    if (!selectedShoe || !size) return;
+    if (!selectedShoe || sizes.length === 0) return;
     setSubmitting(true);
     setError("");
     setSuccess(false);
 
     try {
-      await api.post("/alerts", {
+      const res = await api.post("/alerts", {
         category,
         product_name: selectedShoe.title,
         sku: selectedShoe.styleId,
-        size,
+        sizes,
         ...pricesFromRange(priceRange),
         condition_preference: condition,
         notify_email: emailNotif,
@@ -110,10 +110,16 @@ export default function TrackShoe() {
         image_url: selectedShoe.image_url || null,
       });
 
-      setSuccess(true);
+      const made = res.data.created || [];
+      const skipped = res.data.skipped || [];
+      setSuccess(
+        made.length > 1 || skipped.length > 0
+          ? `${made.length === 1 ? "Alert" : `${made.length} alerts`} created for size${made.length === 1 ? "" : "s"} ${made.join(", ")}.${skipped.length ? ` Already tracking ${skipped.join(", ")}.` : ""}`
+          : true,
+      );
       setSelectedShoe(null);
       setQuery("");
-      setSize(null);
+      setSizes([]);
       setPriceRange([PRICE_MIN, PRICE_MAX]);
       setCondition("either");
       setResults([]);
@@ -146,7 +152,7 @@ export default function TrackShoe() {
 
         {success && (
           <div className="mb-4 bg-live/10 border border-live/30 text-live text-sm rounded-xl px-4 py-3 flex items-center justify-between">
-            <span>Alert created! We'll notify you when it drops.</span>
+            <span>{typeof success === "string" ? success : "Alert created! We'll notify you when it drops."}</span>
             <button
               onClick={() => navigate("/store/dashboard?tab=alerts")}
               className="underline text-sm ml-4"
@@ -217,10 +223,11 @@ export default function TrackShoe() {
                       const itemCategory = categoryFromStockx(shoe) || category;
                       if (itemCategory !== category) {
                         setCategory(itemCategory);
-                        setSize(null);
+                        setSizes([]);
                       }
+                      // Start with the shopper's saved sizes for this type
                       const savedForType = mySizes.filter((s) => SIZES_BY_CATEGORY[itemCategory].includes(s));
-                      if (savedForType.length > 0 && (itemCategory !== category || !size)) setSize(savedForType[0]);
+                      if (savedForType.length > 0 && (itemCategory !== category || sizes.length === 0)) setSizes(savedForType);
                     }}
                     className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
                       selectedShoe?.productId === shoe.productId
@@ -320,10 +327,10 @@ export default function TrackShoe() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Size</p>
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sizes</p>
                   <SizePicker
-                    value={size}
-                    onChange={setSize}
+                    value={sizes}
+                    onChange={setSizes}
                     category={category}
                     mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
                   />
@@ -373,10 +380,16 @@ export default function TrackShoe() {
                   variant="primary"
                   size="lg"
                   fullWidth
-                  disabled={!size || submitting}
+                  disabled={sizes.length === 0 || submitting}
                   onClick={handleSubmit}
                 >
-                  {submitting ? "Creating alert..." : size ? `Set alert for size ${size}` : "Choose a size to set an alert"}
+                  {submitting
+                    ? sizes.length > 1 ? "Creating alerts..." : "Creating alert..."
+                    : sizes.length > 1
+                      ? `Set alerts for ${sizes.length} sizes`
+                      : sizes.length === 1
+                        ? `Set alert for size ${sizes[0]}`
+                        : "Choose a size to set an alert"}
                 </Button>
               </div>
             ) : (

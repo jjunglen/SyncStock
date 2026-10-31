@@ -328,16 +328,116 @@ const activateWebPixel = async (store, accessToken, shop) => {
   }
 };
 
+// After Shopify hands over a store token (the OAuth callback, or a token
+// exchange inside the admin): read the store's details, create or update
+// its record, and set up webhooks, the pixel and the catalog. Returns the
+// store, or null if Shopify's store details couldn't be read.
+//   backgroundCatalog — load the catalog after returning (the admin page
+//   is waiting on this; the callback isn't)
+const finishInstall = async (shop, appKey, tokenBody, { backgroundCatalog = false } = {}) => {
+  const access_token = tokenBody.access_token;
+  // The store's name and public domain (GraphQL — new public apps are
+  // expected to use it rather than REST)
+  const shopResp = await fetch(`https://${shop}/admin/api/2026-07/graphql.json`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": access_token },
+    body: JSON.stringify({ query: "{ shop { name primaryDomain { host } } }" }),
+  });
+  const shopBody = await shopResp.json().catch(() => ({}));
+  const shopInfo = shopBody.data?.shop;
+  if (!shopInfo?.name) {
+    console.error(
+      `Shopify install for ${shop}: couldn't read the store details (${shopResp.status}):`,
+      JSON.stringify(shopBody.errors || shopBody).slice(0, 500),
+    );
+    return null;
+  }
+  const shopData = { name: shopInfo.name, domain: shopInfo.primaryDomain?.host || shop };
+
+  let store = await Store.findOne({ where: { shopify_domain: shop } });
+
+  if (!store) {
+    const subdomain = await generateSubdomain(shopData.name);
+    store = await Store.create({
+      name: shopData.name,
+      shopify_domain: shop,
+      storefront_url: `https://${shopData.domain}`,
+      ...tokenFields(tokenBody),
+      shopify_app: appKey,
+      subdomain,
+      status: "pending",
+      onboarding_step: "account",
+    });
+  } else {
+    // Reconnected — possibly moving to the other app
+    await store.update({ ...tokenFields(tokenBody), shopify_app: appKey });
+    // Reinstalled after an uninstall. Shopify cancelled their
+    // subscription on uninstall, so paying stores pick their plan again
+    // (no second trial); the flagship store goes straight back online.
+    if (store.uninstalled_at) {
+      const exempt = await isBillingExempt(store);
+      const finished = store.onboarding_step === "complete";
+      await store.update({
+        uninstalled_at: null,
+        ...(finished && exempt
+          ? { status: "active" }
+          : { status: "pending", onboarding_step: finished ? "plan" : store.onboarding_step }),
+      });
+    }
+  }
+
+  await registerShopifyWebhooks(store);
+  await activateWebPixel(store, access_token, shop);
+  if (backgroundCatalog) backfillInventory(store);
+  else await backfillInventory(store);
+  return store;
+};
+
+// An install callback that can't be completed as is (see
+// handleShopifyCallback). Nothing here grants access: an already connected
+// store just opens (where Shopify's own sign-in applies), anything else
+// starts Shopify's approval again. One retry per browser — a second
+// failure in a row goes to the connect page with a message instead of
+// looping.
+const RETRY_COOKIE = "shopify_oauth_retry";
+const recoverInstall = async (req, res, shop, knownApp = null) => {
+  const fail = () => res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=connect_failed`);
+  if (!isShopDomain(shop)) return fail();
+  const rawQuery = req.originalUrl.split("?")[1] || "";
+  const appKey = knownApp || (isConfigured(req.cookies.shopify_oauth_app) ? req.cookies.shopify_oauth_app : null) || appThatSignedQuery(req.query, rawQuery);
+  if (!appKey) return fail(); // not from Shopify and not from this browser
+
+  const store = await Store.findOne({ where: { shopify_domain: shop } });
+  const connected = store && store.shopify_app === appKey && !store.uninstalled_at && store.shopify_access_token;
+  if (connected) {
+    res.clearCookie(RETRY_COOKIE);
+    if (appKey === "public" && publicAppEmbedded()) {
+      return res.redirect(adminAppUrl(shop, store.onboarding_step === "complete" ? "" : "/onboarding/setup"));
+    }
+    return res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
+  }
+  if (req.cookies[RETRY_COOKIE]) {
+    res.clearCookie(RETRY_COOKIE);
+    return fail();
+  }
+  res.cookie(RETRY_COOKIE, "1", { httpOnly: true, maxAge: 10 * 60 * 1000, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+  return startOAuth(res, shop, appKey);
+};
+
 const handleShopifyCallback = async (req, res) => {
   try {
     const { shop, code, state } = req.query;
 
-    if (req.cookies.shopify_oauth_state !== state) {
-      return res.status(403).send("Invalid state — possible CSRF attempt");
+    // The browser that started the install no longer matches (cookie gone:
+    // over 10 minutes on Shopify's screen, another browser, or a reload).
+    // Never trusted — but rather than an error page, open the app if it's
+    // already connected, or start the install again.
+    if (!state || req.cookies.shopify_oauth_state !== state) {
+      return recoverInstall(req, res, shop);
     }
     // The app this install started with (set in initiateShopifyConnect)
     const appKey = isConfigured(req.cookies.shopify_oauth_app) ? req.cookies.shopify_oauth_app : null;
-    if (!appKey) return res.status(403).send("Install session expired — start again");
+    if (!appKey) return recoverInstall(req, res, shop);
     const app = appCredentials(appKey);
 
     // Only ever send the code (and our secret) to a real Shopify store
@@ -372,7 +472,8 @@ const handleShopifyCallback = async (req, res) => {
       console.error(
         `Shopify callback for ${shop} (${appKey} app): code exchange rejected (${tokenResp.status}), signature ${signed ? "valid" : "invalid"}`,
       );
-      return res.status(403).send("Shopify didn't confirm this install — start again");
+      // Usually a reload after a finished install (the code is single-use)
+      return recoverInstall(req, res, shop, appKey);
     }
     if (!signed) {
       console.warn(
@@ -380,63 +481,13 @@ const handleShopifyCallback = async (req, res) => {
       );
     }
 
-    // The store's name and public domain (GraphQL — new public apps are
-    // expected to use it rather than REST)
-    const shopResp = await fetch(`https://${shop}/admin/api/2026-07/graphql.json`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": access_token },
-      body: JSON.stringify({ query: "{ shop { name primaryDomain { host } } }" }),
-    });
-    const shopBody = await shopResp.json().catch(() => ({}));
-    const shopInfo = shopBody.data?.shop;
-    if (!shopInfo?.name) {
-      console.error(
-        `Shopify callback for ${shop}: couldn't read the store details (${shopResp.status}):`,
-        JSON.stringify(shopBody.errors || shopBody).slice(0, 500),
-      );
-      return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=connect_failed`);
-    }
-    const shopData = { name: shopInfo.name, domain: shopInfo.primaryDomain?.host || shop };
-
-    let store = await Store.findOne({ where: { shopify_domain: shop } });
-
-    if (!store) {
-      const subdomain = await generateSubdomain(shopData.name);
-      store = await Store.create({
-        name: shopData.name,
-        shopify_domain: shop,
-        storefront_url: `https://${shopData.domain}`,
-        ...tokenFields(tokenBody),
-        shopify_app: appKey,
-        subdomain,
-        status: "pending",
-        onboarding_step: "account",
-      });
-    } else {
-      // Reconnected — possibly moving to the other app
-      await store.update({ ...tokenFields(tokenBody), shopify_app: appKey });
-      // Reinstalled after an uninstall. Shopify cancelled their
-      // subscription on uninstall, so paying stores pick their plan again
-      // (no second trial); the flagship store goes straight back online.
-      if (store.uninstalled_at) {
-        const exempt = await isBillingExempt(store);
-        const finished = store.onboarding_step === "complete";
-        await store.update({
-          uninstalled_at: null,
-          ...(finished && exempt
-            ? { status: "active" }
-            : { status: "pending", onboarding_step: finished ? "plan" : store.onboarding_step }),
-        });
-      }
-    }
-
-    await registerShopifyWebhooks(store);
-    await activateWebPixel(store, access_token, shop);
-    await backfillInventory(store);
+    const store = await finishInstall(shop, appKey, tokenBody);
+    if (!store) return res.redirect(`${process.env.FRONTEND_URL}/onboarding?error=connect_failed`);
     const onboardingToken = signOnboardingToken(store.id);
 
     res.clearCookie("shopify_oauth_state");
     res.clearCookie("shopify_oauth_app");
+    res.clearCookie(RETRY_COOKIE);
     // The public app, once it lives in the admin: back into the admin,
     // where setup (or the dashboard) continues signed in through Shopify
     if (appKey === "public" && publicAppEmbedded()) {
@@ -455,6 +506,53 @@ const handleShopifyCallback = async (req, res) => {
     return res.redirect(
       `${process.env.FRONTEND_URL}/onboarding?error=connect_failed`,
     );
+  }
+};
+
+// POST /api/store/shopify/token-exchange — the app is open in the Shopify
+// admin but SyncStock has no working token for the shop (Shopify installed
+// it without calling our install link — e.g. a reinstall). The page sends
+// Shopify's session token; Shopify trades it for the store's token right
+// here, with no redirects (sending the admin to Shopify's approval page
+// for an app it already counts as installed shows its 404). A valid
+// session token proves the app is installed on that shop, so the private
+// beta doesn't apply — same as an install through Shopify.
+// https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/token-exchange
+const shopifyTokenExchange = async (req, res) => {
+  try {
+    const idToken = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || "")?.[1]?.trim();
+    const session = verifySessionToken(idToken);
+    if (!session) return res.status(401).json({ success: false, message: "Open SyncStock from your Shopify admin" });
+    const { shop } = session;
+    const { clientId, secret } = appCredentials("public");
+
+    const tokenResp = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: secret,
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        subject_token: idToken,
+        subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
+        requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+        expiring: "1",
+      }),
+    });
+    const tokenBody = await tokenResp.json().catch(() => ({}));
+    if (!tokenBody.access_token) {
+      console.error(`Token exchange for ${shop} refused (${tokenResp.status} ${tokenBody.error || ""})`);
+      // The page falls back to Shopify's approval screen
+      return res.status(409).json({ success: false, code: "TOKEN_EXCHANGE_FAILED", message: "Shopify didn't hand over access" });
+    }
+
+    const store = await finishInstall(shop, "public", tokenBody, { backgroundCatalog: true });
+    if (!store) return res.status(502).json({ success: false, message: "Couldn't read your store from Shopify. Try again." });
+    console.log(`Token exchange: ${shop} connected (step ${store.onboarding_step})`);
+    return res.status(200).json({ success: true, data: { step: store.onboarding_step } });
+  } catch (error) {
+    console.error("Token exchange error:", error.message);
+    return res.status(500).json({ success: false, message: "Couldn't connect your store. Try again." });
   }
 };
 
@@ -890,6 +988,7 @@ module.exports = {
   registerShopifyWebhooks,
   shopifyAppsStatus,
   shopifyAppEntry,
+  shopifyTokenExchange,
   goToStore,
   scanInStore,
   billingCallback,

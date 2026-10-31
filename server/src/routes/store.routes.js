@@ -24,6 +24,7 @@ const {
   shopifyAppEntry,
   shopifyAppsStatus,
   reauthorizeShopify,
+  shopifyTokenExchange,
 } = require("../controllers/store.controller.js");
 const {
   requireShopifyStore,
@@ -54,6 +55,7 @@ router.get(/^\/shopify\/app(\/[a-zA-Z0-9/_-]*)?$/, shopifyAppEntry);
 // Opened in the whole window to re-ask Shopify for permissions the app
 // now needs (the channel page sends merchants here)
 router.get("/shopify/reauthorize", reauthorizeShopify);
+router.post("/shopify/token-exchange", shopifyTokenExchange);
 // The sales channel page inside the Shopify admin (Shopify session only)
 router.get("/channel", requireShopifyStore, getChannel);
 router.post("/channel/connect", requireShopifyStore, connectChannel);
