@@ -36,6 +36,8 @@ const Purchase = sequelize.define(
     // pixel     — the web pixel reported the checkout (e.g. "Buy it now")
     // utm       — Shopify's visit history shows the shopper arrived from
     //             the click's link (they came back later; nightly check)
+    // labsync   — a "Buy now" link from an alert LabSync sent before the
+    //             move to SyncStock (attribution.service.js)
     attribution_source: {
       type: DataTypes.STRING(20),
       allowNull: true,

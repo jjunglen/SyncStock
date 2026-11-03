@@ -112,6 +112,10 @@ const getCustomerCount = async (req, res) => {
   }
 };
 
+// Purchases are grouped by month in the store's time zone (the same one
+// the daily jobs use), so a late-night order lands in the right month
+const STORE_TIME_ZONE = "America/Chicago";
+
 const getPurchases = async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req.query);
@@ -126,12 +130,36 @@ const getPurchases = async (req, res) => {
       offset,
     });
 
+    // Totals for every month (not just this page), in the store's time
+    // zone: sales, and revenue the way the dashboard counts it — exact
+    // size matches, after refunds, cancelled orders left out
+    const months = await sequelize.query(
+      `
+      SELECT
+        to_char(date_trunc('month', purchased_at AT TIME ZONE :tz), 'YYYY-MM') AS month,
+        COUNT(*)::int AS sales,
+        COUNT(*) FILTER (WHERE match_type = 'product')::int AS assisted,
+        COALESCE(SUM(GREATEST(price_paid - refunded_amount, 0)) FILTER (WHERE match_type = 'exact' AND cancelled_at IS NULL), 0)::float AS revenue
+      FROM purchases
+      WHERE store_id = :storeId
+      GROUP BY 1
+      ORDER BY 1 DESC
+      `,
+      { replacements: { storeId: req.store.id, tz: STORE_TIME_ZONE }, type: QueryTypes.SELECT },
+    );
+    const monthOf = new Intl.DateTimeFormat("en-CA", { timeZone: STORE_TIME_ZONE, year: "numeric", month: "2-digit" });
+
     return res.status(200).json({
       success: true,
       data: rows.map((row) => {
         const { User: buyer, ...purchase } = row.toJSON();
-        return { ...purchase, customer_email: purchase.customer_email || buyer?.Account?.email || null };
+        return {
+          ...purchase,
+          customer_email: purchase.customer_email || buyer?.Account?.email || null,
+          month: monthOf.format(new Date(purchase.purchased_at)).slice(0, 7),
+        };
       }),
+      months,
       meta: buildMeta(count, page, limit),
     });
   } catch (error) {

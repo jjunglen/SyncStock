@@ -6,6 +6,8 @@ const SOURCE_LABELS = {
   cart_tag: "Syncstock checkout",
   pixel: "Buy it now",
   utm: "Return visit",
+  // A "Buy now" link from an alert LabSync sent before the move to SyncStock
+  labsync: "LabSync link",
 };
 
 // [{ label, tone }] — tone: "live" (good), "muted", "warn", "danger"

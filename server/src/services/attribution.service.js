@@ -1,4 +1,9 @@
-const { AlertClick, Purchase, PixelClaim, Inventory } = require("../models/index.js");
+const { AlertClick, Purchase, PixelClaim, Inventory, Alert } = require("../models/index.js");
+const { sizeKey } = require("../utils/skuMatch.js");
+const { parseVariantTitle } = require("../utils/parseVariantTitle.js");
+
+// "12M/13.5W - Pre-Owned / The Laboratory DTX" → "12M/13.5W"
+const sizeFromTitle = (title) => (title ? parseVariantTitle(String(title)).size || null : null);
 const { shopifyGraphql, gid } = require("../utils/shopifyGraphql.js");
 
 // Sales only count with proof that a Syncstock click led to them:
@@ -9,6 +14,11 @@ const { shopifyGraphql, gid } = require("../utils/shopifyGraphql.js");
 //   pixel    — the store's web pixel (shopify-app/extensions) saw the
 //              checkout complete in the browser that clicked, which also
 //              covers "Buy it now" / Shop Pay buttons that skip the cart.
+//   labsync  — the order carries labsync_click_id: a "Buy now" link from an
+//              alert sent by LabSync, SyncStock's earlier version, before
+//              the move on 2026-09-30. Those links still work, but their
+//              clicks were recorded by LabSync, so they're matched to the
+//              store's alerts instead (attributeLabSyncLinks).
 // Either way, the click must be for the exact variant bought, and made
 // within CLICK_WINDOW_DAYS of the order. Matching the order's email to a
 // shopper is NOT proof — someone with alerts can buy for other reasons.
@@ -25,11 +35,18 @@ const CLOCK_SKEW_MS = 5 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// In-store sales come through Shopify POS (source "pos"). Copyt's
+// "store-owned" tag is NOT in-store: it marks stock the store owns, and
+// Copyt adds it to web and POS orders alike, after the order is placed.
 const isPosOrder = (order) => {
-  const tags = (order.tags || "").toLowerCase();
+  const tags = (order.tags || "").toLowerCase().split(",").map((t) => t.trim());
   const sourceName = (order.source_name || "").toLowerCase();
-  return sourceName === "pos" || tags.includes("store-owned") || tags.includes("pos");
+  return sourceName === "pos" || tags.includes("pos");
 };
+
+// Copyt deletes a listing once it sells, so an order read later has lines
+// with no variant. Those lines are matched by SKU and size label instead.
+const lineKey = (line) => (line.variant_id ? String(line.variant_id) : `gone:${line.sku || ""}:${line.title || ""}:${line.variant_title || ""}`);
 
 // What was actually paid for the line: price × quantity, less discounts
 const lineTotal = (line) => {
@@ -41,20 +58,24 @@ const lineTotal = (line) => {
   return Math.max(gross - discounts, 0).toFixed(2);
 };
 
-// The order line for the clicked item. Exact variant; clicks from before
-// variants were recorded fall back to SKU.
+// The order line for the clicked item: the exact variant. Clicks from
+// before variants were recorded, and lines whose variant Copyt has since
+// deleted, fall back to SKU — plus the size label when the variant is gone.
 const lineForClick = (click, lineItems) => {
-  const withVariant = lineItems.filter((line) => line.variant_id);
   if (click.shopify_variant_id) {
-    return withVariant.find((line) => String(line.variant_id) === click.shopify_variant_id);
+    const exact = lineItems.find((line) => line.variant_id && String(line.variant_id) === click.shopify_variant_id);
+    if (exact) return exact;
   }
   if (!click.sku) return undefined;
-  return withVariant.find(
-    (line) => line.sku && line.sku.toLowerCase() === click.sku.toLowerCase(),
+  const sameSku = (line) => line.sku && line.sku.toLowerCase() === click.sku.toLowerCase();
+  if (!click.shopify_variant_id) return lineItems.find((line) => line.variant_id && sameSku(line));
+  return lineItems.find(
+    (line) => !line.variant_id && sameSku(line) && (!line.variant_title || !click.size || sizeKey(sizeFromTitle(line.variant_title)) === sizeKey(click.size)),
   );
 };
 
 const categoryForVariant = async (store, variantId) => {
+  if (!variantId) return "sneakers";
   const item = await Inventory.findOne({
     where: { store_id: store.id, shopify_variant_id: variantId },
     attributes: ["category"],
@@ -66,10 +87,13 @@ const categoryForVariant = async (store, variantId) => {
 // exact proof turns up later. One row per order + variant.
 const savePurchase = async (store, order, line, click, source, matchType) => {
   const orderId = String(order.id);
-  const variantId = String(line.variant_id);
+  const variantId = line.variant_id ? String(line.variant_id) : null;
   const where = { store_id: store.id, shopify_order_id: orderId, shopify_variant_id: variantId };
+  // A line whose variant is gone: one row per order + item name (it may
+  // already be recorded with its variant, from when the order came in)
+  const lookup = variantId ? where : { store_id: store.id, shopify_order_id: orderId, product_name: line.title || click.product_name };
   try {
-    const existing = await Purchase.findOne({ where });
+    const existing = await Purchase.findOne({ where: lookup });
     if (existing) {
       if (existing.match_type === "product" && matchType === "exact") {
         await existing.update({
@@ -96,7 +120,7 @@ const savePurchase = async (store, order, line, click, source, matchType) => {
       product_name: line.title || click.product_name,
       sku: line.sku || click.sku,
       // An assisted sale may be another size than the one clicked
-      size: matchType === "exact" ? click.size : null,
+      size: matchType === "exact" ? click.size || sizeFromTitle(line.variant_title) : null,
       price_paid: lineTotal(line),
       customer_email: order.email || null,
       purchased_at: new Date(order.created_at || Date.now()),
@@ -120,12 +144,12 @@ const savePurchase = async (store, order, line, click, source, matchType) => {
 //   product — only another size/condition of the clicked product was
 //             bought: "Assisted", reported separately
 // Safe to run any number of times for the same order.
-const attributeOrder = async (store, order) => {
+const attributeSyncStockClicks = async (store, order) => {
   if (!order?.id || isPosOrder(order)) return 0;
 
   const orderId = String(order.id);
   const orderedAt = new Date(order.created_at || Date.now());
-  const lineItems = (order.line_items || []).filter((line) => line.variant_id);
+  const lineItems = (order.line_items || []).filter((line) => line.variant_id || line.sku || line.title);
 
   const tagIds = (order.note_attributes || [])
     .filter((attr) => CLICK_ATTRIBUTE_RE.test(attr.name || ""))
@@ -169,8 +193,8 @@ const attributeOrder = async (store, order) => {
   // 1. Exact: the clicked variant was bought
   for (const { click, source } of valid) {
     const line = lineForClick(click, lineItems);
-    if (!line || credited.has(String(line.variant_id))) continue;
-    credited.add(String(line.variant_id));
+    if (!line || credited.has(lineKey(line))) continue;
+    credited.add(lineKey(line));
     usedClicks.add(click.id);
     recorded += await savePurchase(store, order, line, click, source, "exact");
   }
@@ -181,15 +205,74 @@ const attributeOrder = async (store, order) => {
     const productId = productOfItem.get(click.inventory_id);
     if (!productId) continue;
     const line = lineItems.find(
-      (l) => String(l.product_id) === String(productId) && !credited.has(String(l.variant_id)),
+      (l) => l.product_id && String(l.product_id) === String(productId) && !credited.has(lineKey(l)),
     );
     if (!line) continue;
-    credited.add(String(line.variant_id));
+    credited.add(lineKey(line));
     usedClicks.add(click.id);
     recorded += await savePurchase(store, order, line, click, source, "product");
   }
   return recorded;
 };
+
+// LabSync links (see the top of this file). A LabSync "Buy now" link put
+// the alerted item in the cart, so with the order tagged:
+//   - a one-item order is the item the link put in the cart: a sale
+//   - in a bigger order, a line matching one of the store's alerts (same
+//     product) counts — exact when the alert's size was bought, assisted
+//     for another size; other lines aren't credited
+// The buyer and alert are linked when an alert matches. Lines already
+// credited another way are left alone (one row per order + variant).
+// dryRun: returns what would be credited, saving nothing.
+const LABSYNC_ATTRIBUTE_RE = /^labsync_click_id(_\d+)?$/;
+const hasLabSyncTag = (order) => (order.note_attributes || []).some((a) => LABSYNC_ATTRIBUTE_RE.test(a.name || ""));
+const sameProduct = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+
+const attributeLabSyncLinks = async (store, order, { dryRun = false } = {}) => {
+  const plan = [];
+  if (!order?.id || isPosOrder(order) || !hasLabSyncTag(order)) return dryRun ? plan : 0;
+  const lineItems = (order.line_items || []).filter((line) => line.variant_id || line.title);
+  if (!lineItems.length) return dryRun ? plan : 0;
+
+  const variants = await Inventory.findAll({
+    where: { store_id: store.id, shopify_variant_id: lineItems.filter((l) => l.variant_id).map((l) => String(l.variant_id)) },
+    attributes: ["shopify_variant_id", "product_name", "size", "sku"],
+  });
+  const itemOf = new Map(variants.map((v) => [String(v.shopify_variant_id), v]));
+  const alerts = await Alert.findAll({
+    where: { store_id: store.id },
+    attributes: ["id", "user_id", "product_name", "size", "sku"],
+  });
+
+  let recorded = 0;
+  for (const line of lineItems) {
+    const item = line.variant_id ? itemOf.get(String(line.variant_id)) : null;
+    const name = item?.product_name || line.title;
+    // Size from inventory, or Shopify's label when Copyt deleted the variant
+    const size = item?.size || sizeFromTitle(line.variant_title);
+    const forProduct = alerts.filter((a) => sameProduct(a.product_name, name) || (a.sku && line.sku && sameProduct(a.sku, line.sku)));
+    const exactAlert = forProduct.find((a) => a.size && size && sizeKey(a.size) === sizeKey(size));
+    const alert = exactAlert || forProduct[0] || null;
+    let matchType = null;
+    if (lineItems.length === 1 || exactAlert) matchType = "exact";
+    else if (alert) matchType = "product";
+    if (!matchType) continue;
+    const already = await Purchase.findOne({
+      where: line.variant_id
+        ? { store_id: store.id, shopify_order_id: String(order.id), shopify_variant_id: String(line.variant_id) }
+        : { store_id: store.id, shopify_order_id: String(order.id), product_name: line.title || name },
+    });
+    plan.push({ order: String(order.id), product: name, size, match: matchType, alert: alert ? alert.id : null, already_counted: !!already });
+    if (dryRun) continue;
+    const click = { id: null, user_id: alert?.user_id || null, alert_id: alert?.id || null, size, product_name: name, sku: line.sku };
+    recorded += await savePurchase(store, order, line, click, "labsync", matchType);
+  }
+  return dryRun ? plan : recorded;
+};
+
+// Every way a sale is proven, for one order. Safe to run repeatedly.
+const attributeOrder = async (store, order) =>
+  (await attributeSyncStockClicks(store, order)) + (await attributeLabSyncLinks(store, order));
 
 // The order fields SyncStock reads — for one order and the nightly list
 const ORDER_FIELDS = `
@@ -197,7 +280,7 @@ const ORDER_FIELDS = `
   customAttributes { key value }
   lineItems(first: 20) {
     nodes {
-      title sku quantity
+      title sku quantity variantTitle
       variant { legacyResourceId product { legacyResourceId } }
       originalUnitPriceSet { shopMoney { amount } }
       discountAllocations { allocatedAmountSet { shopMoney { amount } } }
@@ -206,7 +289,7 @@ const ORDER_FIELDS = `
   refunds(first: 5) {
     refundLineItems(first: 10) {
       nodes {
-        lineItem { variant { legacyResourceId } }
+        lineItem { title variant { legacyResourceId } }
         subtotalSet { shopMoney { amount } }
       }
     }
@@ -256,6 +339,8 @@ const toOrderPayload = (order) => ({
     title: line.title,
     sku: line.sku,
     quantity: line.quantity,
+    // The size label stays on the order even after the variant is deleted
+    variant_title: line.variantTitle || null,
     variant_id: line.variant?.legacyResourceId || null,
     product_id: line.variant?.product?.legacyResourceId || null,
     price: line.originalUnitPriceSet?.shopMoney?.amount,
@@ -269,6 +354,15 @@ const toOrderPayload = (order) => ({
       const variantId = item.lineItem?.variant?.legacyResourceId;
       if (!variantId) continue;
       totals[variantId] = (totals[variantId] || 0) + (parseFloat(item.subtotalSet?.shopMoney?.amount) || 0);
+    }
+    return totals;
+  }, {}),
+  // The same, by item name — for lines whose variant Copyt deleted
+  refunded_by_title: (order.refunds || []).reduce((totals, refund) => {
+    for (const item of refund.refundLineItems?.nodes || []) {
+      if (item.lineItem?.variant?.legacyResourceId || !item.lineItem?.title) continue;
+      const title = item.lineItem.title.toLowerCase();
+      totals[title] = (totals[title] || 0) + (parseFloat(item.subtotalSet?.shopMoney?.amount) || 0);
     }
     return totals;
   }, {}),
@@ -299,7 +393,12 @@ const applyRefunds = async (store, order) => {
     const paid = parseFloat(purchase.price_paid) || 0;
     const refunded = order.cancelled_at
       ? paid
-      : Math.min(paid, order.refunded_by_variant?.[purchase.shopify_variant_id] || 0);
+      : Math.min(
+          paid,
+          order.refunded_by_variant?.[purchase.shopify_variant_id] ||
+            order.refunded_by_title?.[String(purchase.product_name || "").toLowerCase()] ||
+            0,
+        );
     const cancelledAt = order.cancelled_at ? new Date(order.cancelled_at) : null;
     const sameRefund = Math.abs(refunded - (parseFloat(purchase.refunded_amount) || 0)) < 0.005;
     const sameCancel = (cancelledAt?.getTime() || null) === (purchase.cancelled_at ? new Date(purchase.cancelled_at).getTime() : null);
@@ -371,6 +470,10 @@ const reconcileRecentOrders = async (store) => {
 };
 
 module.exports = {
+  attributeLabSyncLinks,
+  hasLabSyncTag,
+  toOrderPayload,
+  RECENT_ORDERS_QUERY,
   CLICK_WINDOW_DAYS,
   CLICK_ATTRIBUTE,
   UUID_RE,
