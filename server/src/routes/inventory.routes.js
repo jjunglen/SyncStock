@@ -14,6 +14,7 @@ const {
   getBrands,
   getProductSizes,
   recordProductView,
+  getTrackableProducts,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
@@ -25,6 +26,14 @@ router.get(
   resolveStoreFromSubdomain,
   authenticateAccount,
   searchInventory,
+);
+// "Track a new item": the store's own products, sold-out ones included
+router.get(
+  "/trackable",
+  publicLimiter,
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  getTrackableProducts,
 );
 router.get(
   "/my-sizes",

@@ -124,7 +124,7 @@ const createAlert = async (req, res) => {
     const membership = await resolveMembership(req, res);
     if (!membership) return;
 
-    const {
+    let {
       product_name,
       category = "sneakers",
       sku,
@@ -137,6 +137,7 @@ const createAlert = async (req, res) => {
       stockx_url_key,
       image_url,
       condition_preference = "either",
+      store_product_id,
     } = req.body;
 
     if (!CONDITIONS.includes(condition_preference)) {
@@ -149,11 +150,45 @@ const createAlert = async (req, res) => {
 
     // Several sizes at once (`sizes`) make one alert per size; `size`
     // alone still works. Trading cards have no size.
-    const sizes =
+    let sizes =
       category === "trading_cards"
         ? [null]
         : [...new Set((Array.isArray(req.body.sizes) ? req.body.sizes : [size]).map((s) => String(s ?? "").trim()).filter(Boolean))];
-    if (requireFields(req.body, ["product_name"]).length > 0 || (category !== "trading_cards" && sizes.length === 0)) {
+
+    // One of the store's own products (picked from the store's results in
+    // "Track a new item"): alerts match restocks by name and size, so the
+    // name, category and sizes come from the product itself. A product
+    // with no sizes (one variant) gets one alert with no size.
+    if (store_product_id) {
+      const picked = await Inventory.findOne({
+        where: { store_id: req.store.id, shopify_product_id: String(store_product_id) },
+        attributes: ["product_name"],
+      });
+      if (!picked) {
+        return res.status(404).json({ success: false, message: "That item isn't in this store anymore" });
+      }
+      // Every listing with the same name (some stores list each pair as
+      // its own product) — the same rows the restock check matches
+      const variants = await Inventory.findAll({
+        where: { store_id: req.store.id, product_name: { [Op.iLike]: picked.product_name } },
+        attributes: ["product_name", "category", "sku", "size", "image_url"],
+      });
+      const productSizes = new Set(variants.map((v) => v.size).filter(Boolean));
+      product_name = variants[0].product_name;
+      category = variants[0].category;
+      sku = sku || variants.find((v) => v.sku)?.sku || null;
+      image_url = image_url || variants.find((v) => v.image_url)?.image_url || null;
+      if (!productSizes.size || category === "trading_cards") {
+        sizes = [null];
+      } else {
+        sizes = sizes.filter((s) => productSizes.has(s));
+        if (!sizes.length) {
+          return res.status(400).json({ success: false, message: "Pick one of this item's sizes" });
+        }
+      }
+    }
+
+    if (requireFields({ product_name }, ["product_name"]).length > 0 || (sizes[0] !== null && sizes.length === 0)) {
       return res
         .status(400)
         .json({ success: false, message: "Product name and size are required" });

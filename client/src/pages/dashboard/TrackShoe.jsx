@@ -24,9 +24,20 @@ const categoryFromStockx = (item) => {
   return null;
 };
 
+// One of the store's own products (/inventory/trackable) in the shape the
+// page uses for StockX results. `store` marks it: its sizes come from the
+// product, and the alert is tied to it so a restock always matches.
+const fromStore = (item) => ({
+  ...item,
+  store: true,
+  productId: `store-${item.product_id}`,
+  styleId: item.sku,
+});
+
 export default function TrackShoe() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [storeResults, setStoreResults] = useState([]);
   const [selectedShoe, setSelectedShoe] = useState(null);
   const [searching, setSearching] = useState(false);
   const [sizes, setSizes] = useState([]);
@@ -68,28 +79,31 @@ export default function TrackShoe() {
   }, []);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
+    if (!query.trim()) return; // cleared where the search box changes
+    // The store's own products and StockX, side by side — one failing
+    // still shows the other
     const timeout = setTimeout(async () => {
       setSearching(true);
-      try {
-        const res = await api.get(
-          `/stockx/search?q=${encodeURIComponent(query)}`,
-        );
-        setResults(res.data.data || []);
-      } catch (err) {
-        console.error("Search failed", err);
-      } finally {
-        setSearching(false);
-      }
+      const q = encodeURIComponent(query);
+      const [store, stockx] = await Promise.allSettled([
+        api.get(`/inventory/trackable?q=${q}`),
+        api.get(`/stockx/search?q=${q}`),
+      ]);
+      setStoreResults(store.status === "fulfilled" ? (store.value.data.data || []).map(fromStore) : []);
+      setResults(stockx.status === "fulfilled" ? stockx.value.data.data || [] : []);
+      if (store.status === "rejected") console.error("Store search failed", store.reason);
+      if (stockx.status === "rejected") console.error("StockX search failed", stockx.reason);
+      setSearching(false);
     }, 600);
     return () => clearTimeout(timeout);
   }, [query]);
 
+  // A store product with no sizes (one variant) needs no size picked
+  const sizeless = !!selectedShoe?.store && selectedShoe.sizes.length === 0;
+  const canSubmit = sizeless || sizes.length > 0;
+
   const handleSubmit = async () => {
-    if (!selectedShoe || sizes.length === 0) return;
+    if (!selectedShoe || !canSubmit) return;
     setSubmitting(true);
     setError("");
     setSuccess(false);
@@ -105,12 +119,13 @@ export default function TrackShoe() {
         notify_email: emailNotif,
         // The phone app is coming soon; website notifications stay on
         notify_inapp: true,
-        stockx_product_id: selectedShoe.productId,
-        stockx_url_key: selectedShoe.urlKey,
+        ...(selectedShoe.store
+          ? { store_product_id: selectedShoe.product_id }
+          : { stockx_product_id: selectedShoe.productId, stockx_url_key: selectedShoe.urlKey }),
         image_url: selectedShoe.image_url || null,
       });
 
-      const made = res.data.created || [];
+      const made = (res.data.created || []).filter(Boolean);
       const skipped = res.data.skipped || [];
       setSuccess(
         made.length > 1 || skipped.length > 0
@@ -123,6 +138,7 @@ export default function TrackShoe() {
       setPriceRange([PRICE_MIN, PRICE_MAX]);
       setCondition("either");
       setResults([]);
+      setStoreResults([]);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -132,6 +148,69 @@ export default function TrackShoe() {
       setSubmitting(false);
     }
   };
+
+  // A result row (store products and StockX alike)
+  const renderResult = (shoe) => (
+    <div
+      key={shoe.productId}
+      onClick={() => {
+        setSelectedShoe(shoe);
+        showFormOnPhones();
+        setSuccess(false);
+        setError("");
+        if (shoe.store) {
+          // The store's product: its own sizes, starting with the
+          // shopper's saved sizes it comes in
+          if (TRACKABLE.includes(shoe.category)) setCategory(shoe.category);
+          const offered = shoe.sizes.map((s) => s.size);
+          setSizes(mySizes.filter((s) => offered.includes(s)));
+          return;
+        }
+        // A hoodie switches to clothing sizes on its own
+        const itemCategory = categoryFromStockx(shoe) || category;
+        const switching = itemCategory !== category || !!selectedShoe?.store;
+        if (itemCategory !== category) setCategory(itemCategory);
+        if (switching) setSizes([]);
+        // Start with the shopper's saved sizes for this type
+        const savedForType = mySizes.filter((s) => SIZES_BY_CATEGORY[itemCategory].includes(s));
+        if (savedForType.length > 0 && (switching || sizes.length === 0)) setSizes(savedForType);
+      }}
+      className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
+        selectedShoe?.productId === shoe.productId
+          ? "border-primary bg-surface"
+          : "border-border bg-surface hover:border-text/20"
+      }`}
+    >
+      {shoe.image_url ? (
+        <img
+          src={shoe.image_url}
+          alt={shoe.title}
+          className="w-16 h-16 rounded-lg object-contain bg-white shrink-0"
+          onError={(e) => {
+            e.target.style.display = "none";
+          }}
+        />
+      ) : (
+        <div className="w-16 h-16 rounded-lg bg-surface-muted shrink-0 flex items-center justify-center">
+          <LuFootprints size={20} className="text-text-muted/60" aria-hidden="true" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">
+          {shoe.title}
+        </p>
+        <p className="text-xs text-text-muted truncate">
+          {shoe.store ? [shoe.styleId, shoe.in_stock ? "In stock" : "Sold out"].filter(Boolean).join(" · ") : shoe.styleId}
+        </p>
+      </div>
+      {selectedShoe?.productId === shoe.productId && (
+        <LuCircleCheck
+          className="text-primary shrink-0"
+          size={20}
+        />
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-bg text-text pb-24 lg:pb-0">
@@ -179,6 +258,10 @@ export default function TrackShoe() {
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
+                  if (!e.target.value.trim()) {
+                    setResults([]);
+                    setStoreResults([]);
+                  }
                   setSelectedShoe(null);
                   setSuccess(false);
                   setError("");
@@ -192,6 +275,7 @@ export default function TrackShoe() {
                     setQuery("");
                     setSelectedShoe(null);
                     setResults([]);
+                    setStoreResults([]);
                   }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
                 >
@@ -209,64 +293,23 @@ export default function TrackShoe() {
               <p className="text-text-muted text-xs py-4">Searching...</p>
             )}
 
-            {!searching && results.length > 0 && (
-              <div className="flex flex-col gap-2">
-                {results.map((shoe) => (
-                  <div
-                    key={shoe.productId}
-                    onClick={() => {
-                      setSelectedShoe(shoe);
-                      showFormOnPhones();
-                      setSuccess(false);
-                      setError("");
-                      // A hoodie switches to clothing sizes on its own
-                      const itemCategory = categoryFromStockx(shoe) || category;
-                      if (itemCategory !== category) {
-                        setCategory(itemCategory);
-                        setSizes([]);
-                      }
-                      // Start with the shopper's saved sizes for this type
-                      const savedForType = mySizes.filter((s) => SIZES_BY_CATEGORY[itemCategory].includes(s));
-                      if (savedForType.length > 0 && (itemCategory !== category || sizes.length === 0)) setSizes(savedForType);
-                    }}
-                    className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
-                      selectedShoe?.productId === shoe.productId
-                        ? "border-primary bg-surface"
-                        : "border-border bg-surface hover:border-text/20"
-                    }`}
-                  >
-                    {shoe.image_url ? (
-                      <img
-                        src={shoe.image_url}
-                        alt={shoe.title}
-                        className="w-16 h-16 rounded-lg object-contain bg-white shrink-0"
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-lg bg-surface-muted shrink-0 flex items-center justify-center">
-                        <LuFootprints size={20} className="text-text-muted/60" aria-hidden="true" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {shoe.title}
-                      </p>
-                      <p className="text-xs text-text-muted">{shoe.styleId}</p>
-                    </div>
-                    {selectedShoe?.productId === shoe.productId && (
-                      <LuCircleCheck
-                        className="text-primary shrink-0"
-                        size={20}
-                      />
-                    )}
-                  </div>
-                ))}
+            {!searching && storeResults.length > 0 && (
+              <div className="mb-5">
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">In this store</p>
+                <div className="flex flex-col gap-2">{storeResults.map(renderResult)}</div>
               </div>
             )}
 
-            {!searching && query && results.length === 0 && (
+            {!searching && results.length > 0 && (
+              <div>
+                {storeResults.length > 0 && (
+                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Everything else</p>
+                )}
+                <div className="flex flex-col gap-2">{results.map(renderResult)}</div>
+              </div>
+            )}
+
+            {!searching && query && results.length === 0 && storeResults.length === 0 && (
               <div className="text-center py-16">
                 <p className="text-text-muted text-sm">
                   No results for "{query}"
@@ -309,32 +352,61 @@ export default function TrackShoe() {
                   </div>
                 </div>
 
-                <div>
-                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Type</p>
-                  <div role="radiogroup" aria-label="Type" className="grid grid-cols-2 gap-1 p-1 mb-4 border border-text/15 rounded-xl bg-surface-muted">
-                    {TRACKABLE.map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        role="radio"
-                        aria-checked={category === key}
-                        onClick={() => switchCategory(key)}
-                        className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
-                          category === key ? "bg-primary text-primary-text" : "text-text-muted hover:text-text"
-                        }`}
-                      >
-                        {CATEGORY_META[key].label}
-                      </button>
-                    ))}
+                {selectedShoe.store ? (
+                  <div>
+                    <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sizes</p>
+                    {sizeless ? (
+                      <p className="text-sm text-text-muted">One size — we'll let you know when it's back.</p>
+                    ) : (
+                      <div role="group" aria-label="Sizes" className="flex flex-wrap gap-2">
+                        {selectedShoe.sizes.map(({ size, in_stock: inStock }) => {
+                          const picked = sizes.includes(size);
+                          return (
+                            <button
+                              key={size}
+                              type="button"
+                              aria-pressed={picked}
+                              onClick={() => setSizes(picked ? sizes.filter((s) => s !== size) : [...sizes, size])}
+                              className={`rounded-xl border px-3 py-2 text-sm transition-colors ${
+                                picked ? "bg-primary text-primary-text border-primary font-semibold" : "border-border bg-surface hover:border-text/30"
+                              }`}
+                            >
+                              {size}
+                              {inStock && <span className={`ml-1.5 text-[10px] ${picked ? "opacity-80" : "text-live"}`}>in stock</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sizes</p>
-                  <SizePicker
-                    value={sizes}
-                    onChange={setSizes}
-                    category={category}
-                    mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
-                  />
-                </div>
+                ) : (
+                  <div>
+                    <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Type</p>
+                    <div role="radiogroup" aria-label="Type" className="grid grid-cols-2 gap-1 p-1 mb-4 border border-text/15 rounded-xl bg-surface-muted">
+                      {TRACKABLE.map((key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          role="radio"
+                          aria-checked={category === key}
+                          onClick={() => switchCategory(key)}
+                          className={`rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
+                            category === key ? "bg-primary text-primary-text" : "text-text-muted hover:text-text"
+                          }`}
+                        >
+                          {CATEGORY_META[key].label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sizes</p>
+                    <SizePicker
+                      value={sizes}
+                      onChange={setSizes}
+                      category={category}
+                      mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
+                    />
+                  </div>
+                )}
 
                 <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
 
@@ -380,12 +452,14 @@ export default function TrackShoe() {
                   variant="primary"
                   size="lg"
                   fullWidth
-                  disabled={sizes.length === 0 || submitting}
+                  disabled={!canSubmit || submitting}
                   onClick={handleSubmit}
                 >
                   {submitting
                     ? sizes.length > 1 ? "Creating alerts..." : "Creating alert..."
-                    : sizes.length > 1
+                    : sizeless
+                      ? "Set alert"
+                      : sizes.length > 1
                       ? `Set alerts for ${sizes.length} sizes`
                       : sizes.length === 1
                         ? `Set alert for size ${sizes[0]}`

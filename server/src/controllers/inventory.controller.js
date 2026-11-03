@@ -3,7 +3,7 @@ const { Op, fn, col } = require("sequelize");
 const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories } = require("../utils/storeSettings.js");
-const { searchInventoryItems } = require("../utils/inventorySearch.js");
+const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
@@ -297,7 +297,81 @@ const getProductSizes = async (req, res) => {
   }
 };
 
+// Sizes in a sensible order: numbers low to high, then letters as listed
+const sizeOrder = (a, b) => {
+  const x = parseFloat(a);
+  const y = parseFloat(b);
+  if (!Number.isNaN(x) && !Number.isNaN(y)) return x - y;
+  return Number.isNaN(x) - Number.isNaN(y);
+};
+
+const TRACKABLE_PRODUCTS = 10;
+const TRACKABLE_ROWS = 300;
+
+// GET /api/inventory/trackable?q=jordan — the store's own products for
+// "Track a new item", one entry per product with every size it comes in.
+// product_id is one of its Shopify products (createAlert reads the rest).
+// Sold-out sizes are included: those are what alerts are for. Same rules
+// as the shop otherwise (published, has a photo, a category the merchant
+// shows), so an alert set here is one that can fire.
+const getTrackableProducts = async (req, res) => {
+  try {
+    const q = cleanQuery(req.query.q);
+    if (!q) return res.status(200).json({ success: true, data: [] });
+
+    const { rows } = await searchInventoryItems(Inventory, {
+      where: {
+        store_id: req.store.id,
+        ...shopperVisible(req.store),
+        image_url: { [Op.ne]: null },
+        category: { [Op.in]: enabledCategories(req.store) },
+      },
+      q,
+      order: [["created_at", "DESC"]],
+      limit: TRACKABLE_ROWS,
+      offset: 0,
+    });
+
+    const products = new Map();
+    for (const row of rows) {
+      // By name: some stores (the Lab, via Copyt) list each pair as its
+      // own Shopify product, and alerts match restocks by name anyway
+      const key = row.product_name.trim().toLowerCase();
+      if (!products.has(key)) {
+        if (products.size >= TRACKABLE_PRODUCTS) continue;
+        products.set(key, {
+          product_id: row.shopify_product_id,
+          title: row.product_name,
+          sku: row.sku,
+          image_url: row.image_url,
+          category: row.category,
+          price: row.price,
+          in_stock: false,
+          sizes: new Map(),
+        });
+      }
+      const product = products.get(key);
+      product.sku = product.sku || row.sku;
+      const inStock = Number(row.available) > 0;
+      product.in_stock = product.in_stock || inStock;
+      if (row.size) product.sizes.set(row.size, (product.sizes.get(row.size) || false) || inStock);
+    }
+
+    const data = [...products.values()].map((p) => ({
+      ...p,
+      sizes: [...p.sizes.entries()]
+        .sort(([a], [b]) => sizeOrder(a, b))
+        .map(([size, inStock]) => ({ size, in_stock: inStock })),
+    }));
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Trackable products error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to search the store" });
+  }
+};
+
 module.exports = {
+  getTrackableProducts,
   getBrands,
   getProductSizes,
   getCategories,
