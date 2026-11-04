@@ -60,8 +60,19 @@ export default function NotificationBell() {
       .finally(() => setLoading(false));
   };
 
+  // New alerts show up without reloading: every 30 seconds while the
+  // page is on screen, and right away when the shopper comes back to it
   useEffect(() => {
     fetchNotifications();
+    const refresh = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    const timer = setInterval(refresh, 30 * 1000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   useEffect(() => {
