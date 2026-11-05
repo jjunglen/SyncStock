@@ -108,7 +108,9 @@ export default function DashboardNavbar() {
                 accentSoftColor={lighten(sweepColor(store.brand_color))}
                 fillColor="var(--color-shiny-fill)"
                 insetColor="var(--color-shiny-edge)"
-                badgeColor="#3b82f6"
+                labelColor="var(--color-shiny-label)"
+                badgeColor="var(--color-shiny-badge)"
+                badgeTextColor="var(--color-shiny-badge-text)"
                 padding="0.5rem 1rem"
                 fontSize="0.8125rem"
                 className="hidden md:inline-flex mr-1"

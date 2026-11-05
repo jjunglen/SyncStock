@@ -29,10 +29,13 @@
   /* "Beta" tags — a bright blue, shaded for each theme (light below) */
   --color-beta: #7cb4ff;
   --color-beta-soft: rgb(59 130 246 / 0.2);
-  /* The shiny "Sell your items" button: dark in both themes, a step
-     lighter than the dark page so its edge stays visible */
+  /* The shiny "Sell your items" button in dark mode: a step lighter than
+     the page so its edge stays visible (light mode: in color, below) */
   --color-shiny-fill: #161616;
   --color-shiny-edge: #2e2e2e;
+  --color-shiny-label: #ffffff;
+  --color-shiny-badge: #3b82f6;
+  --color-shiny-badge-text: #ffffff;
 
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
@@ -53,6 +56,9 @@
   --color-primary-text: var(--brand-light-text);
   --color-accent: var(--brand-light);
   --color-accent-text: var(--brand-light-text);
+  --color-shiny-fill: var(--brand-light);
+  --color-shiny-edge: color-mix(in srgb, var(--brand-light) 80%, black);
+  --color-shiny-label: var(--brand-light-text);
 }
 
 /* Light theme — only applied on the customer dashboard pages, via
@@ -70,8 +76,13 @@
   --color-card-end: #fafafa;
   --color-beta: #1d5fd6;
   --color-beta-soft: #dbe8ff;
-  --color-shiny-fill: #0a0a0a;
-  --color-shiny-edge: #1f1f1f;
+  /* Light mode: the "Sell your items" button stands out in color — deep
+     green, or the store's brand color (above) */
+  --color-shiny-fill: #15803d;
+  --color-shiny-edge: #166534;
+  --color-shiny-label: #ffffff;
+  --color-shiny-badge: color-mix(in srgb, var(--color-shiny-label) 22%, transparent);
+  --color-shiny-badge-text: var(--color-shiny-label);
   color-scheme: light;
 }
 
