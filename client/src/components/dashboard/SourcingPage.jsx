@@ -1,20 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { LuTrendingUp } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
+import useLiveRefresh from "../../lib/useLiveRefresh.js";
 
 export default function SourcingPage() {
   const [sourcing, setSourcing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  // Refreshes while open, so a restock in Shopify shows here
+  useLiveRefresh(() => {
     api
       .get("/analytics/sourcing-demand")
-      .then((res) => setSourcing(res.data.data || []))
+      .then((res) => {
+        setSourcing(res.data.data || []);
+        setError("");
+      })
       .catch(() => setError("Failed to load sourcing demand"))
       .finally(() => setLoading(false));
-  }, []);
+  });
 
   const notInStockCount = sourcing.filter((i) => !i.currently_in_stock).length;
 

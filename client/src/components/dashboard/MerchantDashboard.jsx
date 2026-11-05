@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
+import useLiveRefresh from "../../lib/useLiveRefresh.js";
 import { purchaseBadges, BADGE_CLASSES, netAmount, isRefunded } from "../../lib/purchaseLabels.js";
 
 // `to`: the page with the details behind that number
@@ -44,20 +45,18 @@ export default function MerchantDashboard() {
   // Products shoppers opened most this week (not shown to shoppers)
   const [mostViewed, setMostViewed] = useState(null);
 
-  useEffect(() => {
+  // Stock-dependent lists stay current while the dashboard is open
+  useLiveRefresh(() => {
     api
       .get("/analytics/most-viewed")
       .then((res) => setMostViewed(res.data.data || []))
-      .catch(() => setMostViewed([]));
-  }, []);
-
-  useEffect(() => {
+      .catch(() => setMostViewed((prev) => prev || []));
     api
       .get("/analytics/sourcing-demand")
       .then((res) => setSourcing(res.data.data || []))
       .catch((err) => console.error("Failed to load sourcing demand:", err))
       .finally(() => setLoadingSourcing(false));
-  }, []);
+  });
 
   useEffect(() => {
     api

@@ -13,13 +13,20 @@ const getSourcingDemand = async (req, res) => {
         a.product_name,
         a.size,
         COUNT(DISTINCT a.user_id)::int AS demand_count,
-        EXISTS (
+        -- In stock = the same item in the same size has stock. One-size
+        -- items have no size on either side (IS NOT DISTINCT FROM treats
+        -- two empty sizes as the same; = never does). Same item: the
+        -- same name (as alerts match), or the same SKU.
+        BOOL_OR(EXISTS (
           SELECT 1 FROM inventory i
           WHERE i.store_id = :storeId
             AND i.available > 0
-            AND i.size = a.size
-            AND LOWER(i.product_name) LIKE '%' || LOWER(SPLIT_PART(a.product_name, ' ', 1)) || '%'
-        ) AS currently_in_stock
+            AND i.size IS NOT DISTINCT FROM a.size
+            AND (
+              LOWER(i.product_name) = LOWER(a.product_name)
+              OR (a.sku IS NOT NULL AND a.sku <> '' AND UPPER(i.sku) = UPPER(a.sku))
+            )
+        )) AS currently_in_stock
       FROM alerts a
       WHERE a.store_id = :storeId AND a.active = true
       GROUP BY product_key, a.product_name, a.size
