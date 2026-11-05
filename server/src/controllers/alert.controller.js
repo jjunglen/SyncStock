@@ -6,7 +6,8 @@ const {
   requireFields,
 } = require("../utils/validate.js");
 const { getUserAlertStats } = require("../services/alert.service.js");
-const { otherSizeSettings, sameSize } = require("../utils/otherSizes.js");
+const { sameSize } = require("../utils/otherSizes.js");
+const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 
 const ALERT_CATEGORIES = Alert.getAttributes().category.values;
 
@@ -167,7 +168,7 @@ const createAlert = async (req, res) => {
       if (product_name.length < 2 || product_name.length > 60) {
         return res.status(400).json({ success: false, message: "Type 2 to 60 characters to track" });
       }
-      const chart = otherSizeSettings(req.store).sizes;
+      const chart = (await otherSizeChart(req.store)).sizes;
       const asked = sizes.filter((s) => s !== null);
       sizes = asked.map((s) => chart.find((c) => sameSize(c, s))).filter(Boolean);
       if (asked.length && !sizes.length) {
@@ -317,7 +318,7 @@ const updateAlert = async (req, res) => {
     // "Other" items use the store's own size chart, not the shoe/clothing list
     const sizeOk =
       alert.category === "other"
-        ? otherSizeSettings(req.store).sizes.some((c) => sameSize(c, size))
+        ? (await otherSizeChart(req.store)).sizes.some((c) => sameSize(c, size))
         : isValidSize(size);
     if (size && !sizeOk) {
       return res

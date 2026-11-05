@@ -33,10 +33,17 @@ const splitSizes = (text) =>
     .map((s) => s.replace(/^"|"$/g, "").trim())
     .filter(Boolean);
 
-// Numbers by value, then everything else as written
+// "7 3/8" → 7.375, "158cm" → 158, "M" → NaN
+const sizeNumber = (size) => {
+  const m = /^(\d+(?:\.\d+)?)(?:\s+(\d+)\/(\d+))?/.exec(String(size).trim());
+  if (!m) return NaN;
+  return Number(m[1]) + (m[2] ? Number(m[2]) / Number(m[3]) : 0);
+};
+
+// Numbers by value (7 1/8 before 7 1/4), then everything else as written
 const byValue = (a, b) => {
-  const na = parseFloat(a);
-  const nb = parseFloat(b);
+  const na = sizeNumber(a);
+  const nb = sizeNumber(b);
   if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
   return String(a).localeCompare(String(b), undefined, { numeric: true });
 };
@@ -120,8 +127,11 @@ export default function SizeSettings() {
   const options = data?.options || [];
   const chosen = new Set(optionNames.map((n) => n.toLowerCase()));
   const isChosen = (o) => chosen.has(o.name.toLowerCase()) || (!optionNames.length && /size/i.test(o.name));
+  // An automatic list (nothing saved yet) can be saved as is to keep it
   const sizesChanged =
-    JSON.stringify(sizes) !== JSON.stringify(data?.sizes || []) || (label.trim() || null) !== (data?.label || null);
+    !!data?.automatic ||
+    JSON.stringify(sizes) !== JSON.stringify(data?.sizes || []) ||
+    (label.trim() || null) !== (data?.label || null);
   const optionsChanged = JSON.stringify(optionNames) !== JSON.stringify(data?.option_names || []);
 
   const toggleOption = (o) => {
@@ -278,8 +288,16 @@ export default function SizeSettings() {
             />
           </label>
 
+          {data?.automatic && sizes.length > 0 && (
+            <p className="mb-3 rounded-lg bg-primary/5 px-3 py-2 text-xs text-text-muted">
+              Built automatically from your products, so shoppers can pick sizes already. Edit and save to make it your
+              own — new sizes you stock will then only show once you add them here.
+            </p>
+          )}
           {sizes.length === 0 ? (
-            <p className="text-sm text-text-muted mb-4">No sizes yet. Fill them from your products, or add them below.</p>
+            <p className="text-sm text-text-muted mb-4">
+              No sizes yet. Once your products have a size option, they show here automatically — or add them below.
+            </p>
           ) : (
             <ul className="mb-4 flex flex-wrap gap-2">
               {sizes.map((size, i) => (
@@ -340,7 +358,7 @@ export default function SizeSettings() {
             >
               {busy === "sizes" ? "Saving…" : "Save sizes"}
             </Button>
-            {sizesChanged && <span className="text-xs text-warn">Unsaved changes</span>}
+            {sizesChanged && !data?.automatic && <span className="text-xs text-warn">Unsaved changes</span>}
           </div>
         </Section>
       </div>

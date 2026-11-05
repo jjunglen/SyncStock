@@ -3,7 +3,8 @@ const { Op, fn, col, literal } = require("sequelize");
 const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
-const { otherSizeSettings, sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
+const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
+const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
@@ -170,19 +171,18 @@ const searchInventory = async (req, res) => {
 // ring 7, 158cm — not a size shoppers save)
 const SIZELESS_BROWSE = ["trading_cards", "other"];
 
-// The shopper's saved sizes that are on this store's "other" size chart,
-// as match keys ("158cm" → "158")
-const otherSizeKeys = (store, sizes) => {
-  const chart = otherSizeSettings(store).sizes;
-  return [...new Set((sizes || []).filter((s) => chart.some((c) => sameSize(c, s))).map(sizeMatchKey))];
-};
+// The shopper's saved sizes that are on this store's "other" size chart
+// (otherSizeChart.service.js), as match keys ("158cm" → "158")
+const otherSizeKeys = (chart, sizes) =>
+  [...new Set((sizes || []).filter((s) => chart.some((c) => sameSize(c, s))).map(sizeMatchKey))];
 
 // The listed items in the shopper's saved sizes. Cards: all. Other: the
 // saved sizes from the store's size chart, or everything if none saved.
-const mySizesWhere = (store, sizes, category) => {
+//   otherChart — the store's "other" sizes (needed for category "other")
+const mySizesWhere = (store, sizes, category, otherChart = []) => {
   const where = listable(store, category);
   if (category === "other") {
-    const keys = otherSizeKeys(store, sizes);
+    const keys = otherSizeKeys(otherChart, sizes);
     if (keys.length) {
       where[Op.and] = [
         literal(`${sizeKeySql('"Inventory"."size"')} IN (${keys.map((k) => Inventory.sequelize.escape(k)).join(", ")})`),
@@ -220,7 +220,8 @@ const getInventoryInMySizes = async (req, res) => {
 
     const { page, limit, offset } = getPagination(req.query);
 
-    const where = applyFilters(mySizesWhere(req.store, sizes, category), req.query);
+    const chart = category === "other" ? (await otherSizeChart(req.store)).sizes : [];
+    const where = applyFilters(mySizesWhere(req.store, sizes, category, chart), req.query);
 
     const { count, rows, match } = await searchInventoryItems(Inventory, {
       where,
@@ -254,16 +255,14 @@ const getCategories = async (req, res) => {
       raw: true,
     });
     const counts = Object.fromEntries(rows.map((r) => [r.category, Number(r.count)]));
+    const chart = counts.other > 0 ? await otherSizeChart(req.store) : null;
     const data = CATEGORIES.filter((c) => counts[c] > 0).map((c) => ({
       key: c,
       count: counts[c],
       // The merchant's name for "other" ("Snowboards"); null = default
       name: c === "other" ? otherCategoryName(req.store) : null,
       // "other": the store's size chart, for shoppers' saved sizes
-      ...(c === "other" && {
-        size_label: otherSizeSettings(req.store).label,
-        sizes: otherSizeSettings(req.store).sizes,
-      }),
+      ...(c === "other" && { size_label: chart.label, sizes: chart.sizes }),
     }));
     return res.status(200).json({ success: true, data });
   } catch (error) {
@@ -282,9 +281,10 @@ const getBrands = async (req, res) => {
     const { category, scope } = req.query;
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
 
+    const chart = scope === "my-sizes" && category === "other" ? (await otherSizeChart(req.store)).sizes : [];
     const where =
       scope === "my-sizes"
-        ? mySizesWhere(req.store, req.account.sizes, category)
+        ? mySizesWhere(req.store, req.account.sizes, category, chart)
         : listable(req.store, category);
     where.brand = { [Op.ne]: null };
 

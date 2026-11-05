@@ -5,7 +5,8 @@ const {
   sendPriceDropNotification,
 } = require("./notification.service.js");
 const { isCategoryEnabled } = require("../utils/storeSettings.js");
-const { sameSize, otherSizeSettings } = require("../utils/otherSizes.js");
+const { sameSize } = require("../utils/otherSizes.js");
+const { otherSizeChart } = require("./otherSizeChart.service.js");
 
 // An alert set by name ("Track by name" on Track): fires for any product
 // whose name has every word, in the chosen size (or any size)
@@ -112,14 +113,16 @@ const checkSizeMatchNotifications = async (store, inventory, notifiedUsers) => {
     where: { store_id: store.id, notify_size_alerts: true },
   });
 
+  // "other": only sizes on this store's chart (set or automatic)
+  const chart = inventory.category === "other" && members.length ? (await otherSizeChart(store)).sizes : [];
+
   for (const member of members) {
     if (notifiedUsers.has(member.id)) continue;
 
     const account = await Account.findByPk(member.account_id);
     if (!account || !account.sizes) continue;
     if (inventory.category === "other") {
-      // Only sizes on this store's chart, matched however they're written
-      const chart = otherSizeSettings(store).sizes;
+      // Matched however they're written
       const saved = account.sizes.filter((s) => chart.some((c) => sameSize(c, s)));
       if (!saved.some((s) => sameSize(s, inventory.size))) continue;
     } else if (!account.sizes.includes(inventory.size)) {

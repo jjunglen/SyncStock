@@ -2,6 +2,7 @@ const { Inventory } = require("../models/index.js");
 const { shopifyGraphql, gid } = require("../utils/shopifyGraphql.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
 const { otherCategoryName, OTHER_NAME_MAX } = require("../utils/storeSettings.js");
+const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const {
   otherSizeSettings,
   cleanSizeList,
@@ -75,12 +76,15 @@ const optionsInUse = async (store) => {
   };
 };
 
-const settingsFor = (store) => {
-  const s = otherSizeSettings(store);
+// automatic: no chart saved yet — the sizes shown are built from the
+// store's products (otherSizeChart.service.js) until the merchant saves
+const settingsFor = async (store) => {
+  const s = await otherSizeChart(store);
   return {
     other_category_name: otherCategoryName(store),
     label: s.label,
     sizes: s.sizes,
+    automatic: s.automatic,
     option_names: s.option_names,
     limits: { name: OTHER_NAME_MAX, label: MAX_LABEL_LENGTH, sizes: MAX_SIZES, size: MAX_SIZE_LENGTH },
   };
@@ -90,7 +94,7 @@ const settingsFor = (store) => {
 const getSizeSettings = async (req, res) => {
   try {
     const inUse = await optionsInUse(req.store);
-    return res.status(200).json({ success: true, data: { ...settingsFor(req.store), ...inUse } });
+    return res.status(200).json({ success: true, data: { ...(await settingsFor(req.store)), ...inUse } });
   } catch (error) {
     console.error("Get size settings error:", error.message);
     return res.status(500).json({ success: false, message: "Couldn't load size settings" });
@@ -142,7 +146,7 @@ const updateSizeSettings = async (req, res) => {
         .then(({ products }) => console.log(`Size options changed for ${req.store.shopify_domain}: ${products} products re-read`))
         .catch((error) => console.error(`Re-read after size options failed for ${req.store.shopify_domain}:`, error.message));
     }
-    return res.status(200).json({ success: true, data: { ...settingsFor(req.store), resyncing: optionsChanged } });
+    return res.status(200).json({ success: true, data: { ...(await settingsFor(req.store)), resyncing: optionsChanged } });
   } catch (error) {
     console.error("Update size settings error:", error.message);
     return res.status(500).json({ success: false, message: "Couldn't save size settings" });
