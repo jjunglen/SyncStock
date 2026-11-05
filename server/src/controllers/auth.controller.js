@@ -36,9 +36,12 @@ const sendVerificationLink = async (account, { store = null, merchant = false, r
     await sendVerificationEmail({ store, account, verifyUrl, merchant });
 };
 
-// A signup on an unfinished store (onboarding) is the merchant creating
-// their account; anywhere else it's a shopper
-const isMerchantSignup = (store) => !!store && store.onboarding_step === "account";
+// The merchant setting up this store: its owner (admin) while setup isn't
+// finished. Decided by who the account is, not the current setup step —
+// the first signup already moves setup on, so a retry (e.g. after the
+// verification email failed) is still the merchant (Perch Scan report).
+const isMerchantOf = (membership, store) =>
+    !!membership && !!store && membership.role === "admin" && store.onboarding_step !== "complete";
 
 const {
   setSessionCookie,
@@ -121,8 +124,8 @@ const signup = async (req, res) => {
             });
         }
 
-        const merchant = isMerchantSignup(req.store);
-        await ensureMembership(account, req.store, signupSource(req));
+        const membership = await ensureMembership(account, req.store, signupSource(req));
+        const merchant = isMerchantOf(membership, req.store);
 
         // Unverified (new, or signed up before and never verified): send the
         // link instead of logging in. /email-verification comes next.
@@ -304,7 +307,13 @@ const verifyEmail = async (req, res) => {
         if (!account.email_verified) await account.update({ email_verified: true });
         setSessionCookie(res, signToken(account));
 
-        if (claims.merchant || !store) {
+        // The store's owner while setup is unfinished goes back to setup,
+        // whichever link they got — never to the shopper size picker
+        const ownsUnfinishedStore =
+            store &&
+            store.onboarding_step !== "complete" &&
+            isMerchantOf(await User.findOne({ where: { account_id: account.id, store_id: store.id } }), store);
+        if (claims.merchant || !store || ownsUnfinishedStore) {
             return res.redirect(`${frontend}/onboarding/setup`);
         }
         const next = safeRedirectPath(claims.redirect) || "/store/dashboard";

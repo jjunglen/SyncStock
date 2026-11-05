@@ -17,6 +17,7 @@ import PurchasesPage from "./pages/dashboard/PurchasesPage.jsx";
 import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
 import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
 import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
+import SizeSettings from "./pages/dashboard/SizeSettings.jsx";
 import InStoreSignPage from "./pages/dashboard/InStoreSignPage.jsx";
 import StorePricingPage from "./pages/dashboard/StorePricingPage.jsx";
 import BuyRequestsPage from "./pages/dashboard/BuyRequestsPage.jsx";
@@ -93,6 +94,7 @@ function App() {
       <Route path="/price-check" element={<Navigate to="/prices?tab=stockx" replace />} />
       <Route path="/buy-requests" element={<ProtectedRoute requireMerchant><BuyRequestsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
+      <Route path="/size-settings" element={<ProtectedRoute requireMerchant><SizeSettings /></ProtectedRoute>} />
       <Route path="/settings/sign" element={<ProtectedRoute requireMerchant><InStoreSignPage /></ProtectedRoute>} />
       <Route path="/platform" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
       <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />

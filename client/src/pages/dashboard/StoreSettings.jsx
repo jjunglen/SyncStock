@@ -7,7 +7,7 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import api from "../../lib/api.js";
 import { getMyStore } from "../../lib/myStore.js";
-import { CATEGORY_META } from "../../lib/categories.js";
+import { categoryLabel } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
 import BuyingSettings from "../../components/dashboard/BuyingSettings.jsx";
@@ -294,12 +294,17 @@ export default function StoreSettings() {
                   const comingSoon = settings.coming_soon_categories.includes(key);
                   const on = settings.enabled_categories.includes(key);
                   const lastOne = on && settings.enabled_categories.length === 1;
+                  const label = categoryLabel(key, settings.other_category_name);
                   return (
-                    <div key={key} className="flex items-center justify-between gap-4 py-3">
+                    <div key={key} className="py-3">
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm ${comingSoon ? "text-text-muted" : ""}`}>
-                          {CATEGORY_META[key]?.label || key}
+                          {label}
                         </span>
+                        {key === "other" && (
+                          <span className="text-xs text-text-muted">everything else</span>
+                        )}
                         {comingSoon && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
                             Coming soon
@@ -307,11 +312,17 @@ export default function StoreSettings() {
                         )}
                       </div>
                       <Switch
-                        label={CATEGORY_META[key]?.label || key}
+                        label={label}
                         checked={on && !comingSoon}
                         disabled={comingSoon || lastOne || busy === `cat-${key}`}
                         onChange={(value) => toggleCategory(key, value)}
                       />
+                    </div>
+                    {key === "other" && (
+                      <Link to="/size-settings" className="mt-1 inline-block text-xs text-text-muted underline hover:text-text">
+                        Rename it and set its sizes in Size settings
+                      </Link>
+                    )}
                     </div>
                   );
                 })}

@@ -2,8 +2,9 @@
 // emails.
 
 // Categories a merchant can switch on. Trading cards are "coming soon":
-// shown in settings but can't be turned on yet.
-const SELECTABLE_CATEGORIES = ["sneakers", "clothing"];
+// shown in settings but can't be turned on yet. "other" is everything
+// that isn't shoes, clothing or cards — the merchant can rename it.
+const SELECTABLE_CATEGORIES = ["sneakers", "clothing", "other"];
 const COMING_SOON_CATEGORIES = ["trading_cards"];
 
 const enabledCategories = (store) => {
@@ -14,6 +15,10 @@ const enabledCategories = (store) => {
 };
 
 const isCategoryEnabled = (store, category) => enabledCategories(store).includes(category);
+
+// The name shoppers see for the "other" category
+const OTHER_NAME_MAX = 30;
+const otherCategoryName = (store) => (store?.other_category_name || "").trim() || null;
 
 // Text alerts are off for everyone until SMS_ENABLED=true (set on Railway
 // once the Twilio number is approved); then per store (sms_enabled)
@@ -42,6 +47,8 @@ module.exports = {
   COMING_SOON_CATEGORIES,
   enabledCategories,
   isCategoryEnabled,
+  otherCategoryName,
+  OTHER_NAME_MAX,
   logoUrl,
   textOnColor,
 };

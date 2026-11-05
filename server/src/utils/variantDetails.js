@@ -1,3 +1,4 @@
+const { classifyOption, isSizeValue } = require("./otherSizes.js");
 const { parseVariantTitle } = require("./parseVariantTitle.js");
 const { normalizeSize } = require("./categorize.js");
 
@@ -118,7 +119,32 @@ const optionValues = (product, variant) => {
     .filter((o) => o.value != null && o.value !== "");
 };
 
-const readVariant = (product, variant, category) => {
+// Every value an option has across the product's variants
+const productOptionValues = (product, name) => [
+  ...new Set(
+    (product.variants || [])
+      .flatMap((v) => optionValues(product, v))
+      .filter((o) => o.name === name)
+      .map((o) => o.value),
+  ),
+];
+
+// Copyt's variant titles: "L - Brand New - Original Box (Good)"
+const COPYT_TITLE = / - (brand new|pre-owned)/i;
+
+// A clothing size: a "Size" option or Copyt's title as before; otherwise
+// only an option detected as a size (S/M/L, 32x30, One size) — never the
+// variant's whole name ("Sample Selling Plans Ski Wax") or a color
+const clothingSize = (product, title, options, sizeOption, rawSize) => {
+  if (sizeOption || COPYT_TITLE.test(title)) return rawSize;
+  const detected = options.find((o) => classifyOption(o.name, productOptionValues(product, o.name)) === "size");
+  if (detected) return String(detected.value || "").trim();
+  return isSizeValue(rawSize) ? rawSize : null;
+};
+
+// sizeOptionNames: for "other" products, the Shopify options the store
+// counts as sizes (Size settings) — "Size" options always count
+const readVariant = (product, variant, category, sizeOptionNames = []) => {
   const title = variant.title || "";
   const options = optionValues(product, variant);
 
@@ -134,10 +160,22 @@ const readVariant = (product, variant, category) => {
   const sizeOption = options.find((o) => /size/i.test(o.name));
   const rawSize = String(sizeOption ? sizeOption.value : copyt.size).split(" - ")[0].split(" / ")[0].trim();
   let size;
-  if (category === "sneakers") {
+  if (category === "other") {
+    // Only a real size option: a backpack's "brown" or a delivery fee's
+    // "San Diego Metro" is not a size. The options the merchant picked on
+    // Size settings; until they do, detected from each option's name and
+    // every value it has on this product (otherSizes.js classifyOption).
+    const names = sizeOptionNames.map((n) => String(n).toLowerCase());
+    const option = names.length
+      ? options.find((o) => names.includes(String(o.name || "").toLowerCase()))
+      : options.find((o) => classifyOption(o.name, productOptionValues(product, o.name)) === "size");
+    size = option ? normalizeSize(String(option.value || ""), category) : null;
+  } else if (category === "sneakers") {
     const tags = Array.isArray(product.tags) ? product.tags.join(" ") : product.tags || "";
     const group = ageGroup(`${product.title || ""} ${tags}`);
     size = sneakerSize(rawSize, group) || normalizeSize(rawSize, category);
+  } else if (category === "clothing") {
+    size = normalizeSize(clothingSize(product, title, options, sizeOption, rawSize), category);
   } else {
     size = normalizeSize(rawSize, category);
   }

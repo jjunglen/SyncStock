@@ -3,6 +3,7 @@ const { Inventory } = require("../models/index.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
 const { detectBrand } = require("../utils/brand.js");
 const { readVariant } = require("../utils/variantDetails.js");
+const { otherSizeSettings } = require("../utils/otherSizes.js");
 const { shopifyGraphql } = require("../utils/shopifyGraphql.js");
 const { descriptionFromHtml } = require("../utils/productDescription.js");
 const { isChannelStore, publishedProductIds } = require("./channel.service.js");
@@ -143,7 +144,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
       const category = categorizeProduct(product);
       if (!category) continue; // gift cards aren't listed
       for (const variant of product.variants || []) {
-        const { size, condition, boxCondition } = readVariant(product, variant, category);
+        const { size, condition, boxCondition } = readVariant(product, variant, category, otherSizeSettings(store).option_names);
         seen.add(String(variant.id));
         await Inventory.upsert({
           store_id: store.id,

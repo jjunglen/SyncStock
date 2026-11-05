@@ -8,6 +8,7 @@ import { CONDITION_OPTIONS } from "../../lib/alertOptions.js";
 import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
 import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
 import SizePicker from "../../components/dashboard/SizePicker.jsx";
+import TrackByName from "../../components/dashboard/TrackByName.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import { CATEGORY_META, SIZES_BY_CATEGORY, GS_SIZES } from "../../lib/categories.js";
 import { categoryFromStockx, isGradeSchool } from "../../lib/stockxCategory.js";
@@ -40,6 +41,8 @@ export default function TrackShoe() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [mySizes, setMySizes] = useState([]);
+  // The store's "other" category (name + size chart), if it has one
+  const [otherCategory, setOtherCategory] = useState(null);
   const [searchParams] = useSearchParams();
   const [category, setCategory] = useState(() =>
     TRACKABLE.includes(searchParams.get("category")) ? searchParams.get("category") : "sneakers",
@@ -67,6 +70,10 @@ export default function TrackShoe() {
     api
       .get("/auth/me")
       .then((res) => setMySizes(res.data.data.sizes || []))
+      .catch(() => {});
+    api
+      .get("/inventory/categories")
+      .then((res) => setOtherCategory((res.data.data || []).find((c) => c.key === "other") || null))
       .catch(() => {});
   }, []);
 
@@ -155,7 +162,7 @@ export default function TrackShoe() {
         if (shoe.store) {
           // The store's product: its own sizes, starting with the
           // shopper's saved sizes it comes in
-          if (TRACKABLE.includes(shoe.category)) setCategory(shoe.category);
+          if (TRACKABLE.includes(shoe.category) || shoe.category === "other") setCategory(shoe.category);
           const offered = shoe.sizes.map((s) => s.size);
           setSizes(mySizes.filter((s) => offered.includes(s)));
           return;
@@ -307,11 +314,15 @@ export default function TrackShoe() {
             )}
 
             {!searching && query && results.length === 0 && storeResults.length === 0 && (
-              <div className="text-center py-16">
+              <div className={`text-center ${otherCategory ? "py-6" : "py-16"}`}>
                 <p className="text-text-muted text-sm">
                   No results for "{query}"
                 </p>
               </div>
+            )}
+
+            {!searching && otherCategory && query.trim() && (
+              <TrackByName key={query} query={query} other={otherCategory} />
             )}
           </div>
 
@@ -400,7 +411,7 @@ export default function TrackShoe() {
                       value={sizes}
                       onChange={setSizes}
                       category={category}
-                      mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
+                      mySizes={mySizes.filter((s) => (SIZES_BY_CATEGORY[category] || []).includes(s))}
                       options={gsShoe ? GS_SIZES : null}
                     />
                     {gsShoe && (

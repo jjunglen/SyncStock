@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import { LuCheck } from "react-icons/lu";
 import api from "../../lib/api.js";
-import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
+import { CATEGORY_META, SIZES_BY_CATEGORY, categoryLabel } from "../../lib/categories.js";
 
 const transitionProps = {
   type: "spring",
@@ -12,12 +12,15 @@ const transitionProps = {
 };
 
 // One group of sizes per category the store carries that has sizes
-// (sneakers, clothing — trading cards have none). Falls back to
-// sneaker sizes if the store's categories can't be loaded.
+// (sneakers, clothing, and "other" when the store set a size chart on its
+// Size settings page — trading cards have none). Falls back to sneaker
+// sizes if the store's categories can't be loaded.
 //   categories — show just these categories (skips the lookup)
 //   sizes      — show just this list of sizes, no groups
 export default function SizeSelector({ selected, onChange, categories, sizes: onlySizes }) {
   const [loadedGroups, setLoadedGroups] = useState(["sneakers"]);
+  // The store's "other" size chart: { title, sizes }
+  const [otherChart, setOtherChart] = useState(null);
   const groups = categories || loadedGroups;
   const fixed = !!(categories || onlySizes);
 
@@ -26,9 +29,15 @@ export default function SizeSelector({ selected, onChange, categories, sizes: on
     api
       .get("/inventory/categories")
       .then((res) => {
-        const sized = (res.data.data || [])
+        const list = res.data.data || [];
+        const other = list.find((c) => c.key === "other" && c.sizes?.length > 0);
+        if (other) {
+          const name = categoryLabel("other", other.name);
+          setOtherChart({ title: other.size_label ? `${name} · ${other.size_label}` : name, sizes: other.sizes });
+        }
+        const sized = list
           .map((c) => c.key)
-          .filter((key) => SIZES_BY_CATEGORY[key]?.length > 0);
+          .filter((key) => SIZES_BY_CATEGORY[key]?.length > 0 || (key === "other" && other));
         if (sized.length > 0) setLoadedGroups(sized);
       })
       .catch(() => {});
@@ -111,17 +120,20 @@ export default function SizeSelector({ selected, onChange, categories, sizes: on
     </motion.div>
   );
 
+  const sizesFor = (key) => (key === "other" ? otherChart?.sizes || [] : SIZES_BY_CATEGORY[key] || []);
+  const titleFor = (key) => (key === "other" ? otherChart?.title : CATEGORY_META[key]?.label);
+
   if (onlySizes) return renderGroup(onlySizes);
-  if (groups.length === 1) return renderGroup(SIZES_BY_CATEGORY[groups[0]]);
+  if (groups.length === 1) return renderGroup(sizesFor(groups[0]));
 
   return (
     <div className="flex flex-col gap-6">
       {groups.map((key) => (
         <div key={key}>
           <p className="text-xs text-text-muted mb-3">
-            {CATEGORY_META[key]?.label}
+            {titleFor(key)}
           </p>
-          {renderGroup(SIZES_BY_CATEGORY[key])}
+          {renderGroup(sizesFor(key))}
         </div>
       ))}
     </div>

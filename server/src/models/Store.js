@@ -118,7 +118,29 @@ const Store = sequelize.define(
     enabled_categories: {
       type: DataTypes.ARRAY(DataTypes.STRING),
       allowNull: false,
-      defaultValue: ["sneakers", "clothing"],
+      defaultValue: ["sneakers", "clothing", "other"],
+    },
+    // What the "other" category is called on this store ("Snowboards",
+    // "Jewelry"…); empty = "Other" (migrateAddOtherCategory.js)
+    other_category_name: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+    },
+    // Size charts per category, set on the Size settings page — for now
+    // { other: { label, sizes, option_names } } (utils/otherSizes.js;
+    // migrateSizeSettings.js)
+    size_settings: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+    },
+    // When the merchant last connected the SyncStock sales channel. For a
+    // while after, products coming back onto the channel aren't "new" —
+    // no restock alerts for items that were already in stock
+    // (webhook.controller.js; migrateChannelConnectedAt.js)
+    channel_connected_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     // Branding: a small logo image (served by GET /api/store/logo/:id)
     // and an accent color for buttons on the shopper site and emails.

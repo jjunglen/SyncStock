@@ -18,7 +18,7 @@ import {
   CellToggle,
 } from "../../components/ui/AnimatedToggleLayout.jsx";
 import api from "../../lib/api.js";
-import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
+import { CATEGORY_META, SIZES_BY_CATEGORY, SIZELESS_CATEGORIES, categoryLabel } from "../../lib/categories.js";
 import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 
 const TABS = [
@@ -308,7 +308,9 @@ export default function CustomerDashboard() {
 
   const categorySizes = SIZES_BY_CATEGORY[category] || [];
   const mySizesHere = mySizes.filter((s) => categorySizes.includes(s));
-  const isCards = category === "trading_cards";
+  // Cards and "other": no saved sizes, so everything listed shows
+  const sizeless = SIZELESS_CATEGORIES.includes(category);
+  const currentLabel = categoryLabel(category, categories.find((c) => c.key === category)?.name);
   const showSwitcher = categories.length > 1;
 
   // One switch, laid out vertically in the left column on desktop and
@@ -331,7 +333,7 @@ export default function CustomerDashboard() {
               : "text-text hover:bg-text/10"
           }`}
         >
-          {CATEGORY_META[c.key]?.label || c.key}
+          {categoryLabel(c.key, c.name)}
           {vertical && (
             <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{c.count}</span>
           )}
@@ -514,11 +516,9 @@ export default function CustomerDashboard() {
                   </div>
                   <div>
                     <p className="text-base font-medium">
-                      {isCards
-                        ? "Trading cards in stock"
-                        : `${CATEGORY_META[category]?.label || "Items"} in your sizes`}
+                      {sizeless ? `${currentLabel} in stock` : `${currentLabel} in your sizes`}
                     </p>
-                    {!isCards && (
+                    {!sizeless && (
                     <div className="flex gap-2 mt-1 flex-wrap">
                       {mySizesHere.length > 0 ? (
                         mySizesHere.map((size) => (
