@@ -130,12 +130,25 @@ export default function SizeSettings() {
   const chosen = new Set(optionNames.map((n) => n.toLowerCase()));
   // Until the merchant picks, the options SyncStock detected as sizes
   const isChosen = (o) => (optionNames.length ? chosen.has(o.name.toLowerCase()) : o.detected === "size");
-  // An automatic list (nothing saved yet) can be saved as is to keep it
+  // One Save for the whole page: only what changed is sent
+  const nameChanged = name.trim() !== (data?.other_category_name || "");
   const sizesChanged =
-    !!data?.automatic ||
-    JSON.stringify(sizes) !== JSON.stringify(data?.sizes || []) ||
-    (label.trim() || null) !== (data?.label || null);
+    JSON.stringify(sizes) !== JSON.stringify(data?.sizes || []) || (label.trim() || null) !== (data?.label || null);
   const optionsChanged = JSON.stringify(optionNames) !== JSON.stringify(data?.option_names || []);
+  const dirty = nameChanged || sizesChanged || optionsChanged;
+
+  const saveAll = () => {
+    if (!dirty || busy) return;
+    save(
+      "all",
+      {
+        ...(nameChanged && { other_category_name: name }),
+        ...(optionsChanged && { option_names: optionNames }),
+        ...(sizesChanged && { sizes, label }),
+      },
+      "Saved",
+    );
+  };
 
   const toggleOption = (o, { confirmed = false } = {}) => {
     const on = isChosen(o);
@@ -203,10 +216,9 @@ export default function SizeSettings() {
 
         <Section title="Category name" description="What shoppers see on your store site. Leave blank for “Other”.">
           <form
-            className="flex flex-wrap items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              save("name", { other_category_name: name }, "Name saved");
+              saveAll();
             }}
           >
             <input
@@ -216,17 +228,8 @@ export default function SizeSettings() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Snowboards, Jewelry, Home goods"
               aria-label="Category name"
-              className="flex-1 min-w-48 rounded-lg border border-border bg-bg px-3 py-2 text-sm placeholder:text-text-muted focus:border-text/30 focus:outline-none"
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm placeholder:text-text-muted focus:border-text/30 focus:outline-none"
             />
-            {name.trim() === (data?.other_category_name || "") ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-live">
-                <LuCheck size={14} aria-hidden="true" /> Saved
-              </span>
-            ) : (
-              <Button type="submit" size="sm" disabled={busy === "name"}>
-                {busy === "name" ? "Saving…" : name.trim() ? "Save name" : "Reset to “Other”"}
-              </Button>
-            )}
           </form>
           <p className="text-xs text-text-muted mt-2">
             {data?.products || 0} of your products are in {categoryName} right now.
@@ -295,20 +298,10 @@ export default function SizeSettings() {
             </div>
           )}
           {options.length > 0 && (
-            <div className="mt-4 flex items-center gap-3">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!optionsChanged || busy === "options"}
-                onClick={() => save("options", { option_names: optionNames }, "Size options saved")}
-              >
-                {busy === "options" ? "Saving…" : "Save size options"}
-              </Button>
-              <span className="text-xs text-text-muted">
-                {optionNames.length ? "Your picks are used instead of the automatic ones." : "Automatic until you save."}{" "}
-                Saving re-reads your products' sizes (about a minute).
-              </span>
-            </div>
+            <p className="mt-4 text-xs text-text-muted">
+              {optionNames.length ? "Your picks are used instead of the automatic ones." : "Automatic until you change a tick."}{" "}
+              Saving a change here re-reads your products' sizes (about a minute).
+            </p>
           )}
         </Section>
 
@@ -391,17 +384,30 @@ export default function SizeSettings() {
           </form>
           <p className="text-xs text-text-muted mt-2">CSV: one size per row (the first column is used).</p>
 
-          <div className="mt-5 flex items-center gap-3 border-t border-border pt-4">
-            <Button
-              size="sm"
-              disabled={!sizesChanged || busy === "sizes"}
-              onClick={() => save("sizes", { sizes, label }, "Sizes saved")}
-            >
-              {busy === "sizes" ? "Saving…" : "Save sizes"}
-            </Button>
-            {sizesChanged && !data?.automatic && <span className="text-xs text-warn">Unsaved changes</span>}
-          </div>
         </Section>
+
+        {/* One Save for everything on the page */}
+        <div className="sticky bottom-0 -mx-6 mt-2 flex items-center justify-between gap-3 border-t border-border bg-bg/95 px-6 py-3 backdrop-blur">
+          <span className={`text-sm ${dirty ? "text-warn" : "text-text-muted"}`}>
+            {dirty ? (
+              "You have unsaved changes"
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-live">
+                <LuCheck size={14} aria-hidden="true" /> All changes saved
+              </span>
+            )}
+          </span>
+          <div className="flex gap-2">
+            {dirty && (
+              <Button variant="secondary" size="sm" onClick={() => apply(data)} disabled={!!busy}>
+                Discard
+              </Button>
+            )}
+            <Button size="sm" onClick={saveAll} disabled={!dirty || !!busy}>
+              {busy ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
