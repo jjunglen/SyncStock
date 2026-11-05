@@ -15,6 +15,7 @@ const PixelClaim = require("./PixelClaim.js");
 const StockxPriceCheck = require("./StockxPriceCheck.js");
 const ProductView = require("./ProductView.js");
 const DeviceToken = require("./DeviceToken.js");
+const SaleHistory = require("./SaleHistory.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -23,6 +24,7 @@ Store.hasMany(NotificationLog, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(AlertClick, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Purchase, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(PixelClaim, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(SaleHistory, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(StockxPriceCheck, { foreignKey: "store_id", onDelete: "CASCADE" });
 // Views go when the store or the shopper's account is deleted
 Store.hasMany(ProductView, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -103,4 +105,5 @@ module.exports = {
   PixelClaim,
   StockxPriceCheck,
   DeviceToken,
+  SaleHistory,
 };

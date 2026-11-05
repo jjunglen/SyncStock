@@ -13,6 +13,7 @@ import {
   LuChevronsRight,
 } from "react-icons/lu";
 import SyncStockMark from "../ui/SyncStockMark.jsx";
+import BetaBadge from "../ui/BetaBadge.jsx";
 import { useMyStore, storefrontUrl } from "../../lib/myStore.js";
 
 const NAV_ITEMS = [
@@ -23,8 +24,9 @@ const NAV_ITEMS = [
     to: "/dashboard",
   },
   { key: "sourcing", label: "Sourcing", icon: LuTrendingUp, to: "/sourcing" },
-  // StockX comparison — flagship store only for now (plan "internal")
-  { key: "price-check", label: "Price check", icon: LuScale, to: "/price-check", flagshipOnly: true },
+  // Pricing (beta): listings against the store's own sales, plus the
+  // StockX comparison tab for stores that have it (StorePricingPage.jsx)
+  { key: "pricing", label: "Pricing", icon: LuScale, to: "/prices", beta: true },
   {
     key: "purchases",
     label: "Purchases",
@@ -106,7 +108,12 @@ function NavOption({ item, isSelected, onClick, open }) {
       <div className="grid h-full w-12 place-content-center">
         <Icon size={16} />
       </div>
-      {open && <span className="text-sm font-medium">{item.label}</span>}
+      {open && (
+        <span className="flex items-center gap-1.5 text-sm font-medium">
+          {item.label}
+          {item.beta && <BetaBadge size="xs" />}
+        </span>
+      )}
     </button>
   );
 }

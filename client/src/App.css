@@ -26,6 +26,10 @@
   --color-accent: #22c55e;
   --color-accent-text: #ffffff;
 
+  /* "Beta" tags — a bright blue, shaded for each theme (light below) */
+  --color-beta: #7cb4ff;
+  --color-beta-soft: rgb(59 130 246 / 0.2);
+
   --font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
@@ -60,6 +64,8 @@
   --color-primary-text: #fafafa;
   --color-card: #ffffff;
   --color-card-end: #fafafa;
+  --color-beta: #1d5fd6;
+  --color-beta-soft: #dbe8ff;
   color-scheme: light;
 }
 

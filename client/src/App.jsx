@@ -18,7 +18,7 @@ import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
 import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
 import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
 import InStoreSignPage from "./pages/dashboard/InStoreSignPage.jsx";
-import PriceCheckPage from "./pages/dashboard/PriceCheckPage.jsx";
+import StorePricingPage from "./pages/dashboard/StorePricingPage.jsx";
 import PlatformAdmin from "./pages/platform/PlatformAdmin.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
@@ -86,7 +86,9 @@ function App() {
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute requireMerchant><AccountSettings /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
-      <Route path="/price-check" element={<ProtectedRoute requireMerchant><PriceCheckPage /></ProtectedRoute>} />
+      <Route path="/prices" element={<ProtectedRoute requireMerchant><StorePricingPage /></ProtectedRoute>} />
+      {/* Old link: Price check is now the Pricing page's StockX tab */}
+      <Route path="/price-check" element={<Navigate to="/prices?tab=stockx" replace />} />
       <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
       <Route path="/settings/sign" element={<ProtectedRoute requireMerchant><InStoreSignPage /></ProtectedRoute>} />
       <Route path="/platform" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
