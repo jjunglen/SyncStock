@@ -15,6 +15,10 @@ export const SNEAKER_SIZES = [
   "14.5M/16W", "15M", "16M", "17M",
 ];
 
+// Grade school (GS) shoes only come in youth sizes 3.5Y–7Y, saved as
+// their men's/women's equivalents (as the store's 5Y is "5M/6.5W")
+export const GS_SIZES = SNEAKER_SIZES.slice(0, SNEAKER_SIZES.indexOf("7M/8.5W") + 1);
+
 export const CLOTHING_SIZES = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "OS"];
 
 // Size options per category — trading cards have none

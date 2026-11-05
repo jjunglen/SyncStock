@@ -9,20 +9,12 @@ import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
 import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
 import SizePicker from "../../components/dashboard/SizePicker.jsx";
 import Switch from "../../components/ui/Switch.jsx";
-import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
+import { CATEGORY_META, SIZES_BY_CATEGORY, GS_SIZES } from "../../lib/categories.js";
+import { categoryFromStockx, isGradeSchool } from "../../lib/stockxCategory.js";
 
 // What can be tracked here (trading cards have no sizes and aren't on
 // StockX search). ?category=clothing opens in clothing mode.
 const TRACKABLE = ["sneakers", "clothing"];
-
-// StockX product types → our category, so picking a hoodie switches to
-// clothing sizes on its own
-const categoryFromStockx = (item) => {
-  const type = `${item?.productType || ""} ${item?.productAttributes?.category || ""}`;
-  if (/apparel|clothing|streetwear|accessor|hoodie|shirt|jacket|pants|shorts|hat|bag/i.test(type)) return "clothing";
-  if (/sneaker|shoe|footwear/i.test(type)) return "sneakers";
-  return null;
-};
 
 // One of the store's own products (/inventory/trackable) in the shape the
 // page uses for StockX results. `store` marks it: its sizes come from the
@@ -100,6 +92,8 @@ export default function TrackShoe() {
 
   // A store product with no sizes (one variant) needs no size picked
   const sizeless = !!selectedShoe?.store && selectedShoe.sizes.length === 0;
+  // A grade-school StockX shoe only comes in youth sizes
+  const gsShoe = !!selectedShoe && !selectedShoe.store && category === "sneakers" && isGradeSchool(selectedShoe);
   const canSubmit = sizeless || sizes.length > 0;
 
   const handleSubmit = async () => {
@@ -171,9 +165,12 @@ export default function TrackShoe() {
         const switching = itemCategory !== category || !!selectedShoe?.store;
         if (itemCategory !== category) setCategory(itemCategory);
         if (switching) setSizes([]);
-        // Start with the shopper's saved sizes for this type
-        const savedForType = mySizes.filter((s) => SIZES_BY_CATEGORY[itemCategory].includes(s));
-        if (savedForType.length > 0 && (switching || sizes.length === 0)) setSizes(savedForType);
+        // Start with the shopper's saved sizes for this type (for a GS
+        // shoe, only the youth ones)
+        const offered = itemCategory === "sneakers" && isGradeSchool(shoe) ? GS_SIZES : SIZES_BY_CATEGORY[itemCategory];
+        const savedForType = mySizes.filter((s) => offered.includes(s));
+        if (switching || offered !== SIZES_BY_CATEGORY[itemCategory]) setSizes(savedForType);
+        else if (sizes.length === 0) setSizes(savedForType);
       }}
       className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-colors ${
         selectedShoe?.productId === shoe.productId
@@ -404,7 +401,11 @@ export default function TrackShoe() {
                       onChange={setSizes}
                       category={category}
                       mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
+                      options={gsShoe ? GS_SIZES : null}
                     />
+                    {gsShoe && (
+                      <p className="mt-2 text-xs text-text-muted">Grade school (GS) — youth sizes 3.5Y–7Y only.</p>
+                    )}
                   </div>
                 )}
 
