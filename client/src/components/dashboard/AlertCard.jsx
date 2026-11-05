@@ -4,7 +4,8 @@ import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import Switch from "../ui/Switch.jsx";
 import api from "../../lib/api.js";
-import { CONDITION_OPTIONS, conditionLabel } from "../../lib/alertOptions.js";
+import { CONDITION_OPTIONS, conditionLabel, cardPrefsLabel, cardPrefsOf } from "../../lib/alertOptions.js";
+import CardPrefsPicker from "./CardPrefsPicker.jsx";
 import PriceRangeSlider from "../ui/PriceRangeSlider.jsx";
 import { rangeFromPrices, pricesFromRange, priceRangeLabel } from "../../lib/priceRange.js";
 
@@ -14,6 +15,9 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [priceRange, setPriceRange] = useState(() => rangeFromPrices(alert.min_price, alert.max_price));
   const [condition, setCondition] = useState(alert.condition_preference || "either");
+  // Trading cards: raw/graded, condition, grading company and grade
+  const isCard = alert.category === "trading_cards";
+  const [cardPrefs, setCardPrefs] = useState(() => cardPrefsOf(alert));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // A photo that fails to load shows the placeholder instead
@@ -35,13 +39,14 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
   };
 
   const handleSave = async () => {
-    const ok = await save({ ...pricesFromRange(priceRange), condition_preference: condition });
+    const ok = await save({ ...pricesFromRange(priceRange), ...(isCard ? cardPrefs : { condition_preference: condition }) });
     if (ok) setEditing(false);
   };
 
   const handleCancel = () => {
     setPriceRange(rangeFromPrices(alert.min_price, alert.max_price));
     setCondition(alert.condition_preference || "either");
+    setCardPrefs(cardPrefsOf(alert));
     setError("");
     setEditing(false);
   };
@@ -78,9 +83,11 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
           <p className="text-xs text-text-muted mt-0.5">
             {[
               priceRangeLabel(alert.min_price, alert.max_price),
-              alert.condition_preference && alert.condition_preference !== "either"
-                ? conditionLabel(alert.condition_preference)
-                : null,
+              isCard
+                ? cardPrefsLabel(alert)
+                : alert.condition_preference && alert.condition_preference !== "either"
+                  ? conditionLabel(alert.condition_preference)
+                  : null,
             ]
               .filter(Boolean)
               .join(" · ") || "Any price · Brand New or Pre-Owned"}
@@ -123,6 +130,9 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
       {editing && (
         <div className="mt-4 space-y-4 border-t border-border pt-4">
           <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
+          {isCard ? (
+            <CardPrefsPicker value={cardPrefs} onChange={setCardPrefs} kinds={alert.attributes?.card_type === "sealed" ? ["sealed"] : null} compact />
+          ) : (
           <div>
             <label className="text-xs text-text-muted block mb-1.5">Condition</label>
             <select value={condition} onChange={(e) => setCondition(e.target.value)} className={inputClass}>
@@ -133,6 +143,7 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
               ))}
             </select>
           </div>
+          )}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" fullWidth onClick={handleCancel} disabled={saving}>
               Cancel

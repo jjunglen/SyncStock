@@ -1,6 +1,7 @@
 const { classifyOption, isSizeValue } = require("./otherSizes.js");
 const { parseVariantTitle } = require("./parseVariantTitle.js");
 const { normalizeSize } = require("./categorize.js");
+const { readCard, NO_CARD } = require("./cardDetails.js");
 
 // Size, condition and box status for one Shopify variant — however the
 // merchant set the product up. Copyt names variants
@@ -148,6 +149,13 @@ const readVariant = (product, variant, category, sizeOptionNames = []) => {
   const title = variant.title || "";
   const options = optionValues(product, variant);
 
+  // Trading cards: sealed, raw (NM…DMG) or graded (PSA 10) — no sizes
+  if (category === "trading_cards") {
+    const card = readCard(product, options);
+    const { condition, ...cardFields } = card;
+    return { size: null, condition, boxCondition: null, card: cardFields };
+  }
+
   // Copyt's format first, read exactly as before — so existing stores'
   // sizes, conditions and box statuses don't change
   const copyt = parseVariantTitle(title, product.handle || "");
@@ -195,7 +203,7 @@ const readVariant = (product, variant, category, sizeOptionNames = []) => {
       "either";
   }
 
-  return { size, condition, boxCondition: copyt.boxCondition };
+  return { size, condition, boxCondition: copyt.boxCondition, card: NO_CARD };
 };
 
 module.exports = { readVariant, sneakerSize };

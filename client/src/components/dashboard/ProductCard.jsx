@@ -1,12 +1,8 @@
 import { useState } from "react";
 import { LuInfo, LuX } from "react-icons/lu";
 import { useLayout } from "../ui/AnimatedToggleLayout.jsx";
+import { itemConditionLabel } from "../../lib/alertOptions.js";
 
-function conditionLabel(condition) {
-  if (condition === "brand_new") return "Brand New";
-  if (condition === "pre_owned") return "Pre-Owned";
-  return null;
-}
 
 // Clicks on the card open the product; these stay inside the card
 const keepInCard = (e) => e.stopPropagation();
@@ -86,11 +82,11 @@ export default function ProductCard({ item }) {
           ) : (
             <div className="w-full h-full bg-neutral-200" />
           )}
-          {conditionLabel(item.condition) && (
+          {itemConditionLabel(item) && (
             <span
-              className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-black/70 text-white"}`}
+              className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/70 text-white"}`}
             >
-              {conditionLabel(item.condition)}
+              {itemConditionLabel(item)}
             </span>
           )}
           {item.size && (
@@ -127,11 +123,11 @@ export default function ProductCard({ item }) {
         ) : (
           <div className="w-full h-full bg-surface-muted" />
         )}
-        {conditionLabel(item.condition) && (
+        {itemConditionLabel(item) && (
           <span
-            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-black/60 text-white"}`}
+            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/60 text-white"}`}
           >
-            {conditionLabel(item.condition)}
+            {itemConditionLabel(item)}
           </span>
         )}
         {item.size && (

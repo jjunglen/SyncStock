@@ -8,6 +8,60 @@ const {
 const { getUserAlertStats } = require("../services/alert.service.js");
 const { sameSize } = require("../utils/otherSizes.js");
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
+const { PICKABLE_COMPANIES, PICKABLE_RAW, GRADES, BLACK_LABEL } = require("../utils/cardDetails.js");
+
+// Card preference keys an alert request can send
+const CARD_KEYS = ["graded_preference", "preferred_grading_company", "min_grade", "min_condition", "sealed", "card_type"];
+
+// A trading card alert's preferences from the request (all optional):
+//   graded_preference — raw / graded / either
+//   min_condition — worst raw condition: NM, LP or MP
+//   preferred_grading_company — PSA, CGC, BGS (Beckett) or OTHER
+//   min_grade — lowest grade, only with a company; BL (Black Label) is
+//               Beckett only
+//   sealed — "factory" = factory sealed only (not damaged boxes)
+//   card_type — "sealed" when the alert is for sealed product
+// Returns the alert's columns and its attributes, or { error }.
+const cardPrefsFrom = (body, current = {}) => {
+  const pick = (key, fallback) => (key in body ? body[key] || null : fallback);
+  const p = {
+    graded_preference: pick("graded_preference", current.graded_preference) || "either",
+    preferred_grading_company: pick("preferred_grading_company", current.preferred_grading_company || null),
+    min_grade: pick("min_grade", current.min_grade || null),
+    min_condition: pick("min_condition", current.attributes?.min_condition || null),
+    sealed: pick("sealed", current.attributes?.sealed || null),
+    card_type: pick("card_type", current.attributes?.card_type || null),
+  };
+  if (!["either", "raw", "graded"].includes(p.graded_preference)) return { error: "Pick raw, graded or either" };
+  if (p.preferred_grading_company && !PICKABLE_COMPANIES.includes(p.preferred_grading_company)) {
+    return { error: "Pick a grading company from the list" };
+  }
+  if (p.min_grade && !GRADES.includes(String(p.min_grade))) return { error: "Pick a grade from the list" };
+  if (p.min_grade && !p.preferred_grading_company) return { error: "Pick a grading company before a grade" };
+  if (p.min_grade === BLACK_LABEL && p.preferred_grading_company !== "BGS") {
+    return { error: "Black Label is a Beckett grade" };
+  }
+  if (p.min_condition && !PICKABLE_RAW.includes(p.min_condition)) return { error: "Pick a condition from the list" };
+  if (p.sealed && p.sealed !== "factory") return { error: "Pick factory sealed or any sealed" };
+  if (p.card_type && p.card_type !== "sealed") p.card_type = null;
+  // Choices that don't apply to the kind picked are dropped
+  if (p.graded_preference === "raw") Object.assign(p, { preferred_grading_company: null, min_grade: null });
+  if (p.graded_preference === "graded") p.min_condition = null;
+
+  const attributes = { ...(current.attributes || {}) };
+  for (const key of ["min_condition", "sealed", "card_type"]) {
+    if (p[key]) attributes[key] = p[key];
+    else delete attributes[key];
+  }
+  return {
+    columns: {
+      graded_preference: p.graded_preference,
+      preferred_grading_company: p.preferred_grading_company,
+      min_grade: p.min_grade,
+    },
+    attributes,
+  };
+};
 
 const ALERT_CATEGORIES = Alert.getAttributes().category.values;
 
@@ -219,6 +273,13 @@ const createAlert = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Product name and size are required" });
     }
+    // Trading cards: raw or graded, and how good
+    let cardPrefs = null;
+    if (category === "trading_cards") {
+      cardPrefs = cardPrefsFrom(req.body);
+      if (cardPrefs.error) return res.status(400).json({ success: false, message: cardPrefs.error });
+    }
+
     if (sizes.length > MAX_SIZES_PER_REQUEST) {
       return res
         .status(400)
@@ -269,7 +330,8 @@ const createAlert = async (req, res) => {
         stockx_product_id: stockx_product_id || null,
         stockx_url_key: stockx_url_key || null,
         image_url: safeImageUrl(image_url),
-        attributes: byName ? { match: "keywords" } : {},
+        attributes: byName ? { match: "keywords" } : cardPrefs?.attributes || {},
+        ...cardPrefs?.columns,
       })),
       { returning: true },
     );
@@ -335,7 +397,15 @@ const updateAlert = async (req, res) => {
       return res.status(400).json({ success: false, message: "Minimum price is above the maximum" });
     }
 
+    let cardFields = {};
+    if (alert.category === "trading_cards" && CARD_KEYS.some((k) => k in req.body)) {
+      const prefs = cardPrefsFrom(req.body, alert);
+      if (prefs.error) return res.status(400).json({ success: false, message: prefs.error });
+      cardFields = { ...prefs.columns, attributes: prefs.attributes };
+    }
+
     await alert.update({
+      ...cardFields,
       size: size ?? alert.size,
       // Sending a price empty/null removes that limit
       min_price: nextMin,

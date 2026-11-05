@@ -13,12 +13,8 @@ import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
 import { useCart, addToCart, MAX_CART_ITEMS } from "../../lib/cart.js";
 import OtherSizes from "./OtherSizes.jsx";
+import { itemConditionLabel } from "../../lib/alertOptions.js";
 
-function conditionLabel(condition) {
-  if (condition === "brand_new") return "Brand New";
-  if (condition === "pre_owned") return "Pre-Owned";
-  return null;
-}
 
 export default function ProductModal({ item, onClose, onAlertCreated, alerts, onOpenItem }) {
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
@@ -162,11 +158,11 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
 
           <div className="p-5">
             <div className="flex gap-2 flex-wrap mb-3">
-              {conditionLabel(item.condition) && (
+              {itemConditionLabel(item) && (
                 <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${item.condition === "brand_new" ? "bg-accent text-accent-text" : "bg-text/5 text-text-muted"}`}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-text/5 text-text-muted"}`}
                 >
-                  {conditionLabel(item.condition)}
+                  {itemConditionLabel(item)}
                 </span>
               )}
               {item.size && (

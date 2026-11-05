@@ -378,9 +378,13 @@ const getTrackableProducts = async (req, res) => {
           price: row.price,
           in_stock: false,
           sizes: new Map(),
+          // Trading cards: the kinds it's listed as (sealed, graded, NM…),
+          // so Track only asks what applies
+          card_kinds: new Set(),
         });
       }
       const product = products.get(key);
+      if (row.category === "trading_cards" && row.condition) product.card_kinds.add(row.condition);
       product.sku = product.sku || row.sku;
       const inStock = Number(row.available) > 0;
       product.in_stock = product.in_stock || inStock;
@@ -389,6 +393,7 @@ const getTrackableProducts = async (req, res) => {
 
     const data = [...products.values()].map((p) => ({
       ...p,
+      card_kinds: [...p.card_kinds],
       sizes: [...p.sizes.entries()]
         .sort(([a], [b]) => sizeOrder(a, b))
         .map(([size, inStock]) => ({ size, in_stock: inStock })),

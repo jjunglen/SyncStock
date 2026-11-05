@@ -1,17 +1,18 @@
 // Merchant-chosen store settings shared by the shopper site, alerts and
 // emails.
 
-// Categories a merchant can switch on. Trading cards are "coming soon":
-// shown in settings but can't be turned on yet. "other" is everything
-// that isn't shoes, clothing or cards — the merchant can rename it.
-const SELECTABLE_CATEGORIES = ["sneakers", "clothing", "other"];
-const COMING_SOON_CATEGORIES = ["trading_cards"];
+// Categories a merchant can switch on. "other" is everything that isn't
+// shoes, clothing or cards — the merchant can rename it. Trading cards
+// are opt-in: a store that never chose gets the rest.
+const SELECTABLE_CATEGORIES = ["sneakers", "clothing", "trading_cards", "other"];
+const DEFAULT_CATEGORIES = ["sneakers", "clothing", "other"];
+const COMING_SOON_CATEGORIES = [];
 
 const enabledCategories = (store) => {
   const chosen = (store?.enabled_categories || []).filter((c) =>
     SELECTABLE_CATEGORIES.includes(c),
   );
-  return chosen.length > 0 ? chosen : SELECTABLE_CATEGORIES;
+  return chosen.length > 0 ? chosen : DEFAULT_CATEGORIES;
 };
 
 const isCategoryEnabled = (store, category) => enabledCategories(store).includes(category);

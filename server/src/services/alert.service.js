@@ -7,6 +7,7 @@ const {
 const { isCategoryEnabled } = require("../utils/storeSettings.js");
 const { sameSize } = require("../utils/otherSizes.js");
 const { otherSizeChart } = require("./otherSizeChart.service.js");
+const { cardMeetsPreferences } = require("../utils/cardDetails.js");
 
 // An alert set by name ("Track by name" on Track): fires for any product
 // whose name has every word, in the chosen size (or any size)
@@ -55,6 +56,8 @@ const meetsPreferences = (alert, inventory) => {
   const price = parseFloat(inventory.price);
   if (alert.max_price && price > parseFloat(alert.max_price)) return false;
   if (alert.min_price && price < parseFloat(alert.min_price)) return false;
+  // Trading cards: raw vs graded, the worst condition, company and grade
+  if (inventory.category === "trading_cards") return cardMeetsPreferences(alert, inventory);
   const wanted = alert.condition_preference;
   const actual = inventory.condition;
   if (wanted && wanted !== "either" && ["brand_new", "pre_owned"].includes(actual)) {

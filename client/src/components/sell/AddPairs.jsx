@@ -87,7 +87,9 @@ export default function AddPairs({ onAdded, onCancel }) {
 
   const choose = (item) => {
     setPicked(item);
-    const next = categoryFromStockx(item) || category;
+    // Selling cards comes later: cards keep the current type
+    const found = categoryFromStockx(item);
+    const next = (found !== "trading_cards" && found) || category;
     if (next !== category) {
       setCategory(next);
       setSizes({});

@@ -4,14 +4,15 @@ import { LuSearch, LuCircleCheck, LuCircleX, LuFootprints } from "react-icons/lu
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import api from "../../lib/api.js";
-import { CONDITION_OPTIONS } from "../../lib/alertOptions.js";
+import { CONDITION_OPTIONS, EMPTY_CARD_PREFS, isSealedOnly } from "../../lib/alertOptions.js";
+import CardPrefsPicker from "../../components/dashboard/CardPrefsPicker.jsx";
 import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
 import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
 import SizePicker from "../../components/dashboard/SizePicker.jsx";
 import TrackByName from "../../components/dashboard/TrackByName.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import { CATEGORY_META, SIZES_BY_CATEGORY, GS_SIZES } from "../../lib/categories.js";
-import { categoryFromStockx, isGradeSchool } from "../../lib/stockxCategory.js";
+import { categoryFromStockx, cardKindsFromStockx, isGradeSchool } from "../../lib/stockxCategory.js";
 
 // What can be tracked here (trading cards have no sizes and aren't on
 // StockX search). ?category=clothing opens in clothing mode.
@@ -36,6 +37,8 @@ export default function TrackShoe() {
   const [sizes, setSizes] = useState([]);
   const [priceRange, setPriceRange] = useState([PRICE_MIN, PRICE_MAX]);
   const [condition, setCondition] = useState("either");
+  // Trading cards: raw or graded, and how good (CardPrefsPicker)
+  const [cardPrefs, setCardPrefs] = useState(EMPTY_CARD_PREFS);
   const [emailNotif, setEmailNotif] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -97,8 +100,12 @@ export default function TrackShoe() {
     return () => clearTimeout(timeout);
   }, [query]);
 
+  // Trading cards have no sizes: the card picker replaces them
+  const isCard = !!selectedShoe && category === "trading_cards";
+  // Sealed product or singles: from the store's listings, or StockX's title
+  const cardKinds = selectedShoe?.store ? selectedShoe.card_kinds : cardKindsFromStockx(selectedShoe);
   // A store product with no sizes (one variant) needs no size picked
-  const sizeless = !!selectedShoe?.store && selectedShoe.sizes.length === 0;
+  const sizeless = isCard || (!!selectedShoe?.store && selectedShoe.sizes.length === 0);
   // A grade-school StockX shoe only comes in youth sizes
   const gsShoe = !!selectedShoe && !selectedShoe.store && category === "sneakers" && isGradeSchool(selectedShoe);
   const canSubmit = sizeless || sizes.length > 0;
@@ -114,9 +121,10 @@ export default function TrackShoe() {
         category,
         product_name: selectedShoe.title,
         sku: selectedShoe.styleId,
-        sizes,
+        sizes: isCard ? [] : sizes,
         ...pricesFromRange(priceRange),
-        condition_preference: condition,
+        condition_preference: isCard ? "either" : condition,
+        ...(isCard && { ...cardPrefs, card_type: isSealedOnly(cardKinds) ? "sealed" : null }),
         notify_email: emailNotif,
         // The phone app is coming soon; website notifications stay on
         notify_inapp: true,
@@ -138,6 +146,7 @@ export default function TrackShoe() {
       setSizes([]);
       setPriceRange([PRICE_MIN, PRICE_MAX]);
       setCondition("either");
+      setCardPrefs(EMPTY_CARD_PREFS);
       setResults([]);
       setStoreResults([]);
     } catch (err) {
@@ -159,16 +168,17 @@ export default function TrackShoe() {
         showFormOnPhones();
         setSuccess(false);
         setError("");
+        setCardPrefs(EMPTY_CARD_PREFS);
         if (shoe.store) {
           // The store's product: its own sizes, starting with the
           // shopper's saved sizes it comes in
-          if (TRACKABLE.includes(shoe.category) || shoe.category === "other") setCategory(shoe.category);
+          if (TRACKABLE.includes(shoe.category) || ["other", "trading_cards"].includes(shoe.category)) setCategory(shoe.category);
           const offered = shoe.sizes.map((s) => s.size);
           setSizes(mySizes.filter((s) => offered.includes(s)));
           return;
         }
         // A hoodie switches to clothing sizes on its own
-        const itemCategory = categoryFromStockx(shoe) || category;
+        const itemCategory = categoryFromStockx(shoe) || (category === "trading_cards" ? "sneakers" : category);
         const switching = itemCategory !== category || !!selectedShoe?.store;
         if (itemCategory !== category) setCategory(itemCategory);
         if (switching) setSizes([]);
@@ -360,7 +370,7 @@ export default function TrackShoe() {
                   </div>
                 </div>
 
-                {selectedShoe.store ? (
+                {isCard ? null : selectedShoe.store ? (
                   <div>
                     <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sizes</p>
                     {sizeless ? (
@@ -422,6 +432,9 @@ export default function TrackShoe() {
 
                 <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
 
+                {isCard ? (
+                  <CardPrefsPicker value={cardPrefs} onChange={setCardPrefs} kinds={cardKinds} />
+                ) : (
                 <div>
                   <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Condition</p>
                   <div role="radiogroup" aria-label="Condition" className="grid grid-cols-3 gap-1 p-1 border border-text/15 rounded-xl bg-surface-muted">
@@ -443,6 +456,7 @@ export default function TrackShoe() {
                     ))}
                   </div>
                 </div>
+                )}
 
                 <div>
                   <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Notify me by</p>

@@ -144,7 +144,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
       const category = categorizeProduct(product);
       if (!category) continue; // gift cards aren't listed
       for (const variant of product.variants || []) {
-        const { size, condition, boxCondition } = readVariant(product, variant, category, otherSizeSettings(store).option_names);
+        const { size, condition, boxCondition, card } = readVariant(product, variant, category, otherSizeSettings(store).option_names);
         seen.add(String(variant.id));
         await Inventory.upsert({
           store_id: store.id,
@@ -157,6 +157,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
           size: normalizeSize(size, category),
           condition,
           box_status: boxCondition,
+        ...card,
           price: parseFloat(variant.price) || null,
           available: variant.inventory_quantity || 0,
           shopify_url: `${store.storefront_url}/products/${product.handle}`,

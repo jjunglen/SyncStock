@@ -36,7 +36,7 @@ const handleProductCreate = async (req, res) => {
 
     const channel = isChannelStore(store);
     for (const variant of variants) {
-      const { size, condition, boxCondition } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
+      const { size, condition, boxCondition, card } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
 
       await Inventory.upsert({
         store_id: store.id,
@@ -49,6 +49,7 @@ const handleProductCreate = async (req, res) => {
         size: normalizeSize(size, category),
         condition: condition,
         box_status: boxCondition,
+        ...card,
         price: parseFloat(variant.price) || null,
         available: variant.inventory_quantity || 0,
         shopify_url: `${store.storefront_url}/products/${data.handle}`,
@@ -168,7 +169,7 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
     const priceDropVariants = [];
 
     for (const variant of variants) {
-      const { size, condition, boxCondition } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
+      const { size, condition, boxCondition, card } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
 
       const newPrice = parseFloat(variant.price) || null;
       const compareAtPrice = parseFloat(variant.compare_at_price) || null;
@@ -210,6 +211,7 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
         size: normalizeSize(size, category),
         condition: condition,
         box_status: boxCondition,
+        ...card,
         price: newPrice,
         compare_at_price: compareAtPrice || null,
         // A listing payload without stock counts leaves them as they are
