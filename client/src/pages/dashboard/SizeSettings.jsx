@@ -78,6 +78,8 @@ export default function SizeSettings() {
   const [label, setLabel] = useState("");
   const [sizes, setSizes] = useState([]);
   const [adding, setAdding] = useState("");
+  // An option that looks like colors, waiting for "Use it anyway"
+  const [colorWarning, setColorWarning] = useState(null);
   const fileRef = useRef(null);
   const savedTimer = useRef(null);
 
@@ -135,8 +137,14 @@ export default function SizeSettings() {
     (label.trim() || null) !== (data?.label || null);
   const optionsChanged = JSON.stringify(optionNames) !== JSON.stringify(data?.option_names || []);
 
-  const toggleOption = (o) => {
+  const toggleOption = (o, { confirmed = false } = {}) => {
     const on = isChosen(o);
+    // Ticking colors as sizes is almost always a mistake — ask first
+    if (!on && o.detected === "color" && !confirmed) {
+      setColorWarning(o);
+      return;
+    }
+    setColorWarning(null);
     // First change: start from what's shown (the detected size options)
     const base = optionNames.length ? optionNames : options.filter((x) => x.detected === "size").map((x) => x.name);
     setOptionNames(on ? base.filter((n) => n.toLowerCase() !== o.name.toLowerCase()) : [...base, o.name]);
@@ -257,6 +265,33 @@ export default function SizeSettings() {
                   </button>
                 );
               })}
+            </div>
+          )}
+          {!colorWarning && options.some((o) => isChosen(o) && o.detected === "color") && (
+            <p className="mt-3 text-xs text-warn">
+              {options
+                .filter((o) => isChosen(o) && o.detected === "color")
+                .map((o) => `“${o.name}”`)
+                .join(", ")}{" "}
+              looks like colors but is ticked as a size — untick it unless that's what you want.
+            </p>
+          )}
+          {colorWarning && (
+            <div role="alert" className="mt-4 rounded-lg border border-warn/40 bg-warn/10 p-3 text-sm">
+              <p className="font-medium text-warn">“{colorWarning.name}” looks like colors, not sizes</p>
+              <p className="mt-1 text-text-muted">
+                Its values are {colorWarning.values.slice(0, 4).join(", ")}
+                {colorWarning.values.length > 4 ? "…" : ""}. Shoppers would pick these as sizes, and size alerts would
+                match on them.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setColorWarning(null)}>
+                  Keep it off
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => toggleOption(colorWarning, { confirmed: true })}>
+                  Use it anyway
+                </Button>
+              </div>
             </div>
           )}
           {options.length > 0 && (
