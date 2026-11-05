@@ -1,4 +1,4 @@
-const { classifyOption } = require("./otherSizes.js");
+const { classifyOption, isSizeValue } = require("./otherSizes.js");
 const { parseVariantTitle } = require("./parseVariantTitle.js");
 const { normalizeSize } = require("./categorize.js");
 
@@ -129,6 +129,19 @@ const productOptionValues = (product, name) => [
   ),
 ];
 
+// Copyt's variant titles: "L - Brand New - Original Box (Good)"
+const COPYT_TITLE = / - (brand new|pre-owned)/i;
+
+// A clothing size: a "Size" option or Copyt's title as before; otherwise
+// only an option detected as a size (S/M/L, 32x30, One size) — never the
+// variant's whole name ("Sample Selling Plans Ski Wax") or a color
+const clothingSize = (product, title, options, sizeOption, rawSize) => {
+  if (sizeOption || COPYT_TITLE.test(title)) return rawSize;
+  const detected = options.find((o) => classifyOption(o.name, productOptionValues(product, o.name)) === "size");
+  if (detected) return String(detected.value || "").trim();
+  return isSizeValue(rawSize) ? rawSize : null;
+};
+
 // sizeOptionNames: for "other" products, the Shopify options the store
 // counts as sizes (Size settings) — "Size" options always count
 const readVariant = (product, variant, category, sizeOptionNames = []) => {
@@ -161,6 +174,8 @@ const readVariant = (product, variant, category, sizeOptionNames = []) => {
     const tags = Array.isArray(product.tags) ? product.tags.join(" ") : product.tags || "";
     const group = ageGroup(`${product.title || ""} ${tags}`);
     size = sneakerSize(rawSize, group) || normalizeSize(rawSize, category);
+  } else if (category === "clothing") {
+    size = normalizeSize(clothingSize(product, title, options, sizeOption, rawSize), category);
   } else {
     size = normalizeSize(rawSize, category);
   }
