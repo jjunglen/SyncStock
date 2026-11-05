@@ -30,8 +30,9 @@ const getSourcingDemand = async (req, res) => {
       FROM alerts a
       WHERE a.store_id = :storeId AND a.active = true
       GROUP BY product_key, a.product_name, a.size
-      ORDER BY demand_count DESC
-      LIMIT 20
+      -- Every tracked item: the Sourcing page lists them all, the
+      -- dashboard shows the top 8 and counts the rest
+      ORDER BY demand_count DESC, a.product_name, a.size
       `,
       { replacements: { storeId: req.store.id }, type: QueryTypes.SELECT }
     );
