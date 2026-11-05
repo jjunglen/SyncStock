@@ -15,6 +15,10 @@ const PixelClaim = require("./PixelClaim.js");
 const StockxPriceCheck = require("./StockxPriceCheck.js");
 const ProductView = require("./ProductView.js");
 const DeviceToken = require("./DeviceToken.js");
+const SaleHistory = require("./SaleHistory.js");
+const SellRequest = require("./SellRequest.js");
+const SellItem = require("./SellItem.js");
+const SellPhoto = require("./SellPhoto.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Inventory, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -23,6 +27,16 @@ Store.hasMany(NotificationLog, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(AlertClick, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(Purchase, { foreignKey: "store_id", onDelete: "CASCADE" });
 Store.hasMany(PixelClaim, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(SaleHistory, { foreignKey: "store_id", onDelete: "CASCADE" });
+// "Sell your items" (beta)
+Store.hasMany(SellRequest, { foreignKey: "store_id", onDelete: "CASCADE" });
+SellRequest.belongsTo(Store, { foreignKey: "store_id" });
+User.hasMany(SellRequest, { foreignKey: "user_id", onDelete: "SET NULL" });
+SellRequest.belongsTo(User, { foreignKey: "user_id" });
+SellRequest.hasMany(SellItem, { foreignKey: "request_id", as: "items", onDelete: "CASCADE" });
+SellItem.belongsTo(SellRequest, { foreignKey: "request_id" });
+SellItem.hasMany(SellPhoto, { foreignKey: "item_id", as: "photos", onDelete: "CASCADE" });
+SellPhoto.belongsTo(SellItem, { foreignKey: "item_id" });
 Store.hasMany(StockxPriceCheck, { foreignKey: "store_id", onDelete: "CASCADE" });
 // Views go when the store or the shopper's account is deleted
 Store.hasMany(ProductView, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -103,4 +117,8 @@ module.exports = {
   PixelClaim,
   StockxPriceCheck,
   DeviceToken,
+  SaleHistory,
+  SellRequest,
+  SellItem,
+  SellPhoto,
 };

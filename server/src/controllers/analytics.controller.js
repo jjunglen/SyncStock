@@ -1,6 +1,6 @@
 const { sequelize } = require("../config/database.js");
 const { QueryTypes, Op } = require("sequelize");
-const { Alert, NotificationLog, AlertClick, Purchase, User, Account } = require("../models/index.js");
+const { Purchase, User, Account } = require("../models/index.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 const { WEBSITE_SOURCES, IN_STORE_SOURCE } = require("../utils/signupSource.js");
 
@@ -13,18 +13,26 @@ const getSourcingDemand = async (req, res) => {
         a.product_name,
         a.size,
         COUNT(DISTINCT a.user_id)::int AS demand_count,
-        EXISTS (
+        -- In stock = the same item in the same size has stock. One-size
+        -- items have no size on either side (IS NOT DISTINCT FROM treats
+        -- two empty sizes as the same; = never does). Same item: the
+        -- same name (as alerts match), or the same SKU.
+        BOOL_OR(EXISTS (
           SELECT 1 FROM inventory i
           WHERE i.store_id = :storeId
             AND i.available > 0
-            AND i.size = a.size
-            AND LOWER(i.product_name) LIKE '%' || LOWER(SPLIT_PART(a.product_name, ' ', 1)) || '%'
-        ) AS currently_in_stock
+            AND i.size IS NOT DISTINCT FROM a.size
+            AND (
+              LOWER(i.product_name) = LOWER(a.product_name)
+              OR (a.sku IS NOT NULL AND a.sku <> '' AND UPPER(i.sku) = UPPER(a.sku))
+            )
+        )) AS currently_in_stock
       FROM alerts a
       WHERE a.store_id = :storeId AND a.active = true
       GROUP BY product_key, a.product_name, a.size
-      ORDER BY demand_count DESC
-      LIMIT 20
+      -- Every tracked item: the Sourcing page lists them all, the
+      -- dashboard shows the top 8 and counts the rest
+      ORDER BY demand_count DESC, a.product_name, a.size
       `,
       { replacements: { storeId: req.store.id }, type: QueryTypes.SELECT }
     );
@@ -62,28 +70,50 @@ const getRevenue = async (req, res) => {
   }
 };
 
+// The notification funnel counts SHOPPERS, and each step only counts
+// shoppers from the step before, so it always narrows:
+//   tracking  — set an alert
+//   notified  — …and got a restock notification (sent, not just queued)
+//   clicked   — …and tapped Buy now after it
+//   purchased — …and bought the exact item (not fully refunded)
+// notifications_sent: every notification that went out (the stat card)
+const FUNNEL_SQL = `
+  WITH tracking AS (
+    SELECT DISTINCT user_id FROM alerts WHERE store_id = :storeId AND user_id IS NOT NULL
+  ),
+  notified AS (
+    SELECT t.user_id, MIN(p.created_at) AS first_at
+    FROM tracking t
+    JOIN pending_notifications p ON p.user_id = t.user_id AND p.store_id = :storeId AND p.sent = true
+    GROUP BY t.user_id
+  ),
+  clicked AS (
+    SELECT DISTINCT n.user_id
+    FROM notified n
+    JOIN alert_clicks c ON c.user_id = n.user_id AND c.store_id = :storeId AND c.clicked_at >= n.first_at
+  ),
+  bought AS (
+    SELECT DISTINCT k.user_id
+    FROM clicked k
+    JOIN purchases p ON p.user_id = k.user_id AND p.store_id = :storeId
+      AND p.match_type = 'exact' AND p.refunded_amount < p.price_paid
+  )
+  SELECT
+    (SELECT COUNT(*) FROM tracking)::int AS tracking,
+    (SELECT COUNT(*) FROM notified)::int AS notified,
+    (SELECT COUNT(*) FROM clicked)::int AS clicked,
+    (SELECT COUNT(*) FROM bought)::int AS purchased,
+    (SELECT COUNT(*) FROM pending_notifications WHERE store_id = :storeId AND sent = true)::int AS notifications_sent
+`;
+
 const getFunnel = async (req, res) => {
   try {
-    const storeId = req.store.id;
-
-    const [alerts, notified, clicked, purchased] = await Promise.all([
-      Alert.count({ where: { store_id: storeId, active: true } }),
-      NotificationLog.count({ where: { store_id: storeId } }),
-      AlertClick.count({ where: { store_id: storeId } }),
-      // Exact sales that weren't fully refunded (getRevenue)
-      Purchase.count({
-        where: {
-          store_id: storeId,
-          match_type: "exact",
-          refunded_amount: { [Op.lt]: sequelize.col("price_paid") },
-        },
-      }),
-    ]);
-
-    return res.status(200).json({
-      success: true,
-      data: { alerts, notified, clicked, purchased },
+    const [data] = await sequelize.query(FUNNEL_SQL, {
+      replacements: { storeId: req.store.id },
+      type: QueryTypes.SELECT,
     });
+
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Get funnel error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to fetch funnel" });

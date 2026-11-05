@@ -147,8 +147,9 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load account:", err));
   }, []);
 
-  const fetchInStock = useCallback((page, cat, brand, price, order, query) => {
-    setLoadingInStock(true);
+  // silent: a background refresh (below), with no loading state
+  const fetchInStock = useCallback((page, cat, brand, price, order, query, silent = false) => {
+    if (!silent) setLoadingInStock(true);
     const params = addFilters(
       new URLSearchParams({ category: cat, page: String(page), limit: String(PAGE_SIZE) }),
       brand,
@@ -181,8 +182,8 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load brands:", err));
   }, [tab, category]);
 
-  const fetchBrowse = useCallback((page, query, sizes, cat, brand, price, order) => {
-    setLoadingBrowse(true);
+  const fetchBrowse = useCallback((page, query, sizes, cat, brand, price, order, silent = false) => {
+    if (!silent) setLoadingBrowse(true);
     const params = new URLSearchParams({
       category: cat,
       page: String(page),
@@ -232,6 +233,31 @@ export default function CustomerDashboard() {
   useEffect(() => {
     loadAlerts();
   }, [loadAlerts]);
+
+  // Keep stock current while the page is open: refresh every 30 seconds
+  // while it's on screen, and right away when the shopper comes back to
+  // it, so a restock shows without reloading the page
+  const selectedItemId = selectedItem?.id;
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, true);
+      fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, true);
+      loadAlerts();
+      if (selectedItemId) {
+        api
+          .get(`/inventory/${selectedItemId}`)
+          .then((res) => setSelectedItem((open) => (open?.id === selectedItemId ? res.data.data : open)))
+          .catch(() => {});
+      }
+    };
+    const timer = setInterval(refresh, 30 * 1000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [inStockPage, browsePage, category, brandFilter, priceFilter, sort, debouncedQuery, sizeKey, selectedItemId, fetchInStock, fetchBrowse, loadAlerts]);
 
   // "Need a different size?" in the popup opens that size's listing
   const openItem = (id) => {

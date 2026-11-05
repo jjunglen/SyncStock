@@ -72,6 +72,15 @@ export default function Privacy() {
           price paid, and the email on the order, which the store's Shopify
           account shares with us.
         </li>
+        <li>
+          If you use Sell your items: the pairs you offer to sell (item,
+          style code, size, condition, notes, asking price), the store's
+          offer, your answer, and what you were paid. Your photos of the
+          pairs are stored privately — only you and the store can see them
+          — and are deleted once the store checks the pairs in, either side
+          declines, or 30 days pass without an answer. The item details and
+          prices are kept so the store can price future offers.
+        </li>
       </ul>
       <h3>Merchant information</h3>
       <ul>
@@ -131,7 +140,7 @@ export default function Privacy() {
           <strong>Your browser's push service</strong> (for example Google,
           Apple, or Mozilla): delivering push notifications.
         </li>
-        <li><strong>Supabase</strong>: database hosting.</li>
+        <li><strong>Supabase</strong>: database hosting, and private storage for photos of items you offer to sell.</li>
         <li><strong>Vercel</strong> and <strong>{LEGAL.apiHost}</strong>: website and server hosting.</li>
       </ul>
       <p>

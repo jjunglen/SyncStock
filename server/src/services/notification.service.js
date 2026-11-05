@@ -1,5 +1,4 @@
 const { PendingNotification } = require("../models/index.js");
-const { Op } = require("sequelize");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 
 const buildDashboardUrl = (store, inventoryId, alertId) => {
@@ -12,22 +11,24 @@ const buildDashboardUrl = (store, inventoryId, alertId) => {
 // Queues a match for the shopper. Nothing is sent here: email, in-app,
 // and push all go out together from digest.service.js once the batch has
 // settled, with each product's final photo (listing tools like Copyt
-// add photos after creating the product). Returns false if this item
-// was already queued or sent to this shopper in the last hour.
+// add photos after creating the product). Returns false if this item is
+// already waiting to go to this shopper. Once sent, the next restock
+// (sold out, then back) notifies again: webhooks only call this when an
+// item goes from sold out to in stock, so repeats can't pile up.
 const queueNotification = async ({ store, alert, inventory }) => {
   if (!alert.notify_inapp && !alert.notify_email) return false;
 
-  const recentlyQueuedOrSent = await PendingNotification.findOne({
+  const alreadyQueued = await PendingNotification.findOne({
     where: {
       store_id: store.id,
       user_id: alert.user_id,
       inventory_id: inventory.id,
-      created_at: { [Op.gte]: new Date(Date.now() - 60 * 60 * 1000) },
+      sent: false,
     },
   });
-  if (recentlyQueuedOrSent) {
+  if (alreadyQueued) {
     console.log(
-      `Skipping duplicate — ${inventory.product_name} already queued/sent for this user`,
+      `Skipping duplicate — ${inventory.product_name} already queued for this user`,
     );
     return false;
   }

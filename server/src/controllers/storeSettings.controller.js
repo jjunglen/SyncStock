@@ -58,6 +58,11 @@ const settingsFor = (store) => ({
     upper: !!f.upper,
   })),
   theme_links: themeLinks(store),
+  // "Sell your items" (beta)
+  sell_enabled: store.sell_enabled,
+  buy_margin_new: store.buy_margin_new,
+  buy_margin_used: store.buy_margin_used,
+  credit_bonus: store.credit_bonus,
 });
 
 // GET /api/store/settings (store admin)
@@ -117,6 +122,21 @@ const updateSettings = async (req, res) => {
         return res.status(400).json({ success: false, message: "Pick a font from the list" });
       }
       changes.story_font = req.body.story_font;
+    }
+
+    if (req.body.sell_enabled !== undefined) changes.sell_enabled = !!req.body.sell_enabled;
+    // Margins 0–90%, credit bonus 0–50% (0 = cash only)
+    for (const [field, max, message] of [
+      ["buy_margin_new", 90, "Brand new margin must be 0–90%"],
+      ["buy_margin_used", 90, "Pre-owned margin must be 0–90%"],
+      ["credit_bonus", 50, "Store credit bonus must be 0–50%"],
+    ]) {
+      if (req.body[field] === undefined) continue;
+      const n = Number(req.body[field]);
+      if (!Number.isInteger(n) || n < 0 || n > max) {
+        return res.status(400).json({ success: false, message });
+      }
+      changes[field] = n;
     }
 
     for (const field of ["story_background", "story_box_color", "story_text_color"]) {

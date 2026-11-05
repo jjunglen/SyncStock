@@ -174,6 +174,31 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // "Sell your items" (beta): shoppers send pairs for the store to buy
+    // (sell.controller.js). Off until the merchant turns it on.
+    sell_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    // Suggested offers keep this share of the typical payout, by condition
+    // (priceGuide.service.js): offer = payout × (1 − margin)
+    buy_margin_new: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 30,
+    },
+    buy_margin_used: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 40,
+    },
+    // Extra % for taking store credit instead of cash; 0 = cash only
+    credit_bonus: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 10,
+    },
     // Daily email of Instagram stories for new arrivals (stories.service.js)
     instagram_stories: {
       type: DataTypes.BOOLEAN,

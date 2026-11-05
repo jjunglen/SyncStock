@@ -10,16 +10,29 @@ import {
   LuSun,
   LuMoon,
   LuShoppingBag,
+  LuHandCoins,
 } from "react-icons/lu";
 import StoreBrandMark from "../store/StoreBrandMark.jsx";
 import FloatingMenu from "../ui/FloatingMenu.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import CartDrawer from "../dashboard/CartDrawer.jsx";
 import Button from "../ui/Button.jsx";
+import ShinyButton from "../ui/ShinyButton.jsx";
+import { brandShades } from "../../lib/brandColors.js";
 import api from "../../lib/api.js";
 import { useTheme } from "../../lib/theme.js";
 import { useCart } from "../../lib/cart.js";
 import { useStoreInfo } from "../../lib/storeInfo.js";
+
+// The sweep on the Sell button: the store's brand color in its dark-mode
+// shade (the button is dark in both themes, so a navy brand color is
+// lightened enough to show), and a lighter tint for the hover glow.
+// SyncStock orange without a brand color.
+const lighten = (hex, amount = 0.4) => {
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `#${rgb.map((c) => Math.round(c + (255 - c) * amount).toString(16).padStart(2, "0")).join("")}`;
+};
+const sweepColor = (brand) => brandShades(brand)?.dark.color || "#ff5f00";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
@@ -56,6 +69,15 @@ export default function DashboardNavbar() {
       icon: LuPlus,
       onClick: () => navigate("/store/track"),
     },
+    ...(store?.sell_enabled
+      ? [
+          {
+            label: "Sell your items (Beta)",
+            icon: LuHandCoins,
+            onClick: () => navigate("/store/sell"),
+          },
+        ]
+      : []),
     {
       label: "Alerts",
       icon: LuBell,
@@ -77,6 +99,21 @@ export default function DashboardNavbar() {
           </Link>
 
           <div className="flex items-center gap-1.5 md:gap-3">
+            {store?.sell_enabled && (
+              <ShinyButton
+                label="Sell your items"
+                badge="Beta"
+                onClick={() => navigate("/store/sell")}
+                accentColor={sweepColor(store.brand_color)}
+                accentSoftColor={lighten(sweepColor(store.brand_color))}
+                fillColor="var(--color-shiny-fill)"
+                insetColor="var(--color-shiny-edge)"
+                badgeColor="#3b82f6"
+                padding="0.5rem 1rem"
+                fontSize="0.8125rem"
+                className="hidden md:inline-flex mr-1"
+              />
+            )}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"

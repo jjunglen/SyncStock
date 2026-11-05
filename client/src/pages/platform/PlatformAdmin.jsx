@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 import api from "../../lib/api.js";
 import SyncStockMark from "../../components/ui/SyncStockMark.jsx";
+import SalesHistory from "./SalesHistory.jsx";
 
 // SyncStock's own admin page: how every store is doing, and what
 // shoppers want across all of them. The server only answers for the
@@ -369,6 +370,8 @@ export default function PlatformAdmin() {
               )}
             </>
           )}
+
+          {!error && overview && <SalesHistory stores={overview.stores} />}
         </div>
       </div>
     </div>

@@ -7,7 +7,9 @@ import { SIZES_BY_CATEGORY } from "../../lib/categories.js";
 // same size pills as the profile. The shopper's saved sizes are listed
 // first. Stays open while picking; closes on Done, a click outside, or
 // Escape.
-export default function SizePicker({ value = [], onChange, mySizes = [], category = "sneakers" }) {
+// options: only these sizes (e.g. a GS shoe's youth sizes), not the
+// category's whole list
+export default function SizePicker({ value = [], onChange, mySizes = [], category = "sneakers", options = null }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -25,7 +27,8 @@ export default function SizePicker({ value = [], onChange, mySizes = [], categor
     };
   }, [open]);
 
-  const allSizes = SIZES_BY_CATEGORY[category] || [];
+  const allSizes = options || SIZES_BY_CATEGORY[category] || [];
+  const savedHere = options ? mySizes.filter((s) => options.includes(s)) : mySizes;
   // Shown in size-chart order
   const ordered = [...value].sort((a, b) => allSizes.indexOf(a) - allSizes.indexOf(b));
 
@@ -67,14 +70,18 @@ export default function SizePicker({ value = [], onChange, mySizes = [], categor
           className="absolute left-0 right-0 top-full z-30 mt-2 max-h-96 overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-xl"
         >
           <p className="text-xs text-text-muted mb-4">Pick as many sizes as you like — you'll get an alert for each.</p>
-          {mySizes.length > 0 && (
+          {savedHere.length > 0 && (
             <div className="mb-5">
               <p className="text-xs text-text-muted mb-3">Your sizes</p>
-              <SizeSelector selected={value} onChange={onChange} sizes={mySizes} />
+              <SizeSelector selected={value} onChange={onChange} sizes={savedHere} />
             </div>
           )}
-          <p className="text-xs text-text-muted mb-3">All sizes</p>
-          <SizeSelector selected={value} onChange={onChange} categories={[category]} />
+          <p className="text-xs text-text-muted mb-3">{options ? "Sizes it comes in" : "All sizes"}</p>
+          {options ? (
+            <SizeSelector selected={value} onChange={onChange} sizes={options} />
+          ) : (
+            <SizeSelector selected={value} onChange={onChange} categories={[category]} />
+          )}
           <div className="sticky -bottom-4 -mx-4 -mb-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-surface px-4 py-3">
             <button
               type="button"

@@ -753,6 +753,9 @@ const getStore = async (req, res) => {
       enabled_categories: enabledCategories(req.store),
       // Whether shoppers can add a phone for text alerts right now
       sms_available: smsAvailable(req.store),
+      // "Sell your items" (beta) — the navbar button and the payout choices
+      sell_enabled: !!req.store.sell_enabled,
+      credit_bonus: req.store.credit_bonus ?? 0,
     },
   });
 };

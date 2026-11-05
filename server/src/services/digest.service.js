@@ -47,6 +47,14 @@ const setSent = (items, sent) =>
     { where: { id: { [Op.in]: items.map((p) => p.id) } } },
   );
 
+// Claimed but never sent (sold out again, alert deleted, channels off)
+const dropUnsent = (items) =>
+  items.length
+    ? PendingNotification.destroy({ where: { id: { [Op.in]: items.map((p) => p.id) } } }).catch((err) =>
+        console.error("Dropping unsent notifications failed:", err.message),
+      )
+    : null;
+
 const requeue = (items, userId, err) => {
   console.error(`Digest send failed for user ${userId}:`, err.message);
   return setSent(items, false).catch((resetErr) =>
@@ -178,6 +186,12 @@ const deliverDigest = async (storeId, userId, queuedItems) => {
 
   const notified = items.filter((item) => emailItems.includes(item) || inAppItems.includes(item));
   if (notified.length > 0) await maybeSendText({ store, account, user, items: notified });
+
+  // Items nobody was told about (alert deleted or every channel off
+  // meanwhile) are removed, so "sent" only ever means it went out — the
+  // dashboard's funnel counts these
+  const notifiedIds = new Set(notified.map((item) => item.id));
+  await dropUnsent(queuedItems.filter((item) => !notifiedIds.has(item.id)));
 };
 
 // Swap each queued snapshot for the product as it is now — the final
@@ -246,7 +260,9 @@ const flushSettledBatches = async () => {
     if (claimed.length === 0) continue; // another server took this batch
 
     const current = withCurrentProduct(claimed, inventoryById);
-    if (current.length === 0) continue; // everything sold out meanwhile
+    const currentIds = new Set(current.map((p) => p.id));
+    await dropUnsent(claimed.filter((p) => !currentIds.has(p.id))); // sold out meanwhile
+    if (current.length === 0) continue;
 
     const [storeId, userId] = key.split(":");
     await deliverDigest(storeId, userId, current);

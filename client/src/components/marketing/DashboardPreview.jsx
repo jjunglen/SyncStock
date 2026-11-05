@@ -53,7 +53,7 @@ export default function DashboardPreview({ fill = false }) {
           recentPurchases={PURCHASES}
           loadingPurchases={false}
           revenue={{ total_revenue: 12480 }}
-          funnel={{ alerts: 1284, notified: 8932, clicked: 2671, purchased: 214 }}
+          funnel={{ tracking: 1284, notified: 612, clicked: 241, purchased: 118, notifications_sent: 8932 }}
           customerCount={1284}
           fromWebsite={{ from_website: 312, website_clicks: 2047 }}
         />

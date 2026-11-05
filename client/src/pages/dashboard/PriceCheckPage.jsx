@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { LuScale, LuRefreshCw, LuExternalLink, LuTag } from "react-icons/lu";
-import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
+import { LuRefreshCw, LuExternalLink, LuTag, LuArrowUp, LuArrowDown, LuArrowUpDown } from "react-icons/lu";
 import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import api from "../../lib/api.js";
 
-// /price-check — the store's brand-new, original-box pairs against StockX
-// (server: priceCheck.service.js). Flagship store only for now. Shoppers
-// never see this.
+// Pricing → "vs StockX": the store's brand-new, original-box pairs against
+// StockX (server: priceCheck.service.js). Flagship store only for now
+// (PricingPage.jsx shows the tab). Shoppers never see this.
 const FILTERS = [
   { key: "all", label: "All" },
   { key: "below_bid", label: "Below bid" },
@@ -32,6 +31,18 @@ const COMPARED = ["below_bid", "above_ask", "priced_right"];
 const rank = (r) =>
   r.status === "below_bid" ? 4e6 + r.below_bid_by : r.status === "above_ask" ? 3e6 + (r.vs_ask || 0) : r.status === "priced_right" ? 2e6 : 0;
 
+// Sortable columns: each reads a number (or text) from a row. The first
+// click sorts the way that's most useful (status: biggest opportunity
+// first; prices: highest first; pair: A–Z), the next click flips it.
+const COLUMNS = [
+  { key: "pair", label: "Pair", value: (r) => r.product_name?.toLowerCase() || null, firstDir: "asc" },
+  { key: "price", label: "Yours", value: (r) => r.price, firstDir: "desc" },
+  { key: "ask", label: "Lowest ask", value: (r) => r.lowest_ask, firstDir: "desc" },
+  { key: "vs_ask", label: "vs ask", value: (r) => r.vs_ask, firstDir: "desc" },
+  { key: "bid", label: "Highest bid", value: (r) => r.highest_bid, firstDir: "desc" },
+  { key: "status", label: "Status", value: (r) => rank(r), firstDir: "desc" },
+];
+
 const money = (n) => (n == null ? "—" : `$${Math.round(n).toLocaleString()}`);
 
 function Stat({ label, value, tone = "" }) {
@@ -43,10 +54,15 @@ function Stat({ label, value, tone = "" }) {
   );
 }
 
-export default function PriceCheckPage() {
+export function PriceCheckPanel() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState({ key: "status", dir: "desc" });
+  const sortBy = (col) =>
+    setSort((cur) =>
+      cur.key === col.key ? { key: col.key, dir: cur.dir === "asc" ? "desc" : "asc" } : { key: col.key, dir: col.firstDir },
+    );
 
   const load = useCallback(
     () =>
@@ -84,26 +100,24 @@ export default function PriceCheckPage() {
             ? !COMPARED.includes(r.status)
             : r.status === filter,
     )
-    .sort((a, b) => rank(b) - rank(a));
+    .sort((a, b) => {
+      const col = COLUMNS.find((c) => c.key === sort.key) || COLUMNS[5];
+      const x = col.value(a);
+      const y = col.value(b);
+      // Rows with nothing to compare always go last
+      if (x == null || y == null) return x == null ? (y == null ? rank(b) - rank(a) : 1) : -1;
+      const diff = typeof x === "string" ? x.localeCompare(y) : Number(x) - Number(y);
+      return (sort.dir === "asc" ? diff : -diff) || rank(b) - rank(a);
+    });
   const s = data?.summary;
 
   return (
-    <div className="flex min-h-screen w-full bg-bg text-text">
-      <MerchantSidebar />
-      <div className="flex-1 p-6 overflow-auto min-w-0">
+    <div>
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <LuScale size={18} className="text-text" />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl font-semibold">Price check</h1>
-              <p className="text-text-muted text-sm">
-                Brand new, original box only. Prices before StockX fees.
-                {data?.checked_at && ` Updated ${new Date(data.checked_at).toLocaleString()}.`}
-              </p>
-            </div>
-          </div>
+          <p className="text-text-muted text-sm">
+            Your brand-new, original-box pairs against StockX. Prices before StockX fees.
+            {data?.checked_at && ` Updated ${new Date(data.checked_at).toLocaleString()}.`}
+          </p>
           <Button variant="secondary" size="sm" onClick={refresh} disabled={running}>
             {running ? (
               <span className="flex items-center gap-2">
@@ -156,12 +170,22 @@ export default function PriceCheckPage() {
 
             <div className="rounded-xl border border-border bg-surface overflow-hidden">
               <div className="hidden md:grid grid-cols-[minmax(0,2.4fr)_0.8fr_0.9fr_0.9fr_0.9fr_1.4fr_auto] gap-3 px-4 py-2.5 text-xs text-text-muted border-b border-border">
-                <span>Pair</span>
-                <span>Yours</span>
-                <span>Lowest ask</span>
-                <span>vs ask</span>
-                <span>Highest bid</span>
-                <span>Status</span>
+                {COLUMNS.map((col) => {
+                  const active = sort.key === col.key;
+                  const Icon = !active ? LuArrowUpDown : sort.dir === "asc" ? LuArrowUp : LuArrowDown;
+                  return (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => sortBy(col)}
+                      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+                      className={`flex items-center gap-1 text-left hover:text-text transition-colors ${active ? "text-text font-medium" : ""}`}
+                    >
+                      {col.label}
+                      <Icon size={12} className={active ? "" : "opacity-40"} aria-hidden="true" />
+                    </button>
+                  );
+                })}
                 <span className="sr-only">Open</span>
               </div>
               {rows.length === 0 && <p className="px-4 py-10 text-center text-sm text-text-muted">Nothing here.</p>}
@@ -223,7 +247,6 @@ export default function PriceCheckPage() {
             </p>
           </>
         )}
-      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -10,6 +10,7 @@ import { getMyStore } from "../../lib/myStore.js";
 import { CATEGORY_META } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
+import BuyingSettings from "../../components/dashboard/BuyingSettings.jsx";
 
 const MAX_LOGO_BYTES = 300 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -462,6 +463,14 @@ export default function StoreSettings() {
                   </Button>
                 )}
               </div>
+            </Section>
+
+            <Section
+              icon={LuHandCoins}
+              title="Buying from shoppers (Beta)"
+              description="Let shoppers send you pairs to buy. Each request comes with a suggested offer from your own sales history, using these margins."
+            >
+              <BuyingSettings settings={settings} busy={busy} run={run} />
             </Section>
 
             <Section

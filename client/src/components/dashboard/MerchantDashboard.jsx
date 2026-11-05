@@ -12,14 +12,17 @@ import {
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import api from "../../lib/api.js";
+import useLiveRefresh from "../../lib/useLiveRefresh.js";
 import { purchaseBadges, BADGE_CLASSES, netAmount, isRefunded } from "../../lib/purchaseLabels.js";
 
 // `to`: the page with the details behind that number
+// Shoppers at each step; each step only counts shoppers from the one
+// before (analytics.controller.js getFunnel), so the bars always narrow
 const FUNNEL_STAGES = [
-  { key: "alerts", label: "Active alerts", to: "/sourcing" },
-  { key: "notified", label: "Notified" },
-  { key: "clicked", label: "Clicked" },
-  { key: "purchased", label: "Purchased", to: "/purchases" },
+  { key: "tracking", label: "Tracking an item", to: "/customers" },
+  { key: "notified", label: "Got a restock alert" },
+  { key: "clicked", label: "Tapped Buy now" },
+  { key: "purchased", label: "Bought it", to: "/purchases" },
 ];
 
 // 12480 → "$12,480.00"; 1284 → "1,284"
@@ -44,20 +47,18 @@ export default function MerchantDashboard() {
   // Products shoppers opened most this week (not shown to shoppers)
   const [mostViewed, setMostViewed] = useState(null);
 
-  useEffect(() => {
+  // Stock-dependent lists stay current while the dashboard is open
+  useLiveRefresh(() => {
     api
       .get("/analytics/most-viewed")
       .then((res) => setMostViewed(res.data.data || []))
-      .catch(() => setMostViewed([]));
-  }, []);
-
-  useEffect(() => {
+      .catch(() => setMostViewed((prev) => prev || []));
     api
       .get("/analytics/sourcing-demand")
       .then((res) => setSourcing(res.data.data || []))
       .catch((err) => console.error("Failed to load sourcing demand:", err))
       .finally(() => setLoadingSourcing(false));
-  }, []);
+  });
 
   useEffect(() => {
     api
@@ -132,9 +133,8 @@ export function DashboardBody({
   // Bars are sized against the biggest number. The stages aren't
   // subsets of each other (one alert can be clicked many times), so
   // sizing them against active alerts ran past 100%.
-  const funnelBaseline = funnel
-    ? Math.max(...FUNNEL_STAGES.map((stage) => funnel[stage.key] || 0))
-    : 0;
+  // Bars are a share of the first step (shoppers tracking)
+  const funnelBaseline = funnel?.tracking || 0;
   const funnelPercent = (value) =>
     funnelBaseline > 0 ? Math.round((value / funnelBaseline) * 100) : 0;
 
@@ -179,7 +179,7 @@ export function DashboardBody({
         <StatCard
           icon={LuBellRing}
           label="Notifications sent"
-          value={funnel ? count(funnel.notified) : "…"}
+          value={funnel ? count(funnel.notifications_sent ?? funnel.notified) : "…"}
           onClick={() =>
             document.getElementById("funnel")?.scrollIntoView({ behavior: "smooth", block: "start" })
           }
@@ -222,7 +222,11 @@ export function DashboardBody({
                     <p className="text-xs text-text-muted">{item.size}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {!item.currently_in_stock && (
+                    {item.currently_in_stock ? (
+                      <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
+                        In stock
+                      </span>
+                    ) : (
                       <span className="text-xs bg-warn/10 text-warn px-2 py-0.5 rounded-full">
                         Not in stock
                       </span>
@@ -239,7 +243,8 @@ export function DashboardBody({
         </div>
 
         <div id="funnel" className="rounded-xl border border-border bg-surface p-6 scroll-mt-6">
-          <h3 className="font-semibold mb-4">Notification funnel</h3>
+          <h3 className="font-semibold">Notification funnel</h3>
+          <p className="text-xs text-text-muted mt-0.5 mb-4">Shoppers at each step, from setting an alert to buying.</p>
           {!funnel ? (
             <p className="text-sm text-text-muted">Loading...</p>
           ) : funnelBaseline === 0 ? (
@@ -261,6 +266,11 @@ export function DashboardBody({
                     )}
                     <span className="text-sm font-medium">
                       {count(funnel[stage.key])}
+                      {stage.key !== "tracking" && (
+                        <span className="ml-1.5 text-xs font-normal text-text-muted">
+                          {funnelPercent(funnel[stage.key])}%
+                        </span>
+                      )}
                     </span>
                   </div>
                   <div className="w-full bg-surface-muted rounded-full h-1.5">

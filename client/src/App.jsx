@@ -18,7 +18,9 @@ import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
 import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
 import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
 import InStoreSignPage from "./pages/dashboard/InStoreSignPage.jsx";
-import PriceCheckPage from "./pages/dashboard/PriceCheckPage.jsx";
+import StorePricingPage from "./pages/dashboard/StorePricingPage.jsx";
+import BuyRequestsPage from "./pages/dashboard/BuyRequestsPage.jsx";
+import SellPage from "./pages/dashboard/SellPage.jsx";
 import PlatformAdmin from "./pages/platform/PlatformAdmin.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
 import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
@@ -86,12 +88,16 @@ function App() {
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute requireMerchant><AccountSettings /></ProtectedRoute>} />
       <Route path="/customers" element={<ProtectedRoute requireMerchant><CustomersPage /></ProtectedRoute>} />
-      <Route path="/price-check" element={<ProtectedRoute requireMerchant><PriceCheckPage /></ProtectedRoute>} />
+      <Route path="/prices" element={<ProtectedRoute requireMerchant><StorePricingPage /></ProtectedRoute>} />
+      {/* Old link: Price check is now the Pricing page's StockX tab */}
+      <Route path="/price-check" element={<Navigate to="/prices?tab=stockx" replace />} />
+      <Route path="/buy-requests" element={<ProtectedRoute requireMerchant><BuyRequestsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute requireMerchant><StoreSettings /></ProtectedRoute>} />
       <Route path="/settings/sign" element={<ProtectedRoute requireMerchant><InStoreSignPage /></ProtectedRoute>} />
       <Route path="/platform" element={<ProtectedRoute><PlatformAdmin /></ProtectedRoute>} />
       <Route path="/store/dashboard" element={<ProtectedRoute loginPath="/store/login"><CustomerDashboard /></ProtectedRoute>} />
       <Route path="/store/track" element={<ProtectedRoute loginPath="/store/login"><TrackShoe /></ProtectedRoute>} />
+      <Route path="/store/sell" element={<ProtectedRoute loginPath="/store/login"><SellPage /></ProtectedRoute>} />
       <Route path="/store/profile" element={<ProtectedRoute loginPath="/store/login"><CustomerProfile /></ProtectedRoute>} />
       <Route path="/onboarding/size" element={<ProtectedRoute loginPath="/store/login"><SelectSizes /></ProtectedRoute>} />
       <Route path="/store/login" element={<StoreAuthLayout><CustomerAuthForm initialMode="login" /></StoreAuthLayout>} />

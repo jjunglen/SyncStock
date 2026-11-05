@@ -160,6 +160,18 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
     },
     { timezone: "America/Chicago" },
   );
+  // Sell your items: requests with no answer for 30 days expire and their
+  // photos are deleted (sellRequest.service.js) — 4am Central
+  cron.schedule(
+    "0 4 * * *",
+    () => {
+      const { expireStale } = require("./src/services/sellRequest.service.js");
+      expireStale()
+        .then((n) => n && console.log(`Sell requests expired: ${n}`))
+        .catch((err) => console.error("Sell expiry error:", err.message));
+    },
+    { timezone: "America/Chicago" },
+  );
   cron.schedule("*/5 * * * *", () => {
     const { sendBatchStories } = require("./src/services/stories.service.js");
     sendBatchStories().catch((err) => console.error("Instagram stories (batch) error:", err.message));
@@ -195,6 +207,8 @@ app.use("/api/analytics", require("./src/routes/analytics.routes.js"));
 app.use("/api/platform", require("./src/routes/platform.routes.js"));
 // StockX catalog search for "Track a shoe" — every store (STOCKX_* vars)
 app.use("/api/stockx", require("./src/routes/stockx.routes.js"));
+// "Sell your items" (beta): shoppers sell pairs to the store
+app.use("/api/sell", require("./src/routes/sell.routes.js"));
 // The SyncStock phone app
 app.use("/api/app", require("./src/routes/app.routes.js"));
 // Links in the daily Instagram stories email
