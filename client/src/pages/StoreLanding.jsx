@@ -18,7 +18,7 @@ import SignalDot from "../components/ui/SignalDot.jsx";
 import Section from "../components/marketing/Section.jsx";
 import StoreHeader from "../components/store/StoreHeader.jsx";
 import api from "../lib/api.js";
-import { CATEGORY_META } from "../lib/categories.js";
+import { categoryLabel } from "../lib/categories.js";
 
 // Shopper-facing page on a store's subdomain. Same visual language as
 // the merchant landing (pages/Landing.jsx); every product shown is the
@@ -152,7 +152,7 @@ export default function StoreLanding() {
 
   const storeName = store?.name || "This store";
   const carried = categories
-    .map((c) => CATEGORY_META[c.key]?.label)
+    .map((c) => categoryLabel(c.key, c.name))
     .filter(Boolean);
   const featured = inventory.find((i) => i.size) || inventory[0];
   const strip = inventory.slice(0, 12);

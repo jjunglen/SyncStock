@@ -29,7 +29,7 @@ const CATEGORY_TABS = [
   { key: "sneakers", label: "Sneakers" },
   { key: "clothing", label: "Clothing & accessories" },
 ];
-const CATEGORY_LABELS = { sneakers: "Sneakers", clothing: "Clothing & accessories", trading_cards: "Trading cards" };
+const CATEGORY_LABELS = { sneakers: "Sneakers", clothing: "Clothing & accessories", trading_cards: "Trading cards", other: "Other" };
 
 function Stat({ icon: Icon, label, value, hint }) {
   return (

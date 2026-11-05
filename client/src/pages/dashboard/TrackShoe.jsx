@@ -155,7 +155,7 @@ export default function TrackShoe() {
         if (shoe.store) {
           // The store's product: its own sizes, starting with the
           // shopper's saved sizes it comes in
-          if (TRACKABLE.includes(shoe.category)) setCategory(shoe.category);
+          if (TRACKABLE.includes(shoe.category) || shoe.category === "other") setCategory(shoe.category);
           const offered = shoe.sizes.map((s) => s.size);
           setSizes(mySizes.filter((s) => offered.includes(s)));
           return;
@@ -400,7 +400,7 @@ export default function TrackShoe() {
                       value={sizes}
                       onChange={setSizes}
                       category={category}
-                      mySizes={mySizes.filter((s) => SIZES_BY_CATEGORY[category].includes(s))}
+                      mySizes={mySizes.filter((s) => (SIZES_BY_CATEGORY[category] || []).includes(s))}
                       options={gsShoe ? GS_SIZES : null}
                     />
                     {gsShoe && (

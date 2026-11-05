@@ -2,7 +2,7 @@ const { shopperVisible } = require("../services/channel.service.js");
 const { Op, fn, col } = require("sequelize");
 const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
-const { enabledCategories } = require("../utils/storeSettings.js");
+const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
 const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
@@ -164,10 +164,15 @@ const searchInventory = async (req, res) => {
   }
 };
 
-// The listed items in the shopper's saved sizes (trading cards: all)
+// Categories with no saved sizes to match: "in your sizes" is every
+// listed item (cards have no size; "other" sizes are the store's own —
+// ring 7, 158cm — not a size shoppers save)
+const SIZELESS_BROWSE = ["trading_cards", "other"];
+
+// The listed items in the shopper's saved sizes (cards and other: all)
 const mySizesWhere = (store, sizes, category) => {
   const where = listable(store, category);
-  if (category !== "trading_cards") where.size = { [Op.in]: sizes || [] };
+  if (!SIZELESS_BROWSE.includes(category)) where.size = { [Op.in]: sizes || [] };
   return where;
 };
 
@@ -182,8 +187,8 @@ const getInventoryInMySizes = async (req, res) => {
     const { category } = req.query;
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
 
-    // Trading cards have no sizes — "in your sizes" is every listed card
-    const sizeless = category === "trading_cards";
+    // Cards and "other" have no saved sizes — "in your sizes" is everything
+    const sizeless = SIZELESS_BROWSE.includes(category);
 
     if (!sizeless && (!sizes || sizes.length === 0)) {
       return res.status(200).json({
@@ -234,6 +239,8 @@ const getCategories = async (req, res) => {
     const data = CATEGORIES.filter((c) => counts[c] > 0).map((c) => ({
       key: c,
       count: counts[c],
+      // The merchant's name for "other" ("Snowboards"); null = default
+      name: c === "other" ? otherCategoryName(req.store) : null,
     }));
     return res.status(200).json({ success: true, data });
   } catch (error) {

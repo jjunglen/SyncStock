@@ -8,7 +8,7 @@ const { detectBrand } = require("../utils/brand.js");
 // names only — never a shopper's name, email or order.
 
 const RECENT_DAYS = 30;
-const CATEGORIES = ["sneakers", "clothing", "trading_cards"];
+const CATEGORIES = ["sneakers", "clothing", "trading_cards", "other"];
 
 const select = (sql, replacements = {}) =>
   sequelize.query(sql, { replacements, type: QueryTypes.SELECT });

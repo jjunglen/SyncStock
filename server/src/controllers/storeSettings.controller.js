@@ -3,6 +3,8 @@ const {
   SELECTABLE_CATEGORIES,
   COMING_SOON_CATEGORIES,
   enabledCategories,
+  otherCategoryName,
+  OTHER_NAME_MAX,
   logoUrl,
 } = require("../utils/storeSettings.js");
 const { APPS } = require("../utils/shopifyApps.js");
@@ -37,6 +39,9 @@ const settingsFor = (store) => ({
   enabled_categories: enabledCategories(store),
   selectable_categories: SELECTABLE_CATEGORIES,
   coming_soon_categories: COMING_SOON_CATEGORIES,
+  // The merchant's name for "other" (null = "Other")
+  other_category_name: otherCategoryName(store),
+  other_name_max: OTHER_NAME_MAX,
   brand_color: store.brand_color || null,
   logo_url: logoUrl(store),
   weekly_report: store.weekly_report,
@@ -65,7 +70,8 @@ const getSettings = (req, res) =>
   res.status(200).json({ success: true, data: settingsFor(req.store) });
 
 // PUT /api/store/settings (store admin)
-// { enabled_categories?, brand_color? (hex or null), weekly_report?,
+// { enabled_categories?, other_category_name? (text, "" = "Other"),
+//   brand_color? (hex or null), weekly_report?,
 //   instagram_stories?, story_frequency? ("daily" | "batch"),
 //   story_background?, story_box_color?, story_text_color? (hex),
 //   story_font? (a STORY_FONTS key), story_show_name? }
@@ -91,6 +97,16 @@ const updateSettings = async (req, res) => {
         return res.status(400).json({ success: false, message: "Pick a valid color" });
       }
       changes.brand_color = brand_color ? brand_color.toLowerCase() : null;
+    }
+
+    if (req.body.other_category_name !== undefined) {
+      const name = String(req.body.other_category_name ?? "").replace(/\s+/g, " ").trim();
+      if (name.length > OTHER_NAME_MAX) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Keep the name to ${OTHER_NAME_MAX} characters` });
+      }
+      changes.other_category_name = name || null;
     }
 
     if (weekly_report !== undefined) changes.weekly_report = !!weekly_report;

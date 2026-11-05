@@ -118,7 +118,13 @@ const Store = sequelize.define(
     enabled_categories: {
       type: DataTypes.ARRAY(DataTypes.STRING),
       allowNull: false,
-      defaultValue: ["sneakers", "clothing"],
+      defaultValue: ["sneakers", "clothing", "other"],
+    },
+    // What the "other" category is called on this store ("Snowboards",
+    // "Jewelry"…); empty = "Other" (migrateAddOtherCategory.js)
+    other_category_name: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
     },
     // Branding: a small logo image (served by GET /api/store/logo/:id)
     // and an accent color for buttons on the shopper site and emails.

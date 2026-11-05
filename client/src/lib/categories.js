@@ -5,7 +5,18 @@ export const CATEGORY_META = {
   sneakers: { label: "Sneakers", sizeName: "sneaker", noun: "shoe" },
   clothing: { label: "Clothing & accessories", sizeName: "clothing", noun: "item" },
   trading_cards: { label: "Trading cards", sizeName: null, noun: "card" },
+  // Everything else; the merchant can rename it (Store settings)
+  other: { label: "Other", sizeName: null, noun: "item" },
 };
+
+// A category's name on this store: the merchant's own name for "other"
+// (from /inventory/categories or the store settings), else the default
+export const categoryLabel = (key, customName) =>
+  (key === "other" && customName) || CATEGORY_META[key]?.label || key;
+
+// Categories with no shared size chart: shoppers don't save sizes for
+// them, so "in your sizes" lists everything
+export const SIZELESS_CATEGORIES = ["trading_cards", "other"];
 
 export const SNEAKER_SIZES = [
   "3.5M/5W", "4M/5.5W", "4.5M/6W", "5M/6.5W", "5.5M/7W", "6M/7.5W",
@@ -26,4 +37,5 @@ export const SIZES_BY_CATEGORY = {
   sneakers: SNEAKER_SIZES,
   clothing: CLOTHING_SIZES,
   trading_cards: [],
+  other: [],
 };

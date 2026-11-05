@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LuExternalLink, LuArrowUp, LuArrowDown, LuArrowUpDown, LuSearch } from "react-icons/lu";
+import SalesImport from "./SalesImport.jsx";
 
 // Pricing → "Your listings": each in-stock listing against what this
 // store's own past sales of the same item went for (server:
@@ -44,8 +45,8 @@ function Stat({ label, value, tone = "" }) {
   );
 }
 
-// data: GET /analytics/listing-prices
-export default function ListingsVsSales({ data }) {
+// data: GET /analytics/listing-prices; onImported: reload after a sales import
+export default function ListingsVsSales({ data, onImported }) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState({ key: "status", dir: "desc" });
@@ -55,17 +56,8 @@ export default function ListingsVsSales({ data }) {
     );
 
   const s = data.summary;
-  if (!data.has_sales) {
-    return (
-      <div className="rounded-xl border border-border bg-surface px-6 py-12 text-center">
-        <p className="text-sm font-medium">No sales history yet</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-text-muted">
-          Once your past sales are imported, every listing shows what that item usually sells for, so you can spot
-          prices that are too high or too low. Email support@syncstock.io to import yours.
-        </p>
-      </div>
-    );
-  }
+  // No sales yet: the import is the whole tab
+  if (!data.has_sales) return <SalesImport onImported={onImported} />;
 
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const col = COLUMNS.find((c) => c.key === sort.key) || COLUMNS[5];
@@ -88,10 +80,13 @@ export default function ListingsVsSales({ data }) {
 
   return (
     <>
-      <p className="mb-6 text-sm text-text-muted">
-        Each listing against what the same item usually sold for in your past sales — same condition, and the same size
-        when it has 3+ sales. Within {data.band_percent}% counts as in line.
-      </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-sm text-text-muted">
+          Each listing against what the same item usually sold for in your past sales — same condition, and the same
+          size when it has 3+ sales. Within {data.band_percent}% counts as in line.
+        </p>
+        <SalesImport onImported={onImported} compact />
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Stat label="Listings with sales history" value={`${s.with_history}/${s.listings}`} />

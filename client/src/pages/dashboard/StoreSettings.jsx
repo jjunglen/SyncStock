@@ -7,7 +7,7 @@ import Spinner from "../../components/ui/Spinner.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import api from "../../lib/api.js";
 import { getMyStore } from "../../lib/myStore.js";
-import { CATEGORY_META } from "../../lib/categories.js";
+import { categoryLabel } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
 
@@ -138,6 +138,10 @@ export default function StoreSettings() {
       setBusy("");
     }
   };
+
+  // The name shoppers see for "other" ("Snowboards"); empty = "Other"
+  const saveOtherName = (name) =>
+    run("other-name", () => api.put("/store/settings", { other_category_name: name }), "Name saved");
 
   const toggleCategory = (key, on) => {
     const next = on
@@ -293,12 +297,17 @@ export default function StoreSettings() {
                   const comingSoon = settings.coming_soon_categories.includes(key);
                   const on = settings.enabled_categories.includes(key);
                   const lastOne = on && settings.enabled_categories.length === 1;
+                  const label = categoryLabel(key, settings.other_category_name);
                   return (
-                    <div key={key} className="flex items-center justify-between gap-4 py-3">
+                    <div key={key} className="py-3">
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
                         <span className={`text-sm ${comingSoon ? "text-text-muted" : ""}`}>
-                          {CATEGORY_META[key]?.label || key}
+                          {label}
                         </span>
+                        {key === "other" && (
+                          <span className="text-xs text-text-muted">everything else</span>
+                        )}
                         {comingSoon && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
                             Coming soon
@@ -306,11 +315,21 @@ export default function StoreSettings() {
                         )}
                       </div>
                       <Switch
-                        label={CATEGORY_META[key]?.label || key}
+                        label={label}
                         checked={on && !comingSoon}
                         disabled={comingSoon || lastOne || busy === `cat-${key}`}
                         onChange={(value) => toggleCategory(key, value)}
                       />
+                    </div>
+                    {key === "other" && (
+                      <OtherCategoryName
+                        key={settings.other_category_name || ""}
+                        saved={settings.other_category_name || ""}
+                        max={settings.other_name_max || 30}
+                        busy={busy === "other-name"}
+                        onSave={saveOtherName}
+                      />
+                    )}
                     </div>
                   );
                 })}
@@ -689,5 +708,37 @@ export default function StoreSettings() {
         )}
       </div>
     </div>
+  );
+}
+
+// What the "other" category is called on the store site — anything the
+// merchant likes ("Snowboards", "Jewelry", "Home goods"). Empty = "Other".
+function OtherCategoryName({ saved, max, busy, onSave }) {
+  const [name, setName] = useState(saved);
+  const trimmed = name.replace(/\s+/g, " ").trim();
+  const changed = trimmed !== saved;
+  return (
+    <form
+      className="mt-3 flex flex-wrap items-end gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (changed) onSave(trimmed);
+      }}
+    >
+      <label className="flex-1 min-w-48">
+        <span className="mb-1 block text-xs text-text-muted">Name shoppers see</span>
+        <input
+          type="text"
+          value={name}
+          maxLength={max}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Other — e.g. Snowboards, Jewelry"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-text-muted focus:border-text/30 focus:outline-none"
+        />
+      </label>
+      <Button type="submit" variant="secondary" size="sm" disabled={!changed || busy}>
+        {busy ? "Saving…" : "Save name"}
+      </Button>
+    </form>
   );
 }

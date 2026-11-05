@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { Op } = require("sequelize");
 const { Store, Inventory, User, Account } = require("../models/index.js");
-const { enabledCategories, logoUrl, textOnColor, smsAvailable } = require("../utils/storeSettings.js");
+const { enabledCategories, otherCategoryName, logoUrl, textOnColor, smsAvailable } = require("../utils/storeSettings.js");
 const { REF_COOKIE, WEBSITE_SOURCES, IN_STORE_SOURCE, refCookieOptions } = require("../utils/signupSource.js");
 const { storeBaseUrl } = require("../utils/storeUrl.js");
 const { syncCatalog } = require("../services/catalogSync.service.js");
@@ -751,6 +751,8 @@ const getStore = async (req, res) => {
       brand_color: req.store.brand_color || null,
       brand_text_color: req.store.brand_color ? textOnColor(req.store.brand_color) : null,
       enabled_categories: enabledCategories(req.store),
+      // The merchant's name for the "other" category (null = "Other")
+      other_category_name: otherCategoryName(req.store),
       // Whether shoppers can add a phone for text alerts right now
       sms_available: smsAvailable(req.store),
     },

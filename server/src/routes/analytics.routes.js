@@ -12,7 +12,7 @@ const {
   getPriceCheck,
   refreshPriceCheck,
 } = require("../controllers/analytics.controller.js");
-const { getListingPrices } = require("../controllers/pricing.controller.js");
+const { getListingPrices, getSalesHistory, importSales } = require("../controllers/pricing.controller.js");
 
 router.get("/sourcing-demand", authenticateAccount, resolveStoreFromAdminMembership, getSourcingDemand);
 router.get("/revenue", authenticateAccount, resolveStoreFromAdminMembership, getRevenue);
@@ -25,5 +25,14 @@ router.get("/price-check", authenticateAccount, resolveStoreFromAdminMembership,
 router.post("/price-check/refresh", authenticateAccount, resolveStoreFromAdminMembership, refreshPriceCheck);
 // Pricing page (beta): listings against the store's own past sales
 router.get("/listing-prices", authenticateAccount, resolveStoreFromAdminMembership, getListingPrices);
+// The store's own sales history (Pricing → Import sales), as CSV text
+router.get("/sales-history", authenticateAccount, resolveStoreFromAdminMembership, getSalesHistory);
+router.post(
+  "/sales-import",
+  express.text({ type: ["text/csv", "text/plain", "application/vnd.ms-excel"], limit: "15mb" }),
+  authenticateAccount,
+  resolveStoreFromAdminMembership,
+  importSales,
+);
 
 module.exports = router;

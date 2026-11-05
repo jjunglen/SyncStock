@@ -20,8 +20,7 @@ export default function StorePricingPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
-  // Refreshes while open, so a price changed in Shopify shows here
-  useLiveRefresh(() => {
+  const load = () =>
     api
       .get("/analytics/listing-prices")
       .then((res) => {
@@ -29,7 +28,9 @@ export default function StorePricingPage() {
         setError("");
       })
       .catch((err) => setError(err.response?.data?.message || "Couldn't load your listings"));
-  }, 60 * 1000);
+
+  // Refreshes while open, so a price changed in Shopify shows here
+  useLiveRefresh(load, 60 * 1000);
 
   const stockx = !!data?.stockx;
   const tab = params.get("tab") === "stockx" && stockx ? "stockx" : "listings";
@@ -79,7 +80,7 @@ export default function StorePricingPage() {
         ) : !data ? (
           <Spinner size={20} />
         ) : (
-          <ListingsVsSales data={data} />
+          <ListingsVsSales data={data} onImported={load} />
         )}
       </div>
     </div>

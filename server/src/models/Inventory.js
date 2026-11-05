@@ -22,7 +22,7 @@ const Inventory = sequelize.define(
     },
     // What kind of product this is — decides how attributes below gets
     category: {
-      type: DataTypes.ENUM("sneakers", "clothing", "trading_cards"),
+      type: DataTypes.ENUM("sneakers", "clothing", "trading_cards", "other"),
       allowNull: false,
       defaultValue: "sneakers",
     },
