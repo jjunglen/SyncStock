@@ -409,6 +409,7 @@ const getMe = async (req, res) => {
                 full_name: req.account.full_name,
                 avatar_url: req.account.avatar_url,
                 sizes: req.account.sizes,
+                card_prefs: req.account.card_prefs || {},
                 is_merchant: isMerchant,
                 merchant_onboarding_step: adminMembership?.Store?.onboarding_step || null,
                 membership: membership

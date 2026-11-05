@@ -20,6 +20,14 @@ const Account = sequelize.define(
       allowNull: true,
       defaultValue: [],
     },
+    // Trading card preferences (Profile → Your sizes): what they collect,
+    // worst raw condition, lowest grade per company, factory sealed only.
+    // {} = not set. Shape in utils/cardDetails.js (cleanCardPrefs).
+    card_prefs: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+    },
     reset_token: {
       type: DataTypes.STRING,
       allowNull: true,

@@ -47,6 +47,13 @@ router.get(
   resolveStoreFromSubdomain,
   getCategories,
 );
+// The same, signed in: adds each category's count in the shopper's sizes
+router.get(
+  "/categories/mine",
+  resolveStoreFromSubdomain,
+  authenticateAccount,
+  getCategories,
+);
 router.get(
   "/brands",
   publicLimiter,

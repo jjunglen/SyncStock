@@ -89,7 +89,7 @@ const addItems = async (req, res) => {
     const membership = await shopperAt(req, res);
     if (!membership) return;
     const list = Array.isArray(req.body.items) ? req.body.items : [req.body];
-    if (!list.length) return fail(res, 400, "Add at least one pair");
+    if (!list.length) return fail(res, 400, "Add at least one item");
     const clean = [];
     for (const raw of list) {
       const { item, error } = cleanItem(raw);
@@ -98,7 +98,7 @@ const addItems = async (req, res) => {
     }
     let draft = await findDraft(req.store, membership);
     const have = draft?.items?.length || 0;
-    if (have + clean.length > MAX_ITEMS) return fail(res, 400, `A batch can have up to ${MAX_ITEMS} pairs`);
+    if (have + clean.length > MAX_ITEMS) return fail(res, 400, `A batch can have up to ${MAX_ITEMS} items`);
     if (!draft) {
       draft = await SellRequest.create({ store_id: req.store.id, user_id: membership.id, status: "draft" });
     }
@@ -107,7 +107,7 @@ const addItems = async (req, res) => {
     return res.status(201).json({ success: true, data: serialize(fresh) });
   } catch (error) {
     console.error("Sell add error:", error.message);
-    return fail(res, 500, "Couldn't add that pair");
+    return fail(res, 500, "Couldn't add that item");
   }
 };
 
@@ -117,7 +117,7 @@ const updateItem = async (req, res) => {
     const membership = await shopperAt(req, res);
     if (!membership) return;
     const item = await draftItem(req, membership, req.params.id);
-    if (!item) return fail(res, 404, "Pair not found");
+    if (!item) return fail(res, 404, "Item not found");
     const { item: clean, error } = cleanItem({ ...item.toJSON(), ...req.body });
     if (error) return fail(res, 400, error);
     await item.update(clean);
@@ -125,7 +125,7 @@ const updateItem = async (req, res) => {
     return res.status(200).json({ success: true, data: serialize(fresh) });
   } catch (error) {
     console.error("Sell update error:", error.message);
-    return fail(res, 500, "Couldn't save that pair");
+    return fail(res, 500, "Couldn't save that item");
   }
 };
 
@@ -135,14 +135,14 @@ const removeItem = async (req, res) => {
     const membership = await shopperAt(req, res);
     if (!membership) return;
     const item = await draftItem(req, membership, req.params.id);
-    if (!item) return fail(res, 404, "Pair not found");
+    if (!item) return fail(res, 404, "Item not found");
     await deletePhotos({ item_id: item.id });
     await item.destroy();
     const fresh = await SellRequest.findByPk(item.request_id, withItems);
     return res.status(200).json({ success: true, data: serialize(fresh) });
   } catch (error) {
     console.error("Sell remove error:", error.message);
-    return fail(res, 500, "Couldn't remove that pair");
+    return fail(res, 500, "Couldn't remove that item");
   }
 };
 
@@ -153,8 +153,8 @@ const addPhoto = async (req, res) => {
     if (!membership) return;
     if (!photos.isConfigured()) return fail(res, 503, "Photo uploads aren't set up yet. Try again later.");
     const item = await draftItem(req, membership, req.params.id);
-    if (!item) return fail(res, 404, "Pair not found");
-    if (item.photos.length >= MAX_PHOTOS) return fail(res, 400, `Up to ${MAX_PHOTOS} photos per pair`);
+    if (!item) return fail(res, 404, "Item not found");
+    if (item.photos.length >= MAX_PHOTOS) return fail(res, 400, `Up to ${MAX_PHOTOS} photos per item`);
     const data = req.body;
     if (!Buffer.isBuffer(data) || !data.length) return fail(res, 400, "Choose a photo");
     if (data.length > photos.MAX_PHOTO_BYTES) return fail(res, 400, "That photo is too large. Try again.");
@@ -198,7 +198,7 @@ const submitRequest = async (req, res) => {
     if (!membership) return;
     const request = await ownRequest(req, membership, req.params.id);
     if (!request || request.status !== "draft") return fail(res, 404, "Batch not found");
-    if (!request.items.length) return fail(res, 400, "Add at least one pair");
+    if (!request.items.length) return fail(res, 400, "Add at least one item");
     const payout = req.body.payout_method === "credit" ? "credit" : "cash";
     if (payout === "credit" && !(req.store.credit_bonus > 0)) return fail(res, 400, "This store pays cash only");
     const short = missingPhotos(request.items);
@@ -275,7 +275,7 @@ const respondToOffer = async (req, res) => {
     if (!request || request.status !== "offered") return fail(res, 404, "There's no offer to answer");
     const offered = request.items.filter((i) => !i.offer_skipped && i.offer_price !== null);
     const accept = new Set(Array.isArray(req.body.accept) ? req.body.accept : []);
-    if ([...accept].some((id) => !offered.some((i) => i.id === id))) return fail(res, 400, "You can only accept pairs the store made an offer on");
+    if ([...accept].some((id) => !offered.some((i) => i.id === id))) return fail(res, 400, "You can only accept items the store made an offer on");
     for (const item of request.items) {
       await item.update({ decision: accept.has(item.id) ? "accepted" : "declined" });
     }

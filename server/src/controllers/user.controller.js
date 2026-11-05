@@ -1,4 +1,5 @@
 const { Account, User } = require("../models/index.js");
+const { cleanCardPrefs } = require("../utils/cardDetails.js");
 const { isValidEmail } = require("../utils/validate.js");
 
 const resolveMembership = async (req, res) => {
@@ -30,6 +31,7 @@ const getProfile = async (req, res) => {
         full_name: req.account.full_name,
         avatar_url: req.account.avatar_url,
         sizes: req.account.sizes,
+        card_prefs: req.account.card_prefs || {},
         phone_number: req.account.phone_number,
         phone_verified: req.account.phone_verified,
         notify_email: membership.notify_email,
@@ -84,6 +86,17 @@ const updateProfile = async (req, res) => {
       }
     }
 
+    // Trading card preferences (Your sizes); null clears them
+    let cardPrefs = req.account.card_prefs;
+    if ("card_prefs" in req.body) {
+      if (req.body.card_prefs === null) cardPrefs = {};
+      else {
+        const { prefs, error } = cleanCardPrefs(req.body.card_prefs);
+        if (error) return res.status(400).json({ success: false, message: error });
+        cardPrefs = prefs;
+      }
+    }
+
     if (sizes && !Array.isArray(sizes)) {
       return res
         .status(400)
@@ -94,6 +107,7 @@ const updateProfile = async (req, res) => {
       full_name: full_name ?? req.account.full_name,
       email: email ?? req.account.email,
       sizes: sizes ?? req.account.sizes,
+      card_prefs: cardPrefs,
     });
 
     await membership.update({
@@ -110,6 +124,7 @@ const updateProfile = async (req, res) => {
         email: req.account.email,
         full_name: req.account.full_name,
         sizes: req.account.sizes,
+        card_prefs: req.account.card_prefs || {},
         notify_email: membership.notify_email,
         notify_inapp: membership.notify_inapp,
         notify_size_alerts: membership.notify_size_alerts,

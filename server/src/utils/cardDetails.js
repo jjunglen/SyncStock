@@ -128,39 +128,126 @@ const NO_CARD = { is_graded: null, grading_company: null, grade: null, cert_numb
 // A grade as a number to compare: Black Label ranks above a 10
 const gradeValue = (grade) => (grade === BLACK_LABEL ? 11 : Number(grade));
 
-// Does a card meet an alert's card preferences?
-//   alert.graded_preference — "raw", "graded" or "either"
-//   alert.preferred_grading_company — PSA, CGC, BGS, OTHER; null = any
-//   alert.min_grade — lowest grade wanted ("9", "BL"); null = any
-//   alert.attributes.min_condition — worst raw condition wanted ("LP")
-//   alert.attributes.sealed — "factory" = factory sealed only
-// Cards we couldn't read always pass.
-const cardMeetsPreferences = (alert, inventory) => {
+// The company key a slab falls under for preferences: PSA, CGC, BGS, or
+// OTHER for every other grader
+const companyKey = (company) => (["PSA", "CGC", "BGS"].includes(company) ? company : "OTHER");
+
+// ---- Card preferences ----------------------------------------------------
+// One shape for a shopper's saved preferences (Account.card_prefs, set on
+// Profile → Your sizes) and for each card alert:
+//   kinds — what they collect: any of "raw", "graded", "sealed"
+//   min_condition — worst raw condition: NM, LP or MP (null = any)
+//   grades — the grading companies they want, each with its lowest grade:
+//            { PSA: "9", BGS: "BL", OTHER: null } (null = any grade;
+//            {} = any company, any grade)
+//   sealed — "factory" = factory sealed only (null = damaged boxes too)
+const CARD_KINDS = ["raw", "graded", "sealed"];
+
+// Cleans preferences sent by the browser. { prefs } or { error }.
+const cleanCardPrefs = (input = {}) => {
+  const kinds = [...new Set(Array.isArray(input.kinds) ? input.kinds : CARD_KINDS)].filter((k) => CARD_KINDS.includes(k));
+  if (!kinds.length) return { error: "Pick raw, graded or sealed" };
+  const min_condition = input.min_condition || null;
+  if (min_condition && !PICKABLE_RAW.includes(min_condition)) return { error: "Pick a raw condition from the list" };
+  const grades = {};
+  for (const [company, grade] of Object.entries(input.grades && typeof input.grades === "object" ? input.grades : {})) {
+    if (!PICKABLE_COMPANIES.includes(company)) return { error: "Pick grading companies from the list" };
+    if (grade && !GRADES.includes(String(grade))) return { error: "Pick a grade from the list" };
+    if (grade === BLACK_LABEL && company !== "BGS") return { error: "Black Label is a Beckett grade" };
+    grades[company] = grade ? String(grade) : null;
+  }
+  const sealed = input.sealed === "factory" ? "factory" : null;
+  return {
+    prefs: {
+      kinds,
+      min_condition: kinds.includes("raw") ? min_condition : null,
+      grades: kinds.includes("graded") ? grades : {},
+      sealed: kinds.includes("sealed") ? sealed : null,
+    },
+  };
+};
+
+// A card alert's preferences in the shape above. Alerts made before
+// per-company grades kept one company and grade in their own columns.
+const alertCardPrefs = (alert) => {
+  const a = alert.attributes || {};
   const want = alert.graded_preference || "either";
+  const kinds = a.kinds || [
+    ...(want !== "graded" ? ["raw"] : []),
+    ...(want !== "raw" ? ["graded"] : []),
+    "sealed",
+  ];
+  let grades = a.grades || {};
+  if (!a.grades && alert.preferred_grading_company) grades = { [alert.preferred_grading_company]: alert.min_grade || null };
+  return { kinds, min_condition: a.min_condition || null, grades, sealed: a.sealed || null };
+};
+
+// Does a card fit these preferences? Cards we couldn't read always do.
+const cardFitsPrefs = (prefs, inventory) => {
   const condition = inventory.condition;
   if (condition === "sealed" || condition === "sealed_damaged") {
-    return !(alert.attributes?.sealed === "factory" && condition === "sealed_damaged");
+    if (!prefs.kinds.includes("sealed")) return false;
+    return !(prefs.sealed === "factory" && condition === "sealed_damaged");
   }
   if (condition === "graded" || inventory.is_graded) {
-    if (want === "raw") return false;
-    const company = alert.preferred_grading_company;
-    if (company === "OTHER" && ["PSA", "CGC", "BGS"].includes(inventory.grading_company)) return false;
-    if (company && company !== "OTHER" && company !== inventory.grading_company) return false;
-    if (alert.min_grade && !(gradeValue(inventory.grade) >= gradeValue(alert.min_grade))) return false;
-    return true;
+    if (!prefs.kinds.includes("graded")) return false;
+    const companies = Object.keys(prefs.grades || {});
+    if (!companies.length) return true;
+    const key = companyKey(inventory.grading_company);
+    if (!companies.includes(key)) return false;
+    const min = prefs.grades[key];
+    return !min || gradeValue(inventory.grade) >= gradeValue(min);
   }
   if (RAW_CONDITIONS.includes(condition)) {
-    if (want === "graded") return false;
-    const worst = alert.attributes?.min_condition;
-    if (worst && RAW_CONDITIONS.indexOf(condition) > RAW_CONDITIONS.indexOf(worst)) return false;
-    return true;
+    if (!prefs.kinds.includes("raw")) return false;
+    const worst = prefs.min_condition;
+    return !worst || RAW_CONDITIONS.indexOf(condition) <= RAW_CONDITIONS.indexOf(worst);
   }
   return true;
+};
+
+const cardMeetsPreferences = (alert, inventory) => cardFitsPrefs(alertCardPrefs(alert), inventory);
+
+// Every grade a slab might be listed with, best first (half grades too)
+const ALL_GRADES = [BLACK_LABEL, "10", "9.5", "9", "8.5", "8", "7.5", "7", "6.5", "6", "5.5", "5", "4.5", "4", "3.5", "3", "2.5", "2", "1.5", "1"];
+
+// The same test as a database filter on Inventory (In stock tab, counts).
+// Op: sequelize's operators. null when the shopper hasn't set preferences.
+const cardPrefsWhere = (prefs, Op) => {
+  if (!prefs || !Array.isArray(prefs.kinds) || !prefs.kinds.length) return null;
+  const any = [{ condition: { [Op.notIn]: ["sealed", "sealed_damaged", "graded", ...RAW_CONDITIONS] } }];
+  if (prefs.kinds.includes("sealed")) {
+    any.push({ condition: prefs.sealed === "factory" ? "sealed" : { [Op.in]: ["sealed", "sealed_damaged"] } });
+  }
+  if (prefs.kinds.includes("raw")) {
+    const worst = prefs.min_condition ? RAW_CONDITIONS.indexOf(prefs.min_condition) : RAW_CONDITIONS.length - 1;
+    any.push({ condition: { [Op.in]: RAW_CONDITIONS.slice(0, worst + 1) } });
+  }
+  if (prefs.kinds.includes("graded")) {
+    const companies = Object.entries(prefs.grades || {});
+    if (!companies.length) {
+      any.push({ condition: "graded" });
+    } else {
+      for (const [company, min] of companies) {
+        const allowed = min ? ALL_GRADES.filter((g) => gradeValue(g) >= gradeValue(min)) : null;
+        any.push({
+          condition: "graded",
+          grading_company: company === "OTHER" ? { [Op.notIn]: ["PSA", "CGC", "BGS"] } : company,
+          ...(allowed && { grade: { [Op.in]: allowed } }),
+        });
+      }
+    }
+  }
+  return { [Op.or]: any };
 };
 
 module.exports = {
   readCard,
   cardMeetsPreferences,
+  cardFitsPrefs,
+  cleanCardPrefs,
+  alertCardPrefs,
+  cardPrefsWhere,
   NO_CARD,
   GRADING_COMPANIES,
   PICKABLE_COMPANIES,

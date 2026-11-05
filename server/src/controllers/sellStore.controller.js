@@ -62,7 +62,7 @@ const sendOffer = async (req, res) => {
     const given = new Map((Array.isArray(req.body.items) ? req.body.items : []).map((i) => [i.id, i.offer_price]));
     const updates = [];
     for (const item of request.items) {
-      if (!given.has(item.id)) return fail(res, 400, "Price or skip every pair");
+      if (!given.has(item.id)) return fail(res, 400, "Price or skip every item");
       const raw = given.get(item.id);
       if (raw === null || raw === "" || raw === undefined) {
         updates.push([item, null]);
@@ -72,7 +72,7 @@ const sendOffer = async (req, res) => {
       if (!Number.isFinite(price) || price <= 0 || price > 100000) return fail(res, 400, `Enter a valid offer for the ${item.product_name} (size ${item.size})`);
       updates.push([item, Math.round(price * 100) / 100]);
     }
-    if (!updates.some(([, p]) => p !== null)) return fail(res, 400, "Make an offer on at least one pair, or decline the request");
+    if (!updates.some(([, p]) => p !== null)) return fail(res, 400, "Make an offer on at least one item, or decline the request");
     for (const [item, price] of updates) {
       await item.update({ offer_price: price, offer_skipped: price === null });
     }
@@ -117,7 +117,7 @@ const markReceived = async (req, res) => {
     const accepted = request.items.filter((i) => i.decision === "accepted");
     const ids = Array.isArray(req.body.items) ? new Set(req.body.items) : new Set(accepted.map((i) => i.id));
     const arrived = accepted.filter((i) => ids.has(i.id));
-    if (!arrived.length) return fail(res, 400, "Pick the pairs that came in");
+    if (!arrived.length) return fail(res, 400, "Pick the items that came in");
     const now = new Date();
     for (const item of accepted) {
       if (ids.has(item.id)) await item.update({ paid_price: payoutFor(item.offer_price, request), received_at: now });

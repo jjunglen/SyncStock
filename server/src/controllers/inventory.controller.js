@@ -5,6 +5,7 @@ const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
 const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
+const { cardPrefsWhere } = require("../utils/cardDetails.js");
 const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
@@ -179,8 +180,14 @@ const otherSizeKeys = (chart, sizes) =>
 // The listed items in the shopper's saved sizes. Cards: all. Other: the
 // saved sizes from the store's size chart, or everything if none saved.
 //   otherChart — the store's "other" sizes (needed for category "other")
-const mySizesWhere = (store, sizes, category, otherChart = []) => {
+// cardPrefs: the shopper's trading card preferences (Account.card_prefs)
+const mySizesWhere = (store, sizes, category, otherChart = [], cardPrefs = null) => {
   const where = listable(store, category);
+  if (category === "trading_cards") {
+    const cards = cardPrefsWhere(cardPrefs, Op);
+    if (cards) where[Op.and] = [cards];
+    return where;
+  }
   if (category === "other") {
     const keys = otherSizeKeys(otherChart, sizes);
     if (keys.length) {
@@ -221,7 +228,7 @@ const getInventoryInMySizes = async (req, res) => {
     const { page, limit, offset } = getPagination(req.query);
 
     const chart = category === "other" ? (await otherSizeChart(req.store)).sizes : [];
-    const where = applyFilters(mySizesWhere(req.store, sizes, category, chart), req.query);
+    const where = applyFilters(mySizesWhere(req.store, sizes, category, chart, req.account.card_prefs), req.query);
 
     const { count, rows, match } = await searchInventoryItems(Inventory, {
       where,
@@ -244,8 +251,10 @@ const getInventoryInMySizes = async (req, res) => {
   }
 };
 
-// GET /api/inventory/categories — the categories this store has listed
-// items in, in display order; the dashboard only shows tabs for these
+// GET /api/inventory/categories (and /categories/mine, signed in) — the categories this store has listed
+// items in, in display order; the dashboard only shows tabs for these.
+// count: every in-stock item; in_your_sizes (signed-in shoppers): the
+// ones in their saved sizes, as the In stock tab lists them
 const getCategories = async (req, res) => {
   try {
     const rows = await Inventory.findAll({
@@ -256,9 +265,21 @@ const getCategories = async (req, res) => {
     });
     const counts = Object.fromEntries(rows.map((r) => [r.category, Number(r.count)]));
     const chart = counts.other > 0 ? await otherSizeChart(req.store) : null;
-    const data = CATEGORIES.filter((c) => counts[c] > 0).map((c) => ({
+    const shown = CATEGORIES.filter((c) => counts[c] > 0);
+    const inYourSizes = req.account
+      ? Object.fromEntries(
+          await Promise.all(
+            shown.map(async (c) => [
+              c,
+              await Inventory.count({ where: mySizesWhere(req.store, req.account.sizes, c, chart?.sizes || [], req.account.card_prefs) }),
+            ]),
+          ),
+        )
+      : null;
+    const data = shown.map((c) => ({
       key: c,
       count: counts[c],
+      ...(inYourSizes && { in_your_sizes: inYourSizes[c] }),
       // The merchant's name for "other" ("Snowboards"); null = default
       name: c === "other" ? otherCategoryName(req.store) : null,
       // "other": the store's size chart, for shoppers' saved sizes
@@ -284,7 +305,7 @@ const getBrands = async (req, res) => {
     const chart = scope === "my-sizes" && category === "other" ? (await otherSizeChart(req.store)).sizes : [];
     const where =
       scope === "my-sizes"
-        ? mySizesWhere(req.store, req.account.sizes, category, chart)
+        ? mySizesWhere(req.store, req.account.sizes, category, chart, req.account.card_prefs)
         : listable(req.store, category);
     where.brand = { [Op.ne]: null };
 

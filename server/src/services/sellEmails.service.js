@@ -16,7 +16,7 @@ const brand = (store) => ({
 });
 const shopperLink = (store) => `${storeBaseUrl(store)}/store/sell?tab=requests`;
 const merchantLink = () => `${process.env.FRONTEND_URL || "http://localhost:5173"}/buy-requests`;
-const pairs = (n) => `${n} pair${n === 1 ? "" : "s"}`;
+const pairs = (n) => `${n} item${n === 1 ? "" : "s"}`;
 
 const safely = async (label, fn) => {
   try {
@@ -51,7 +51,7 @@ const newRequest = (store, request) =>
       subject: `New sell request: ${pairs(n)}`,
       html: renderEmail({
         preheader: `A shopper wants to sell you ${pairs(n)}`,
-        heading: "A shopper wants to sell you pairs.",
+        heading: "A shopper wants to sell you items.",
         intro: `${pairs(n)} came in at ${escapeHtml(store.name)}, with suggested offers from your sales history.`,
         bodyHtml:
           request.items.map((i) => itemRow({ name: i.product_name, details: itemDetails(i), imageUrl: i.image_url, href: merchantLink() })).join("") +
@@ -75,7 +75,7 @@ const offerSent = (store, account, request) =>
       html: renderEmail({
         preheader: `${money(total)} ${kind} for ${pairs(offered.length)}`,
         heading: `You have an offer: ${money(total)} ${kind}.`,
-        intro: `${escapeHtml(store.name)} reviewed your pairs.${request.merchant_message ? ` Their note: “${escapeHtml(request.merchant_message)}”` : ""}`,
+        intro: `${escapeHtml(store.name)} reviewed your items.${request.merchant_message ? ` Their note: “${escapeHtml(request.merchant_message)}”` : ""}`,
         bodyHtml:
           request.items
             .map((i) =>
@@ -87,7 +87,7 @@ const offerSent = (store, account, request) =>
               }),
             )
             .join("") + `<p style="margin: 20px 0 0;">${button(shopperLink(store), "Accept or decline", brand(store))}</p>`,
-        footer: "Nothing is final until you accept and drop the pairs off at the store.",
+        footer: "Nothing is final until you accept and drop the items off at the store.",
         logoUrl: logoUrl(store),
       }),
       text: `${store.name} offered ${money(total)} ${kind}. Accept or decline: ${shopperLink(store)}`,
@@ -100,7 +100,7 @@ const storeDeclined = (store, account, request) =>
     await sendStoreEmail({
       fromName: store.name,
       to: account.email,
-      subject: `${store.name} isn't buying these pairs right now`,
+      subject: `${store.name} isn't buying these items right now`,
       html: renderEmail({
         preheader: "Your sell request was declined",
         heading: "Not this time.",
@@ -109,7 +109,7 @@ const storeDeclined = (store, account, request) =>
         footer: "Your photos have been deleted.",
         logoUrl: logoUrl(store),
       }),
-      text: `${store.name} isn't buying these pairs right now.`,
+      text: `${store.name} isn't buying these items right now.`,
     });
   });
 
