@@ -9,6 +9,7 @@ import {
   LuUser,
   LuUsers,
   LuSettings,
+  LuLogOut,
   LuRuler,
   LuChevronDown,
   LuChevronsRight,
@@ -16,6 +17,8 @@ import {
 import SyncStockMark from "../ui/SyncStockMark.jsx";
 import BetaBadge from "../ui/BetaBadge.jsx";
 import { useMyStore, storefrontUrl } from "../../lib/myStore.js";
+import { IN_SHOPIFY_ADMIN } from "../../lib/shopifyAdmin.js";
+import api from "../../lib/api.js";
 
 const NAV_ITEMS = [
   {
@@ -62,6 +65,26 @@ const NAV_ITEMS = [
   // The "other" category's name and size chart (SizeSettings.jsx)
   { key: "size-settings", label: "Size settings", icon: LuRuler, to: "/size-settings" },
 ];
+
+// Under the store name: the store's real plan and billing state
+// (Store.plan / billing_status), not a fixed "Pro plan"
+const planLabel = (store) => {
+  if (!store) return "";
+  if (store.plan === "internal") return "Flagship store";
+  if (!store.plan) return "No plan yet";
+  switch (store.billing_status) {
+    case "pending":
+      return "Pro plan · awaiting approval";
+    case "frozen":
+      return "Pro plan · billing paused";
+    case "cancelled":
+    case "declined":
+    case "expired":
+      return "Plan inactive";
+    default:
+      return "Pro plan";
+  }
+};
 
 // Expanded/collapsed is remembered per browser, so it stays the same
 // across pages (each page renders its own sidebar) until toggled again
@@ -132,6 +155,23 @@ export default function MerchantSidebar({ preview = null }) {
   // The preview is always shown expanded (except on phones)
   const open = (preview || savedOpen) && !isMobile;
   const navigate = useNavigate();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // Sign out of the merchant dashboard (syncstock.io). Not shown inside the
+  // Shopify admin, where Shopify signs merchants in and out. A full page
+  // load afterwards, so nothing from this session stays in memory.
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await api.post("/auth/logout");
+    } catch (err) {
+      console.error("Sign out failed:", err);
+    } finally {
+      window.location.assign("/login");
+    }
+  };
+  const canSignOut = !preview && !IN_SHOPIFY_ADMIN;
 
   const toggleOpen = () => {
     const next = !savedOpen;
@@ -163,7 +203,7 @@ export default function MerchantSidebar({ preview = null }) {
                 <span className="block text-sm font-semibold text-text">
                   {storeName || "Your store"}
                 </span>
-                <span className="block text-xs text-text-muted">Pro plan</span>
+                <span className="block text-xs text-text-muted">{planLabel(store)}</span>
               </div>
             )}
           </div>
@@ -181,7 +221,42 @@ export default function MerchantSidebar({ preview = null }) {
             open={open}
           />
         ))}
+        {canSignOut && (
+          <NavOption
+            item={{ key: "sign-out", label: "Sign out", icon: LuLogOut }}
+            isSelected={false}
+            onClick={() => setConfirmSignOut(true)}
+            open={open}
+          />
+        )}
       </div>
+
+      {confirmSignOut && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmSignOut(false)} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-labelledby="sign-out-title" className="relative w-full max-w-sm rounded-xl border border-border bg-surface p-6">
+            <h3 id="sign-out-title" className="text-base font-semibold mb-2">Sign out?</h3>
+            <p className="text-sm text-text-muted mb-6">You'll need your email and password to get back into your dashboard.</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmSignOut(false)}
+                className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-text/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={signOut}
+                disabled={signingOut}
+                className="flex-1 rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              >
+                {signingOut ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isMobile && !preview && (
       <button
