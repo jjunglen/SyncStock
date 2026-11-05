@@ -132,6 +132,12 @@ const handleOrderCreate = async (req, res) => {
 // was published to SyncStock or changed while published (product_listings
 // add/update: listed = true). Saves every size, then sends restock and
 // price-drop alerts for what changed.
+// Within this long of connecting the sales channel, re-listed products
+// are a quiet re-read (Store.channel_connected_at)
+const QUIET_AFTER_CONNECT_MS = 15 * 60 * 1000;
+const justConnected = (store) =>
+  !!store.channel_connected_at && Date.now() - new Date(store.channel_connected_at).getTime() < QUIET_AFTER_CONNECT_MS;
+
 const processProductUpdate = async (store, data, { listed = false } = {}) => {
     const variants = data.variants || [];
     const imageUrl = data.images?.[0]?.src || null;
@@ -177,8 +183,12 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
         ? !!prior && prior.published === true && !!prior.image_url
         : !!prior && prior.published !== false && !!prior.image_url;
       const wasInStock = !!prior && prior.available > 0;
+      // Just after the merchant (re)connects the channel, every product is
+      // re-listed: one that was already in stock isn't news. A real
+      // restock (sold out → in stock) still alerts.
+      const quietRelist = listed && justConnected(store) && wasInStock;
       if (variant.inventory_quantity > 0) {
-        if (!wasLive || !wasInStock) {
+        if ((!wasLive && !quietRelist) || !wasInStock) {
           restockVariants.push(variant);
         } else if (
           isPriceDrop &&

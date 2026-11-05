@@ -42,7 +42,9 @@ const findMatchingAlerts = async (store, inventory) => {
   return candidates.filter((alert) => {
     const byName = isNameAlert(alert);
     if (byName && !nameWords(alert.product_name).every((w) => name.includes(w))) return false;
-    if (alert.size == null) return byName || inventory.size == null;
+    // No size picked (by name, or the item had no sizes when tracked):
+    // any size of it counts — the shopper tracked the item itself
+    if (alert.size == null) return true;
     return sameSize(alert.size, inventory.size);
   });
 };

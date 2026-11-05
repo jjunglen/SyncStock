@@ -215,6 +215,7 @@ const connectChannelAfterSetup = async (store) => {
   if (store.shopify_app !== "public") return;
   try {
     await connectChannel(store);
+    await store.update({ channel_connected_at: new Date() });
     backfillInventory(store); // background: marks what's published to SyncStock
   } catch (error) {
     console.error(`Channel connect after setup failed for ${store.shopify_domain}:`, error.message);

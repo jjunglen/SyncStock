@@ -134,6 +134,14 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: {},
     },
+    // When the merchant last connected the SyncStock sales channel. For a
+    // while after, products coming back onto the channel aren't "new" —
+    // no restock alerts for items that were already in stock
+    // (webhook.controller.js; migrateChannelConnectedAt.js)
+    channel_connected_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     // Branding: a small logo image (served by GET /api/store/logo/:id)
     // and an accent color for buttons on the shopper site and emails.
     // logo_data is left out of normal queries — see defaultScope.

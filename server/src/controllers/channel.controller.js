@@ -97,6 +97,8 @@ const connectChannel = async (req, res) => {
   }
   try {
     const connection = await channel.connect(req.store);
+    // Products re-listed by this connect are a quiet re-read, not news
+    await req.store.update({ channel_connected_at: new Date() });
     resyncInBackground(req.store);
     return res.status(200).json({ success: true, data: { id: connection.id, account_name: connection.accountName } });
   } catch (error) {
