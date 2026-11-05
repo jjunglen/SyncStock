@@ -5,6 +5,7 @@ const { otherCategoryName, OTHER_NAME_MAX } = require("../utils/storeSettings.js
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const {
   otherSizeSettings,
+  classifyOption,
   cleanSizeList,
   MAX_SIZES,
   MAX_SIZE_LENGTH,
@@ -70,7 +71,13 @@ const optionsInUse = async (store) => {
   return {
     products: productIds.length,
     options: [...options.values()]
-      .map((o) => ({ name: o.name, products: o.products.size, values: o.values.slice(0, MAX_SIZES) }))
+      .map((o) => ({
+        name: o.name,
+        products: o.products.size,
+        values: o.values.slice(0, MAX_SIZES),
+        // What SyncStock reads it as until the merchant picks: size | color | null
+        detected: classifyOption(o.name, o.values),
+      }))
       .filter((o) => o.products > 0)
       .sort((a, b) => b.products - a.products),
   };

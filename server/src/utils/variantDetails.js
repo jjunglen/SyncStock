@@ -1,3 +1,4 @@
+const { classifyOption } = require("./otherSizes.js");
 const { parseVariantTitle } = require("./parseVariantTitle.js");
 const { normalizeSize } = require("./categorize.js");
 
@@ -118,6 +119,16 @@ const optionValues = (product, variant) => {
     .filter((o) => o.value != null && o.value !== "");
 };
 
+// Every value an option has across the product's variants
+const productOptionValues = (product, name) => [
+  ...new Set(
+    (product.variants || [])
+      .flatMap((v) => optionValues(product, v))
+      .filter((o) => o.name === name)
+      .map((o) => o.value),
+  ),
+];
+
 // sizeOptionNames: for "other" products, the Shopify options the store
 // counts as sizes (Size settings) — "Size" options always count
 const readVariant = (product, variant, category, sizeOptionNames = []) => {
@@ -138,11 +149,13 @@ const readVariant = (product, variant, category, sizeOptionNames = []) => {
   let size;
   if (category === "other") {
     // Only a real size option: a backpack's "brown" or a delivery fee's
-    // "San Diego Metro" is not a size
+    // "San Diego Metro" is not a size. The options the merchant picked on
+    // Size settings; until they do, detected from each option's name and
+    // every value it has on this product (otherSizes.js classifyOption).
     const names = sizeOptionNames.map((n) => String(n).toLowerCase());
-    const option =
-      options.find((o) => names.includes(String(o.name || "").toLowerCase())) ||
-      options.find((o) => /size/i.test(o.name || ""));
+    const option = names.length
+      ? options.find((o) => names.includes(String(o.name || "").toLowerCase()))
+      : options.find((o) => classifyOption(o.name, productOptionValues(product, o.name)) === "size");
     size = option ? normalizeSize(String(option.value || ""), category) : null;
   } else if (category === "sneakers") {
     const tags = Array.isArray(product.tags) ? product.tags.join(" ") : product.tags || "";

@@ -71,9 +71,13 @@ const categorizeProduct = (product) => {
   }
 
   const tags = Array.isArray(product.tags) ? product.tags.join(", ") : product.tags;
+  // A product type the merchant set ("Snowboard", "Jewelry") outranks
+  // loose tags — Shopify's sample snowboards are tagged "Accessory", which
+  // would otherwise file them under clothing. Blank types still use tags.
+  const typeSet = !!String(product.product_type || "").trim();
   const fromText =
     categoryFromText(product.product_type) ||
-    categoryFromText(tags) ||
+    (typeSet ? null : categoryFromText(tags)) ||
     categoryFromText(product.title);
   if (fromText) return fromText;
 

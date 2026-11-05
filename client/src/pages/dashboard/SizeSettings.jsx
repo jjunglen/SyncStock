@@ -126,7 +126,8 @@ export default function SizeSettings() {
   const categoryName = name.trim() || "Other";
   const options = data?.options || [];
   const chosen = new Set(optionNames.map((n) => n.toLowerCase()));
-  const isChosen = (o) => chosen.has(o.name.toLowerCase()) || (!optionNames.length && /size/i.test(o.name));
+  // Until the merchant picks, the options SyncStock detected as sizes
+  const isChosen = (o) => (optionNames.length ? chosen.has(o.name.toLowerCase()) : o.detected === "size");
   // An automatic list (nothing saved yet) can be saved as is to keep it
   const sizesChanged =
     !!data?.automatic ||
@@ -136,8 +137,8 @@ export default function SizeSettings() {
 
   const toggleOption = (o) => {
     const on = isChosen(o);
-    // First change: start from what's shown (Size options count by default)
-    const base = optionNames.length ? optionNames : options.filter((x) => /size/i.test(x.name)).map((x) => x.name);
+    // First change: start from what's shown (the detected size options)
+    const base = optionNames.length ? optionNames : options.filter((x) => x.detected === "size").map((x) => x.name);
     setOptionNames(on ? base.filter((n) => n.toLowerCase() !== o.name.toLowerCase()) : [...base, o.name]);
   };
 
@@ -209,14 +210,15 @@ export default function SizeSettings() {
               aria-label="Category name"
               className="flex-1 min-w-48 rounded-lg border border-border bg-bg px-3 py-2 text-sm placeholder:text-text-muted focus:border-text/30 focus:outline-none"
             />
-            <Button
-              type="submit"
-              variant="secondary"
-              size="sm"
-              disabled={busy === "name" || name.trim() === (data?.other_category_name || "")}
-            >
-              {busy === "name" ? "Saving…" : "Save name"}
-            </Button>
+            {name.trim() === (data?.other_category_name || "") ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-live">
+                <LuCheck size={14} aria-hidden="true" /> Saved
+              </span>
+            ) : (
+              <Button type="submit" size="sm" disabled={busy === "name"}>
+                {busy === "name" ? "Saving…" : name.trim() ? "Save name" : "Reset to “Other”"}
+              </Button>
+            )}
           </form>
           <p className="text-xs text-text-muted mt-2">
             {data?.products || 0} of your products are in {categoryName} right now.
@@ -226,7 +228,7 @@ export default function SizeSettings() {
         <Section
           step="1"
           title="Which option is the size?"
-          description="These are the options your products use in Shopify. Tick the ones that are sizes — colors and materials never count as sizes."
+          description="The options your products use in Shopify. SyncStock picks out the sizes on its own — Length, Ring size, 152 / 158, S / M / L — and never reads colors as sizes. Change the ticks only if it got one wrong."
         >
           {options.length === 0 ? (
             <p className="text-sm text-text-muted">
@@ -250,6 +252,7 @@ export default function SizeSettings() {
                     {o.name}
                     <span className="text-xs text-text-muted">
                       {o.products} product{o.products === 1 ? "" : "s"}
+                      {o.detected === "color" && " · color"}
                     </span>
                   </button>
                 );
@@ -266,7 +269,10 @@ export default function SizeSettings() {
               >
                 {busy === "options" ? "Saving…" : "Save size options"}
               </Button>
-              <span className="text-xs text-text-muted">Saving re-reads your products' sizes (about a minute).</span>
+              <span className="text-xs text-text-muted">
+                {optionNames.length ? "Your picks are used instead of the automatic ones." : "Automatic until you save."}{" "}
+                Saving re-reads your products' sizes (about a minute).
+              </span>
             </div>
           )}
         </Section>
