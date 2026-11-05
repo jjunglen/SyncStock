@@ -68,7 +68,11 @@ export default function SourcingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {!item.currently_in_stock && (
+                  {item.currently_in_stock ? (
+                    <span className="text-xs bg-live/10 text-live px-2 py-0.5 rounded-full">
+                      In stock
+                    </span>
+                  ) : (
                     <span className="text-xs bg-warn/10 text-warn px-2 py-0.5 rounded-full">
                       Not in stock
                     </span>
