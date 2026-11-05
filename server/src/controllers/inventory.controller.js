@@ -1,8 +1,9 @@
 const { shopperVisible } = require("../services/channel.service.js");
-const { Op, fn, col } = require("sequelize");
+const { Op, fn, col, literal } = require("sequelize");
 const { Inventory, ProductView } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
+const { otherSizeSettings, sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
 const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
@@ -169,10 +170,27 @@ const searchInventory = async (req, res) => {
 // ring 7, 158cm — not a size shoppers save)
 const SIZELESS_BROWSE = ["trading_cards", "other"];
 
-// The listed items in the shopper's saved sizes (cards and other: all)
+// The shopper's saved sizes that are on this store's "other" size chart,
+// as match keys ("158cm" → "158")
+const otherSizeKeys = (store, sizes) => {
+  const chart = otherSizeSettings(store).sizes;
+  return [...new Set((sizes || []).filter((s) => chart.some((c) => sameSize(c, s))).map(sizeMatchKey))];
+};
+
+// The listed items in the shopper's saved sizes. Cards: all. Other: the
+// saved sizes from the store's size chart, or everything if none saved.
 const mySizesWhere = (store, sizes, category) => {
   const where = listable(store, category);
-  if (!SIZELESS_BROWSE.includes(category)) where.size = { [Op.in]: sizes || [] };
+  if (category === "other") {
+    const keys = otherSizeKeys(store, sizes);
+    if (keys.length) {
+      where[Op.and] = [
+        literal(`${sizeKeySql('"Inventory"."size"')} IN (${keys.map((k) => Inventory.sequelize.escape(k)).join(", ")})`),
+      ];
+    }
+  } else if (!SIZELESS_BROWSE.includes(category)) {
+    where.size = { [Op.in]: sizes || [] };
+  }
   return where;
 };
 
@@ -241,6 +259,11 @@ const getCategories = async (req, res) => {
       count: counts[c],
       // The merchant's name for "other" ("Snowboards"); null = default
       name: c === "other" ? otherCategoryName(req.store) : null,
+      // "other": the store's size chart, for shoppers' saved sizes
+      ...(c === "other" && {
+        size_label: otherSizeSettings(req.store).label,
+        sizes: otherSizeSettings(req.store).sizes,
+      }),
     }));
     return res.status(200).json({ success: true, data });
   } catch (error) {

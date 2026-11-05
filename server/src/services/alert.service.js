@@ -5,6 +5,46 @@ const {
   sendPriceDropNotification,
 } = require("./notification.service.js");
 const { isCategoryEnabled } = require("../utils/storeSettings.js");
+const { sameSize, otherSizeSettings } = require("../utils/otherSizes.js");
+
+// An alert set by name ("Track by name" on Track): fires for any product
+// whose name has every word, in the chosen size (or any size)
+const isNameAlert = (alert) => alert.attributes?.match === "keywords";
+const nameWords = (text) => String(text || "").toLowerCase().split(/\s+/).filter(Boolean);
+
+// Alerts this restock or price drop answers. Sneakers and clothing match
+// on the exact name and size, as before. "Other" items (snowboards,
+// rings…) also match name alerts, and sizes match however they're
+// written ("158" = "158cm").
+const findMatchingAlerts = async (store, inventory) => {
+  if (inventory.category !== "other") {
+    return Alert.findAll({
+      where: {
+        store_id: store.id,
+        active: true,
+        size: inventory.size,
+        product_name: { [Op.iLike]: inventory.product_name },
+      },
+    });
+  }
+  const candidates = await Alert.findAll({
+    where: {
+      store_id: store.id,
+      active: true,
+      [Op.or]: [
+        { product_name: { [Op.iLike]: inventory.product_name } },
+        { "attributes.match": "keywords" },
+      ],
+    },
+  });
+  const name = String(inventory.product_name || "").toLowerCase();
+  return candidates.filter((alert) => {
+    const byName = isNameAlert(alert);
+    if (byName && !nameWords(alert.product_name).every((w) => name.includes(w))) return false;
+    if (alert.size == null) return byName || inventory.size == null;
+    return sameSize(alert.size, inventory.size);
+  });
+};
 
 // An alert's own limits: its price range, and new vs pre-owned. Items
 // with no known condition match either choice.
@@ -24,14 +64,7 @@ const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
   try {
     // Categories the merchant hides don't send alerts either
     if (!isCategoryEnabled(store, inventory.category)) return;
-    const matchingAlerts = await Alert.findAll({
-      where: {
-        store_id: store.id,
-        active: true,
-        size: inventory.size,
-        product_name: { [Op.iLike]: inventory.product_name },
-      },
-    });
+    const matchingAlerts = await findMatchingAlerts(store, inventory);
 
     for (const alert of matchingAlerts) {
       if (notifiedUsers.has(alert.user_id)) continue;
@@ -52,14 +85,7 @@ const checkAlertsForInventory = async (store, inventory, notifiedUsers) => {
 const checkPriceDropAlerts = async (store, inventory, notifiedUsers) => {
   try {
     if (!isCategoryEnabled(store, inventory.category)) return;
-    const matchingAlerts = await Alert.findAll({
-      where: {
-        store_id: store.id,
-        active: true,
-        size: inventory.size,
-        product_name: { [Op.iLike]: inventory.product_name },
-      },
-    });
+    const matchingAlerts = await findMatchingAlerts(store, inventory);
 
     for (const alert of matchingAlerts) {
       if (notifiedUsers.has(alert.user_id)) continue;
@@ -90,7 +116,13 @@ const checkSizeMatchNotifications = async (store, inventory, notifiedUsers) => {
     if (notifiedUsers.has(member.id)) continue;
 
     const account = await Account.findByPk(member.account_id);
-    if (!account || !account.sizes || !account.sizes.includes(inventory.size)) {
+    if (!account || !account.sizes) continue;
+    if (inventory.category === "other") {
+      // Only sizes on this store's chart, matched however they're written
+      const chart = otherSizeSettings(store).sizes;
+      const saved = account.sizes.filter((s) => chart.some((c) => sameSize(c, s)));
+      if (!saved.some((s) => sameSize(s, inventory.size))) continue;
+    } else if (!account.sizes.includes(inventory.size)) {
       continue;
     }
 

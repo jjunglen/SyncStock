@@ -1,6 +1,7 @@
 const { Inventory } = require("../models/index.js");
 const { readVariant } = require("../utils/variantDetails.js");
 const { categorizeProduct, normalizeSize } = require("../utils/categorize.js");
+const { otherSizeSettings } = require("../utils/otherSizes.js");
 const { detectBrand } = require("../utils/brand.js");
 const { descriptionFromHtml } = require("../utils/productDescription.js");
 const {
@@ -35,7 +36,7 @@ const handleProductCreate = async (req, res) => {
 
     const channel = isChannelStore(store);
     for (const variant of variants) {
-      const { size, condition, boxCondition } = readVariant(data, variant, category);
+      const { size, condition, boxCondition } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
 
       await Inventory.upsert({
         store_id: store.id,
@@ -161,7 +162,7 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
     const priceDropVariants = [];
 
     for (const variant of variants) {
-      const { size, condition, boxCondition } = readVariant(data, variant, category);
+      const { size, condition, boxCondition } = readVariant(data, variant, category, otherSizeSettings(store).option_names);
 
       const newPrice = parseFloat(variant.price) || null;
       const compareAtPrice = parseFloat(variant.compare_at_price) || null;

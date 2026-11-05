@@ -139,10 +139,6 @@ export default function StoreSettings() {
     }
   };
 
-  // The name shoppers see for "other" ("Snowboards"); empty = "Other"
-  const saveOtherName = (name) =>
-    run("other-name", () => api.put("/store/settings", { other_category_name: name }), "Name saved");
-
   const toggleCategory = (key, on) => {
     const next = on
       ? [...settings.enabled_categories, key]
@@ -322,13 +318,9 @@ export default function StoreSettings() {
                       />
                     </div>
                     {key === "other" && (
-                      <OtherCategoryName
-                        key={settings.other_category_name || ""}
-                        saved={settings.other_category_name || ""}
-                        max={settings.other_name_max || 30}
-                        busy={busy === "other-name"}
-                        onSave={saveOtherName}
-                      />
+                      <Link to="/size-settings" className="mt-1 inline-block text-xs text-text-muted underline hover:text-text">
+                        Rename it and set its sizes in Size settings
+                      </Link>
                     )}
                     </div>
                   );
@@ -708,37 +700,5 @@ export default function StoreSettings() {
         )}
       </div>
     </div>
-  );
-}
-
-// What the "other" category is called on the store site — anything the
-// merchant likes ("Snowboards", "Jewelry", "Home goods"). Empty = "Other".
-function OtherCategoryName({ saved, max, busy, onSave }) {
-  const [name, setName] = useState(saved);
-  const trimmed = name.replace(/\s+/g, " ").trim();
-  const changed = trimmed !== saved;
-  return (
-    <form
-      className="mt-3 flex flex-wrap items-end gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (changed) onSave(trimmed);
-      }}
-    >
-      <label className="flex-1 min-w-48">
-        <span className="mb-1 block text-xs text-text-muted">Name shoppers see</span>
-        <input
-          type="text"
-          value={name}
-          maxLength={max}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Other — e.g. Snowboards, Jewelry"
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-text-muted focus:border-text/30 focus:outline-none"
-        />
-      </label>
-      <Button type="submit" variant="secondary" size="sm" disabled={!changed || busy}>
-        {busy ? "Saving…" : "Save name"}
-      </Button>
-    </form>
   );
 }

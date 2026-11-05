@@ -86,6 +86,9 @@ router.get("/", resolveStoreFromSubdomain, getStore);
 // controller can explain the limit itself.
 router.get("/mine", ...admin, getMyStore);
 router.get("/settings", ...admin, getSettings);
+// Size settings (merchant): the "other" category's name and size chart
+router.get("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").getSizeSettings);
+router.put("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").updateSizeSettings);
 router.put("/settings", ...admin, updateSettings);
 router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);
 router.delete("/logo", ...admin, deleteLogo);

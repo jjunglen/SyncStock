@@ -126,6 +126,14 @@ const Store = sequelize.define(
       type: DataTypes.STRING(30),
       allowNull: true,
     },
+    // Size charts per category, set on the Size settings page — for now
+    // { other: { label, sizes, option_names } } (utils/otherSizes.js;
+    // migrateSizeSettings.js)
+    size_settings: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+    },
     // Branding: a small logo image (served by GET /api/store/logo/:id)
     // and an accent color for buttons on the shopper site and emails.
     // logo_data is left out of normal queries — see defaultScope.

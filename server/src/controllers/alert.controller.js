@@ -6,6 +6,7 @@ const {
   requireFields,
 } = require("../utils/validate.js");
 const { getUserAlertStats } = require("../services/alert.service.js");
+const { otherSizeSettings, sameSize } = require("../utils/otherSizes.js");
 
 const ALERT_CATEGORIES = Alert.getAttributes().category.values;
 
@@ -155,6 +156,30 @@ const createAlert = async (req, res) => {
         ? [null]
         : [...new Set((Array.isArray(req.body.sizes) ? req.body.sizes : [size]).map((s) => String(s ?? "").trim()).filter(Boolean))];
 
+    // "Track by name" (Track page): any "other" item whose name has these
+    // words, in sizes from the store's size chart — or any size
+    const byName = req.body.match === "keywords";
+    if (byName) {
+      if (category !== "other") {
+        return res.status(400).json({ success: false, message: "Tracking by name is only for this store's other items" });
+      }
+      product_name = String(product_name || "").replace(/\s+/g, " ").trim();
+      if (product_name.length < 2 || product_name.length > 60) {
+        return res.status(400).json({ success: false, message: "Type 2 to 60 characters to track" });
+      }
+      const chart = otherSizeSettings(req.store).sizes;
+      const asked = sizes.filter((s) => s !== null);
+      sizes = asked.map((s) => chart.find((c) => sameSize(c, s))).filter(Boolean);
+      if (asked.length && !sizes.length) {
+        return res.status(400).json({ success: false, message: "Pick sizes from the store's list" });
+      }
+      if (!sizes.length) sizes = [null]; // any size
+      store_product_id = null;
+      sku = null;
+      stockx_product_id = null;
+      stockx_url_key = null;
+    }
+
     // One of the store's own products (picked from the store's results in
     // "Track a new item"): alerts match restocks by name and size, so the
     // name, category and sizes come from the product itself. A product
@@ -243,6 +268,7 @@ const createAlert = async (req, res) => {
         stockx_product_id: stockx_product_id || null,
         stockx_url_key: stockx_url_key || null,
         image_url: safeImageUrl(image_url),
+        attributes: byName ? { match: "keywords" } : {},
       })),
       { returning: true },
     );
@@ -288,7 +314,12 @@ const updateAlert = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid condition" });
     }
 
-    if (size && !isValidSize(size)) {
+    // "Other" items use the store's own size chart, not the shoe/clothing list
+    const sizeOk =
+      alert.category === "other"
+        ? otherSizeSettings(req.store).sizes.some((c) => sameSize(c, size))
+        : isValidSize(size);
+    if (size && !sizeOk) {
       return res
         .status(400)
         .json({ success: false, message: "Invalid size" });

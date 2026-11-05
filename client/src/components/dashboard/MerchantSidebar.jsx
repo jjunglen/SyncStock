@@ -9,6 +9,7 @@ import {
   LuUser,
   LuUsers,
   LuSettings,
+  LuRuler,
   LuChevronDown,
   LuChevronsRight,
 } from "react-icons/lu";
@@ -58,6 +59,8 @@ const NAV_ITEMS = [
     icon: LuSettings,
     to: "/settings",
   },
+  // The "other" category's name and size chart (SizeSettings.jsx)
+  { key: "size-settings", label: "Size settings", icon: LuRuler, to: "/size-settings" },
 ];
 
 // Expanded/collapsed is remembered per browser, so it stays the same

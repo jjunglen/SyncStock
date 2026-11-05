@@ -118,7 +118,9 @@ const optionValues = (product, variant) => {
     .filter((o) => o.value != null && o.value !== "");
 };
 
-const readVariant = (product, variant, category) => {
+// sizeOptionNames: for "other" products, the Shopify options the store
+// counts as sizes (Size settings) — "Size" options always count
+const readVariant = (product, variant, category, sizeOptionNames = []) => {
   const title = variant.title || "";
   const options = optionValues(product, variant);
 
@@ -134,7 +136,15 @@ const readVariant = (product, variant, category) => {
   const sizeOption = options.find((o) => /size/i.test(o.name));
   const rawSize = String(sizeOption ? sizeOption.value : copyt.size).split(" - ")[0].split(" / ")[0].trim();
   let size;
-  if (category === "sneakers") {
+  if (category === "other") {
+    // Only a real size option: a backpack's "brown" or a delivery fee's
+    // "San Diego Metro" is not a size
+    const names = sizeOptionNames.map((n) => String(n).toLowerCase());
+    const option =
+      options.find((o) => names.includes(String(o.name || "").toLowerCase())) ||
+      options.find((o) => /size/i.test(o.name || ""));
+    size = option ? normalizeSize(String(option.value || ""), category) : null;
+  } else if (category === "sneakers") {
     const tags = Array.isArray(product.tags) ? product.tags.join(" ") : product.tags || "";
     const group = ageGroup(`${product.title || ""} ${tags}`);
     size = sneakerSize(rawSize, group) || normalizeSize(rawSize, category);
