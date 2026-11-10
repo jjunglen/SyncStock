@@ -300,6 +300,10 @@ const getCategories = async (req, res) => {
 const getBrands = async (req, res) => {
   try {
     const { category, scope } = req.query;
+    // "In your sizes" needs the shopper's saved sizes
+    if (scope === "my-sizes" && !req.account) {
+      return res.status(401).json({ success: false, message: "Not logged in" });
+    }
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
 
     const chart = scope === "my-sizes" && category === "other" ? (await otherSizeChart(req.store)).sizes : [];
@@ -354,6 +358,53 @@ const sizeOrder = (a, b) => {
   const y = parseFloat(b);
   if (!Number.isNaN(x) && !Number.isNaN(y)) return x - y;
   return Number.isNaN(x) - Number.isNaN(y);
+};
+
+// GET /api/inventory/product/:productId — a product's public page
+// (/p/<id>-<name>): every listed size of one Shopify product, sold-out
+// ones too (that's what an alert is for), plus other in-stock listings
+// with the same name (the Lab lists each pair as its own product). Same
+// rules as the shop: published, has a photo, a category the store shows.
+const getPublicProduct = async (req, res) => {
+  try {
+    const productId = String(req.params.productId || "");
+    if (!/^\d{1,20}$/.test(productId)) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    const rows = await Inventory.findAll({
+      where: {
+        store_id: req.store.id,
+        ...shopperVisible(req.store),
+        shopify_product_id: productId,
+        image_url: { [Op.ne]: null },
+        category: { [Op.in]: enabledCategories(req.store) },
+      },
+      order: [["created_at", "ASC"]],
+    });
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    const item = rows.find((r) => Number(r.available) > 0) || rows[0];
+    const sizes = rows
+      .map((r) => ({ id: r.id, size: r.size, price: r.price, condition: r.condition, in_stock: Number(r.available) > 0 }))
+      .sort((a, b) => sizeOrder(a.size, b.size));
+
+    const others = await Inventory.findAll({
+      where: {
+        ...listable(req.store, item.category),
+        product_name: item.product_name,
+        shopify_product_id: { [Op.ne]: productId },
+      },
+      attributes: ["id", "shopify_product_id", "product_name", "size", "price", "condition", "image_url"],
+      limit: 40,
+    });
+    others.sort((a, b) => sizeOrder(a.size, b.size));
+
+    return res.status(200).json({ success: true, data: { item, sizes, others } });
+  } catch (error) {
+    console.error("Public product error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to fetch product" });
+  }
 };
 
 const TRACKABLE_PRODUCTS = 10;
@@ -427,6 +478,8 @@ const getTrackableProducts = async (req, res) => {
 };
 
 module.exports = {
+  listable,
+  getPublicProduct,
   getTrackableProducts,
   getBrands,
   getProductSizes,

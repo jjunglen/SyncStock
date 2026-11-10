@@ -40,6 +40,8 @@ const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
 const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const StoresPage = lazy(() => import("./pages/StoresPage.jsx"));
+const StoreBrowse = lazy(() => import("./pages/store/StoreBrowse.jsx"));
+const StoreProduct = lazy(() => import("./pages/store/StoreProduct.jsx"));
 const UseCasePage = lazy(() => import("./pages/UseCasePage.jsx"));
 // Dev only: App Store screenshot compositions (never in the live build)
 const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
@@ -47,6 +49,8 @@ const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppSt
 function App() {
   const subdomain = getSubdomain();
   const { pathname, hash } = useLocation();
+  // A store's shopper site (locally: the dev store)
+  const onStoreSite = !!subdomain || (import.meta.env.DEV && !!import.meta.env.VITE_DEV_STORE);
 
   // A new page starts at the top (links like /#features scroll to their
   // section instead); the back button keeps the browser's own position
@@ -108,6 +112,9 @@ function App() {
       <Route path="/email-verification" element={<EmailVerification />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/store" element={<StoreLanding />} />
+      {/* A store's public catalog and product pages — no account needed */}
+      <Route path="/browse" element={onStoreSite ? <StoreBrowse /> : <NotFound />} />
+      <Route path="/p/:slug" element={onStoreSite ? <StoreProduct /> : <NotFound />} />
       <Route path="/dashboard" element={<ProtectedRoute requireMerchant><MerchantDashboard /></ProtectedRoute>} />
       <Route path="/sourcing" element={<ProtectedRoute requireMerchant><SourcingPage /></ProtectedRoute>} />
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />

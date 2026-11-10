@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { getSubdomain } from "../lib/getSubdomain.js";
 import { getStoreInfo } from "../lib/storeInfo.js";
 import { USE_CASES } from "../lib/useCases.js";
+import { applyPageMeta as apply, DEFAULT_DESCRIPTION } from "../lib/pageMeta.js";
 
 // Search and link-preview info for each page: title, description,
 // canonical address and whether search engines may index it. The
@@ -10,9 +11,6 @@ import { USE_CASES } from "../lib/useCases.js";
 // are indexed; sign-ins, dashboards and unknown addresses are not.
 
 const SITE = "https://www.syncstock.io";
-const DEFAULT_DESCRIPTION =
-  "Restock alerts for sneaker, streetwear and trading card stores on Shopify. Shoppers get notified the moment their size is back, and you see exactly what to restock next.";
-
 const MARKETING = {
   "/": {
     title: "SyncStock — Restock alerts for sneaker, streetwear and card stores",
@@ -41,70 +39,51 @@ const APP_TITLES = [
 ];
 const KNOWN_APP = /^\/(dashboard|sourcing|purchases|customers|prices|price-check|buy-requests|settings|size-settings|account|platform|channel|onboarding|email-verification|reset-password|login|signup|store|dev)(\/|$)/;
 
-const setMeta = (attr, key, content) => {
-  let tag = document.head.querySelector(`meta[${attr}="${key}"]`);
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute(attr, key);
-    document.head.appendChild(tag);
-  }
-  tag.setAttribute("content", content);
-};
-
-const setCanonical = (href) => {
-  let link = document.head.querySelector('link[rel="canonical"]');
-  if (!href) {
-    link?.remove();
-    return;
-  }
-  if (!link) {
-    link = document.createElement("link");
-    link.rel = "canonical";
-    document.head.appendChild(link);
-  }
-  link.href = href;
-};
-
-const apply = ({ title, description, canonical, index }) => {
-  document.title = title;
-  setMeta("name", "description", description);
-  setMeta("property", "og:title", title);
-  setMeta("property", "og:description", description);
-  setMeta("name", "twitter:title", title);
-  setMeta("name", "twitter:description", description);
-  if (canonical) setMeta("property", "og:url", canonical);
-  setMeta("name", "robots", index ? "index, follow" : "noindex, follow");
-  setCanonical(canonical);
-};
-
 // notFound: the page-not-found screen is showing
 export default function Seo({ notFound = false }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const subdomain = getSubdomain();
 
   useEffect(() => {
     const path = pathname.replace(/\/+$/, "") || "/";
 
-    // A store's shopper site: its home page is indexed under the store's
-    // name; its sign-in and signed-in pages aren't
+    // A store's shopper site: its home page and Browse are indexed under
+    // the store's name; its sign-in and signed-in pages aren't. Product
+    // pages (/p/…) set their own once the product loads.
     if (subdomain) {
+      if (path.startsWith("/p/")) return;
       const home = path === "/" || path === "/store";
+      // Only the plain /browse: filtered and later pages are reached by
+      // links (and every product is in the store's sitemap)
+      const browse = path === "/browse" && !search;
+      const canonical = home
+        ? `https://${subdomain}.syncstock.io/`
+        : browse
+          ? `https://${subdomain}.syncstock.io/browse`
+          : null;
+      const index = (home || browse) && !notFound;
       apply({
         title: "SyncStock",
         description: DEFAULT_DESCRIPTION,
-        canonical: home ? `https://${subdomain}.syncstock.io/` : null,
-        index: home && !notFound,
+        canonical,
+        index,
       });
       getStoreInfo()
         .then((info) => {
           if (!info?.name) return;
           apply({
-            title: home ? `${info.name} — In-stock alerts` : info.name,
+            title: home
+              ? `${info.name} — In-stock alerts`
+              : path === "/browse"
+                ? `Shop ${info.name} — In stock now`
+                : info.name,
             description: home
               ? `Get notified the moment your size is back in stock at ${info.name}. Save your sizes and track the items you want.`
-              : DEFAULT_DESCRIPTION,
-            canonical: home ? `https://${subdomain}.syncstock.io/` : null,
-            index: home && !notFound,
+              : path === "/browse"
+                ? `Everything in stock at ${info.name} right now, by size and price. Save your sizes and get an alert the moment what you want is back.`
+                : DEFAULT_DESCRIPTION,
+            canonical,
+            index,
           });
         })
         .catch(() => {});
@@ -123,7 +102,7 @@ export default function Seo({ notFound = false }) {
       canonical: null,
       index: false,
     });
-  }, [pathname, subdomain, notFound]);
+  }, [pathname, search, subdomain, notFound]);
 
   return null;
 }

@@ -39,7 +39,8 @@ export default function DashboardNavbar() {
   const store = useStoreInfo();
   const storeName = store?.name || "";
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
+  // ?cart=open: back from sign-up to finish checking out
+  const [cartOpen, setCartOpen] = useState(() => new URLSearchParams(window.location.search).get("cart") === "open");
   const cartItems = useCart();
   const { theme, toggleTheme } = useTheme();
 

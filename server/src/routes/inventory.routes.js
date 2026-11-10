@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   resolveStoreFromSubdomain,
+  attachAccountIfPresent,
 } = require("../middleware/tenant.middleware.js");
 const { authenticateAccount } = require("../middleware/auth.middleware.js");
 const { publicLimiter } = require("../middleware/rateLimit.middleware.js");
@@ -15,18 +16,15 @@ const {
   getProductSizes,
   recordProductView,
   getTrackableProducts,
+  getPublicProduct,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
-// Browsing and single items need an account; only the store page's
-// small preview ("/") and the category list stay public
-router.get(
-  "/search",
-  publicLimiter,
-  resolveStoreFromSubdomain,
-  authenticateAccount,
-  searchInventory,
-);
+// Browsing is public (the store's /browse and /p/ pages, open to search
+// engines too); alerts, sizes and anything personal need an account
+router.get("/search", publicLimiter, resolveStoreFromSubdomain, searchInventory);
+// A product's public page (/p/<id>-<name>)
+router.get("/product/:productId", publicLimiter, resolveStoreFromSubdomain, getPublicProduct);
 // "Track a new item": the store's own products, sold-out ones included
 router.get(
   "/trackable",
@@ -54,20 +52,15 @@ router.get(
   authenticateAccount,
   getCategories,
 );
+// Public; scope=my-sizes (the In stock tab) needs an account
 router.get(
   "/brands",
   publicLimiter,
   resolveStoreFromSubdomain,
-  authenticateAccount,
+  attachAccountIfPresent,
   getBrands,
 );
-router.get(
-  "/:id/sizes",
-  publicLimiter,
-  resolveStoreFromSubdomain,
-  authenticateAccount,
-  getProductSizes,
-);
+router.get("/:id/sizes", publicLimiter, resolveStoreFromSubdomain, getProductSizes);
 // "3 people viewed this" (product pop-out)
 router.post(
   "/:id/view",

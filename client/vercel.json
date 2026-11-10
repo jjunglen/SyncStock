@@ -1,5 +1,17 @@
 {
   "rewrites": [
+    { "source": "/robots.txt", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/robots-main.txt" },
+    {
+      "source": "/robots.txt",
+      "has": [{ "type": "host", "value": "(?<store>[a-z0-9-]+)\\.syncstock\\.io" }],
+      "destination": "https://api.syncstock.io/api/seo/robots.txt?store=:store"
+    },
+    { "source": "/robots.txt", "destination": "/robots-main.txt" },
+    {
+      "source": "/sitemap-products.xml",
+      "has": [{ "type": "host", "value": "(?<store>[a-z0-9-]+)\\.syncstock\\.io" }],
+      "destination": "https://api.syncstock.io/api/seo/sitemap.xml?store=:store"
+    },
     { "source": "/shopify", "destination": "/shopify.html" },
     { "source": "/shopify/(.*)", "destination": "/shopify.html" },
     { "source": "/(.*)", "destination": "/index.html" }

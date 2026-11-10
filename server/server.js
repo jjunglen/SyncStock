@@ -213,6 +213,8 @@ app.use("/api/sell", require("./src/routes/sell.routes.js"));
 app.use("/api/app", require("./src/routes/app.routes.js"));
 // The Joined stores page on syncstock.io (public)
 app.use("/api/directory", require("./src/routes/directory.routes.js"));
+// Store sites' robots.txt and product sitemaps (via Vercel, client/vercel.json)
+app.use("/api/seo", require("./src/routes/seo.routes.js"));
 // Links in the daily Instagram stories email
 app.use("/api/stories", require("./src/routes/stories.routes.js"));
 

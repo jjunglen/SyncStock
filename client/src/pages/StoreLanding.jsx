@@ -18,6 +18,7 @@ import SignalDot from "../components/ui/SignalDot.jsx";
 import Section from "../components/marketing/Section.jsx";
 import StoreHeader from "../components/store/StoreHeader.jsx";
 import api from "../lib/api.js";
+import ProductTile from "../components/store/ProductTile.jsx";
 import { categoryLabel } from "../lib/categories.js";
 
 // Shopper-facing page on a store's subdomain. Same visual language as
@@ -31,7 +32,7 @@ const FAQS = [
   },
   {
     q: "Do I need an account?",
-    a: "Only to save your sizes and alerts, so we know where to reach you.",
+    a: "No to browse what's in stock. Only to save your sizes and alerts, so we know where to reach you.",
   },
   {
     q: "How fast will I hear about a restock?",
@@ -97,32 +98,8 @@ function NotificationCard({ item, storeName }) {
   );
 }
 
-function InventoryTile({ item, className = "" }) {
-  return (
-    <Link
-      to="/store/signup"
-      className={`group block overflow-hidden rounded-xl border border-border bg-linear-to-b from-card to-card-end hover:border-text/20 transition-colors ${className}`}
-    >
-      <div className="relative h-32 sm:h-40 bg-white">
-        <img
-          src={item.image_url}
-          alt={item.product_name}
-          loading="lazy"
-          className="h-full w-full object-contain p-3 transition-transform duration-300 group-hover:scale-[1.03]"
-        />
-        {item.size && (
-          <span className="absolute top-2 right-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white">
-            {item.size}
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        <p className="text-xs font-medium truncate">{item.product_name}</p>
-        <p className="text-sm font-semibold mt-1">{formatPrice(item.price)}</p>
-      </div>
-    </Link>
-  );
-}
+// Each product links to its own public page (components/store/ProductTile.jsx)
+const InventoryTile = ProductTile;
 
 export default function StoreLanding() {
   const [store, setStore] = useState(null);
@@ -212,7 +189,7 @@ export default function StoreLanding() {
                   Create your alerts
                 </Button>
               </Link>
-              <Link to="/store/dashboard?tab=browse">
+              <Link to="/browse">
                 <Button variant="secondary" size="lg">
                   Browse inventory
                 </Button>
@@ -332,7 +309,7 @@ export default function StoreLanding() {
             )}
             <div className="mt-8 text-center">
               <Link
-                to="/store/dashboard?tab=browse"
+                to="/browse"
                 className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text"
               >
                 Browse everything <LuArrowRight size={14} />
