@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { LuX, LuTrash2, LuShoppingBag } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
@@ -8,10 +8,12 @@ import { useCart, removeFromCart, clearCart } from "../../lib/cart.js";
 // Slide-over cart. Checkout asks the server for one Shopify cart link
 // with every item (each tagged, so each sale counts); if something sold
 // out meanwhile, it's removed here and the shopper checks again.
-export default function CartDrawer({ open, onClose, storeName }) {
+// autoCheckout: start checkout as soon as it opens (back from sign-up)
+export default function CartDrawer({ open, onClose, storeName, autoCheckout = false }) {
   const items = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
   const [notice, setNotice] = useState("");
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -24,10 +26,6 @@ export default function CartDrawer({ open, onClose, storeName }) {
   useEffect(() => {
     if (open) setNotice("");
   }, [open]);
-
-  if (!open) return null;
-
-  const total = items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0);
 
   const handleCheckout = async () => {
     setCheckingOut(true);
@@ -55,6 +53,21 @@ export default function CartDrawer({ open, onClose, storeName }) {
     }
     setCheckingOut(false);
   };
+
+  // Signed up from the cart: go straight on to the store's checkout. (If
+  // the verification link opened in another browser, the cart is empty
+  // here and just shows as empty.)
+  const startAutoCheckout = useEffectEvent(() => {
+    autoStarted.current = true;
+    handleCheckout();
+  });
+  useEffect(() => {
+    if (open && autoCheckout && !autoStarted.current && items.length > 0) startAutoCheckout();
+  }, [open, autoCheckout, items.length]);
+
+  if (!open) return null;
+
+  const total = items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0);
 
   return (
     <div className="fixed inset-0 z-[60] flex justify-end">

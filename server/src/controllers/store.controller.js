@@ -759,6 +759,8 @@ const getStore = async (req, res) => {
       // "Sell your items" (beta) — the navbar button and the payout choices
       sell_enabled: !!req.store.sell_enabled,
       credit_bonus: req.store.credit_bonus ?? 0,
+      // false: the merchant keeps the site out of search engines
+      search_indexing: req.store.search_indexing !== false,
     },
   });
 };

@@ -1,22 +1,32 @@
 import { useEffect, useState } from "react";
-import api from "./api.js";
+import { fetchMe, isLoggedOut } from "./fetchMe.js";
 
 // Whether a shopper is signed in on this store's site: null while
-// checking, then true or false. Asked once per page load and shared.
+// checking, then true or false. Asked again each time a page mounts (so
+// logging in or out is picked up), starting from the last answer so the
+// header doesn't flicker. Checks running at the same time share one
+// request.
+let lastKnown = null;
 let request = null;
 
 const checkSignedIn = () => {
   if (!request) {
-    request = api
-      .get("/auth/me")
+    request = fetchMe()
       .then(() => true)
-      .catch(() => false);
+      // Logged out only on a 401; if the server just couldn't answer,
+      // keep the last answer
+      .catch((err) => (isLoggedOut(err) ? false : (lastKnown ?? false)))
+      .then((value) => {
+        lastKnown = value;
+        request = null;
+        return value;
+      });
   }
   return request;
 };
 
 export function useSignedIn() {
-  const [signedIn, setSignedIn] = useState(null);
+  const [signedIn, setSignedIn] = useState(lastKnown);
   useEffect(() => {
     let active = true;
     checkSignedIn().then((value) => active && setSignedIn(value));

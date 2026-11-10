@@ -68,12 +68,16 @@ export const removeFromCart = (ids) => {
 
 export const clearCart = () => write([]);
 
-// Checking out needs an account: signed-out shoppers sign up first, then
-// land on their dashboard with the cart open (the cart stays in this
-// browser through sign-up)
-const CART_PAGE = "/store/dashboard?cart=open";
-export const checkoutPath = (signedIn) =>
-  signedIn ? CART_PAGE : `/store/signup?redirect=${encodeURIComponent(CART_PAGE)}`;
+// Checking out needs an account. Signed-out shoppers sign up first; the
+// cart stays in this browser through sign-up, and they come back to
+// ?cart=checkout, which goes straight on to the store's own checkout
+// (DashboardNavbar → CartDrawer). review: open the cart instead (the
+// header's cart button, for signed-in shoppers).
+const CHECKOUT_PAGE = "/store/dashboard?cart=checkout";
+export const checkoutPath = (signedIn, { review = false } = {}) => {
+  if (!signedIn) return `/store/signup?redirect=${encodeURIComponent(CHECKOUT_PAGE)}`;
+  return review ? "/store/dashboard?cart=open" : CHECKOUT_PAGE;
+};
 
 export function useCart() {
   return useSyncExternalStore(subscribe, () => snapshot);

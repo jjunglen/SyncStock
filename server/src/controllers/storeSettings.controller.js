@@ -45,6 +45,7 @@ const settingsFor = (store) => ({
   brand_color: store.brand_color || null,
   logo_url: logoUrl(store),
   weekly_report: store.weekly_report,
+  search_indexing: store.search_indexing,
   // Phone app store list — read-only until the app launches (the
   // settings switch shows "Coming soon")
   app_listed: store.app_listed,
@@ -76,7 +77,7 @@ const getSettings = (req, res) =>
 
 // PUT /api/store/settings (store admin)
 // { enabled_categories?, other_category_name? (text, "" = "Other"),
-//   brand_color? (hex or null), weekly_report?,
+//   brand_color? (hex or null), weekly_report?, search_indexing?,
 //   instagram_stories?, story_frequency? ("daily" | "batch"),
 //   story_background?, story_box_color?, story_text_color? (hex),
 //   story_font? (a STORY_FONTS key), story_show_name? }
@@ -115,6 +116,9 @@ const updateSettings = async (req, res) => {
     }
 
     if (weekly_report !== undefined) changes.weekly_report = !!weekly_report;
+
+    // Shopper site in Google and other search engines
+    if (req.body.search_indexing !== undefined) changes.search_indexing = !!req.body.search_indexing;
 
     // Listed on syncstock.io/stores (and later the phone app)
     if (req.body.app_listed !== undefined) changes.app_listed = !!req.body.app_listed;

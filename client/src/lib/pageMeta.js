@@ -1,3 +1,6 @@
+import { getSubdomain } from "./getSubdomain.js";
+import { getStoreInfo } from "./storeInfo.js";
+
 // Sets a page's title, description, canonical address and whether search
 // engines may index it (components/Seo.jsx, and store product pages
 // once their product loads)
@@ -40,5 +43,16 @@ export const applyPageMeta = ({ title, description, canonical, index }) => {
   if (canonical) setMeta("property", "og:url", canonical);
   setMeta("name", "robots", index ? "index, follow" : "noindex, follow");
   setCanonical(canonical);
+  // A store that turned search engines off (Store settings): its pages
+  // are never indexed
+  if (index && getSubdomain()) {
+    getStoreInfo()
+      .then((info) => {
+        if (info?.search_indexing === false && document.title === title) {
+          setMeta("name", "robots", "noindex, follow");
+        }
+      })
+      .catch(() => {});
+  }
 };
 

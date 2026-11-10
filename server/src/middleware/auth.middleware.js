@@ -21,7 +21,10 @@ const authenticateAccount = async (req, res, next) => {
         next();
 
     } catch (error) {
-        return res.status(401).json({ success: false, message: "Authentication failed" });
+        // A server problem (usually the database), not a bad login: 503,
+        // so the site doesn't treat the shopper as logged out
+        console.error("Auth check error:", error.message);
+        return res.status(503).json({ success: false, message: "Couldn't check your login. Try again in a moment." });
 
     }
 }

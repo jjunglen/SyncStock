@@ -32,6 +32,10 @@ router.get("/robots.txt", async (req, res) => {
     res.set("Cache-Control", "public, max-age=3600");
     // Not a live store: keep search engines out
     if (!store) return res.send("User-agent: *\nDisallow: /\n");
+    // The merchant turned search off: crawlers may still visit, so they
+    // see each page's noindex and drop pages already listed, but there's
+    // no sitemap to find more
+    if (store.search_indexing === false) return res.send("User-agent: *\nAllow: /\n");
     const site = `https://${store.subdomain}.syncstock.io`;
     return res.send(
       [
@@ -56,7 +60,7 @@ router.get("/robots.txt", async (req, res) => {
 router.get("/sitemap.xml", async (req, res) => {
   try {
     const store = await findStore(req.query.store);
-    if (!store) return res.status(404).type("text/plain").send("Store not found");
+    if (!store || store.search_indexing === false) return res.status(404).type("text/plain").send("Store not found");
     const site = `https://${store.subdomain}.syncstock.io`;
 
     const products = await Inventory.findAll({

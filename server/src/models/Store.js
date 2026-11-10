@@ -190,6 +190,14 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    // Search engines may show the shopper site (Browse, product pages).
+    // Off: no sitemap and every page says noindex (seo.routes.js,
+    // client lib/pageMeta.js; migrateSearchIndexing.js)
+    search_indexing: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     // Monday "most wanted sizes" email to the store's admins
     weekly_report: {
       type: DataTypes.BOOLEAN,

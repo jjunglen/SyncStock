@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter, LuSearch } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -703,6 +703,35 @@ export default function StoreSettings() {
                   }
                 />
               </div>
+            </Section>
+
+            {/* stores.search_indexing: the sitemap, robots.txt and each
+                page's robots tag follow it (server seo.routes.js) */}
+            <Section
+              icon={LuSearch}
+              title="Search engines"
+              description="Let Google and other search engines show your shopper site: your Browse page and a page for every item in stock, so shoppers searching for a pair can find you. Checkout still needs a SyncStock account."
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm">Show my site in search results</span>
+                <Switch
+                  label="Show my site in search results"
+                  checked={settings.search_indexing !== false}
+                  disabled={busy === "search"}
+                  onChange={(value) =>
+                    run(
+                      "search",
+                      () => api.put("/store/settings", { search_indexing: value }),
+                      value ? "Search engines can show your site" : "Hidden from search engines",
+                    )
+                  }
+                />
+              </div>
+              {settings.search_indexing === false && (
+                <p className="text-xs text-text-muted mt-3">
+                  Pages already in search results drop out over the next few weeks as search engines revisit them.
+                </p>
+              )}
             </Section>
           </>
         )}

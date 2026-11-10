@@ -39,8 +39,20 @@ export default function DashboardNavbar() {
   const store = useStoreInfo();
   const storeName = store?.name || "";
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  // ?cart=open: back from sign-up to finish checking out
-  const [cartOpen, setCartOpen] = useState(() => new URLSearchParams(window.location.search).get("cart") === "open");
+  // ?cart=open opens the cart; ?cart=checkout (back from sign-up, or
+  // "Check out" on a product) also starts checkout on the store's site
+  const [cartParam] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get("cart");
+    if (value) {
+      // Once only — not again on refresh or coming back from Shopify
+      params.delete("cart");
+      const rest = params.toString();
+      window.history.replaceState(window.history.state, "", window.location.pathname + (rest ? `?${rest}` : "") + window.location.hash);
+    }
+    return value;
+  });
+  const [cartOpen, setCartOpen] = useState(cartParam === "open" || cartParam === "checkout");
   const cartItems = useCart();
   const { theme, toggleTheme } = useTheme();
 
@@ -160,7 +172,7 @@ export default function DashboardNavbar() {
         </div>
       </header>
 
-      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} storeName={storeName} />
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} storeName={storeName} autoCheckout={cartParam === "checkout"} />
 
       <div className="lg:hidden">
         <FloatingMenu items={mobileMenuItems} position="bottom-right" />
