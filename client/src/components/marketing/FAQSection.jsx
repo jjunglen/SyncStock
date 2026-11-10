@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "Does it work for more than sneakers?",
-    a: "Yes. Products are sorted into sneakers and clothing & accessories from your Shopify product types, and shoppers only see the categories you actually carry. Trading cards are coming soon.",
+    a: "Yes. Products sort into sneakers, clothing & accessories and trading cards from your Shopify product types, and shoppers only see the categories you carry. Cards follow collectors' standards: raw condition, grading company and grade, or factory sealed.",
   },
   {
     q: "How do I know it's working?",

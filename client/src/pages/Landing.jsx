@@ -2,6 +2,7 @@ import MarketingHeader from "../components/marketing/MarketingHeader.jsx";
 import HeroSection from "../components/marketing/HeroSection.jsx";
 import ChannelsSection from "../components/marketing/ChannelsSection.jsx";
 import ShopperPreviewSection from "../components/marketing/ShopperPreviewSection.jsx";
+import BuiltForSection from "../components/marketing/BuiltForSection.jsx";
 import FeaturesSection from "../components/marketing/FeaturesSection.jsx";
 import StatsSection from "../components/marketing/StatsSection.jsx";
 import PricingSection from "../components/marketing/PricingSection.jsx";
@@ -23,6 +24,7 @@ export default function Landing() {
         <HeroSection />
         <ChannelsSection />
         <ShopperPreviewSection />
+        <BuiltForSection />
         <FeaturesSection />
         <StatsSection />
         <PricingSection />

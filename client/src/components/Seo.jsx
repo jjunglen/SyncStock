@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { getSubdomain } from "../lib/getSubdomain.js";
 import { getStoreInfo } from "../lib/storeInfo.js";
+import { USE_CASES } from "../lib/useCases.js";
 
 // Search and link-preview info for each page: title, description,
 // canonical address and whether search engines may index it. The
@@ -24,6 +25,11 @@ const MARKETING = {
   "/privacy": { title: "Privacy Policy — SyncStock", description: "How SyncStock collects, uses and protects store and shopper data." },
   "/terms": { title: "Terms of Service — SyncStock", description: "The terms for using SyncStock as a store or a shopper." },
   "/cookies": { title: "Cookie Policy — SyncStock", description: "The cookies SyncStock uses and why." },
+  "/stores": {
+    title: "Joined Stores — Shop Restock Alerts on SyncStock",
+    description: "Sneaker, streetwear and trading card stores on SyncStock. Pick a store, save your sizes, and get an alert the moment what you want is back.",
+  },
+  ...Object.fromEntries(USE_CASES.map((p) => [p.path, { title: p.title, description: p.description }])),
 };
 
 // App pages: a plain title, never indexed

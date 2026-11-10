@@ -211,6 +211,8 @@ app.use("/api/stockx", require("./src/routes/stockx.routes.js"));
 app.use("/api/sell", require("./src/routes/sell.routes.js"));
 // The SyncStock phone app
 app.use("/api/app", require("./src/routes/app.routes.js"));
+// The Joined stores page on syncstock.io (public)
+app.use("/api/directory", require("./src/routes/directory.routes.js"));
 // Links in the daily Instagram stories email
 app.use("/api/stories", require("./src/routes/stories.routes.js"));
 

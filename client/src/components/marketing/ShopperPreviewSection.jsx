@@ -115,12 +115,12 @@ export default function ShopperPreviewSection() {
           </div>
         </div>
 
-        <div className="mt-10 sm:mt-14 grid gap-6 sm:grid-cols-3">
+        <div className="mt-10 sm:mt-14 grid gap-8 sm:grid-cols-3 text-center">
           {POINTS.map(({ icon: Icon, title, text }) => (
-            <div key={title}>
+            <div key={title} className="flex flex-col items-center">
               <Icon size={20} className="text-text" aria-hidden="true" />
               <h3 className="mt-3 text-base font-semibold">{title}</h3>
-              <p className="mt-1 text-sm text-text-muted">{text}</p>
+              <p className="mt-1 max-w-xs text-sm text-text-muted">{text}</p>
             </div>
           ))}
         </div>

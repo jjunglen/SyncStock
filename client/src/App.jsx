@@ -39,6 +39,8 @@ const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
 const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
 const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
+const StoresPage = lazy(() => import("./pages/StoresPage.jsx"));
+const UseCasePage = lazy(() => import("./pages/UseCasePage.jsx"));
 // Dev only: App Store screenshot compositions (never in the live build)
 const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
 
@@ -75,6 +77,9 @@ function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/cookies" element={<Cookies />} />
+      {/* Joined stores, and the "Built for" pages (lib/useCases.js) */}
+      <Route path="/stores" element={<StoresPage />} />
+      <Route path="/for/:kind" element={<UseCasePage />} />
       <Route path="/login" element={
         <div className="min-h-screen bg-bg">
           <MarketingHeader />

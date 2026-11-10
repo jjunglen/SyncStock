@@ -683,25 +683,22 @@ export default function StoreSettings() {
               </div>
             </Section>
 
-            {/* The phone app's store list — switched off until the app
-                launches */}
+            {/* Joined stores (syncstock.io/stores), and later the phone
+                app's store list — the same opt-in (stores.app_listed) */}
             <Section
               icon={LuSmartphone}
-              title="SyncStock app"
-              description="Let shoppers find your store in the SyncStock app for iPhone and Android, with alerts sent straight to their phone."
+              title="Joined stores"
+              description="List your store on syncstock.io/stores so new shoppers can find it and open your shopper site. Only your store's name, logo and categories are shown."
             >
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-text-muted">List my store in the SyncStock app</span>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
-                    Coming soon
-                  </span>
-                </div>
+                <span className="text-sm">List my store</span>
                 <Switch
-                  label="List my store in the SyncStock app"
-                  checked={false}
-                  disabled
-                  onChange={() => {}}
+                  label="List my store on Joined stores"
+                  checked={!!settings.app_listed}
+                  disabled={busy === "listed"}
+                  onChange={(value) =>
+                    run("listed", () => api.put("/store/settings", { app_listed: value }), value ? "Your store is listed" : "Your store is hidden")
+                  }
                 />
               </div>
             </Section>

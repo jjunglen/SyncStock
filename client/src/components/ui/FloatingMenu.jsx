@@ -99,10 +99,17 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           >
             {items.map((item, idx) => {
               const Icon = item.icon;
+              // An item with an href is a real link (crawlable); onClick still
+              // handles it in the app without a page reload
+              const Tag = item.href ? motion.a : motion.button;
               return (
-                <motion.button
+                <Tag
                   key={item.label}
-                  onClick={() => handleItemClick(item)}
+                  {...(item.href ? { href: item.href } : { type: "button" })}
+                  onClick={(e) => {
+                    if (item.href && item.onClick) e.preventDefault();
+                    handleItemClick(item);
+                  }}
                   className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-text/5 transition-colors ${
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
@@ -111,7 +118,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                 >
                   {Icon && <Icon size={16} />}
                   {item.label}
-                </motion.button>
+                </Tag>
               );
             })}
           </div>
@@ -158,10 +165,17 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
           >
             {items.map((item, idx) => {
               const Icon = item.icon;
+              // An item with an href is a real link (crawlable); onClick still
+              // handles it in the app without a page reload
+              const Tag = item.href ? motion.a : motion.button;
               return (
-                <motion.button
+                <Tag
                   key={item.label}
-                  onClick={() => handleItemClick(item)}
+                  {...(item.href ? { href: item.href } : { type: "button" })}
+                  onClick={(e) => {
+                    if (item.href && item.onClick) e.preventDefault();
+                    handleItemClick(item);
+                  }}
                   className={`flex items-center gap-3 text-left text-sm px-3 py-2 rounded-lg hover:bg-text/5 transition-colors ${
                     item.active ? "text-text font-medium" : "text-text-muted"
                   }`}
@@ -170,7 +184,7 @@ export default function FloatingMenu({ items = [], position = "top-right" }) {
                 >
                   {Icon && <Icon size={16} />}
                   {item.label}
-                </motion.button>
+                </Tag>
               );
             })}
           </div>

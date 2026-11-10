@@ -6,20 +6,21 @@ import FloatingMenu from "../ui/FloatingMenu.jsx";
 const NAV_ITEMS = [
   { title: "How it works", href: "/#features" },
   { title: "Pricing", href: "/pricing" },
+  { title: "Joined stores", href: "/stores" },
 ];
 
 export default function MarketingHeader() {
   const navigate = useNavigate();
 
+  // Real links (href) so crawlers on phones see them too
   const mobileMenuItems = [
     ...NAV_ITEMS.map((item) => ({
       label: item.title,
-      onClick: () => {
-        window.location.href = item.href;
-      },
+      href: item.href,
+      onClick: () => (item.href.includes("#") ? (window.location.href = item.href) : navigate(item.href)),
     })),
-    { label: "Log in", onClick: () => navigate("/login") },
-    { label: "Install on Shopify", onClick: () => navigate("/onboarding") },
+    { label: "Log in", href: "/login", onClick: () => navigate("/login") },
+    { label: "Install on Shopify", href: "/onboarding", onClick: () => navigate("/onboarding") },
   ];
 
   return (

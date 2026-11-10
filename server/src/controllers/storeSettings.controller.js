@@ -116,6 +116,9 @@ const updateSettings = async (req, res) => {
 
     if (weekly_report !== undefined) changes.weekly_report = !!weekly_report;
 
+    // Listed on syncstock.io/stores (and later the phone app)
+    if (req.body.app_listed !== undefined) changes.app_listed = !!req.body.app_listed;
+
     // Turning stories on: the first email covers the last day's arrivals
     if (instagram_stories !== undefined) {
       changes.instagram_stories = !!instagram_stories;
