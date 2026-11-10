@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useNavigationType } from "react-router-dom";
 import { IN_SHOPIFY_ADMIN } from "./lib/shopifyAdmin.js";
 import Landing from "./pages/Landing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
@@ -46,7 +46,16 @@ const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppSt
 
 function App() {
   const subdomain = getSubdomain();
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
+
+  // A new page starts at the top (links like /#features scroll to their
+  // section instead); the back button keeps the browser's own position
+  const navType = useNavigationType();
+  useEffect(() => {
+    if (hash || navType === "POP") return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash, navType]);
+
   // The store's brand color on the shopper site — a store subdomain, or
   // locally the /store pages. Merchant pages keep Syncstock's colors.
   const branded =
