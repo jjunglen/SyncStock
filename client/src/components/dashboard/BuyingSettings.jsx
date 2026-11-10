@@ -56,7 +56,7 @@ export default function BuyingSettings({ settings, busy, run }) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         {field("buy_margin_new", "Brand new margin", "Offer = typical payout × (1 − margin)", 90)}
-        {field("buy_margin_used", "Pre-owned margin", "Used for worn, VNDS and tried-on pairs", 90)}
+        {field("buy_margin_used", "Pre-owned margin", "Used for worn, tried-on and pre-owned items", 90)}
         {field("credit_bonus", "Store credit bonus", "Extra for taking credit. 0 = cash only", 50)}
       </div>
 

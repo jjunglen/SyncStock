@@ -62,42 +62,54 @@ export const itemConditionLabel = (item) => {
   return RAW_CONDITIONS.find((o) => o.value === c)?.label || MORE_RAW[c] || null;
 };
 
-// A card alert's preferences in words: "Graded only · PSA 9 or better"
-export const cardPrefsLabel = (alert) => {
-  if (alert.attributes?.card_type === "sealed" || alert.attributes?.sealed) {
-    return alert.attributes?.sealed === "factory" ? "Factory Sealed only" : "Factory Sealed or Damaged";
+// ---- Card preferences ------------------------------------------------------
+// One shape for a shopper's saved card preferences (Profile → Your sizes)
+// and each card alert (server utils/cardDetails.js):
+//   { kinds: ["raw", "graded", "sealed"], min_condition: "LP" | null,
+//     grades: { PSA: "9", BGS: "BL", OTHER: null }, sealed: "factory" | null }
+// grades {} = any company, any grade; a company's null = any grade.
+export const CARD_KINDS = [
+  { value: "raw", label: "Raw" },
+  { value: "graded", label: "Graded" },
+  { value: "sealed", label: "Sealed" },
+];
+
+export const EMPTY_CARD_PREFS = { kinds: ["raw", "graded", "sealed"], min_condition: null, grades: {}, sealed: null };
+
+// Saved preferences, or null when the shopper hasn't set any
+export const savedCardPrefs = (account) => (account?.card_prefs?.kinds ? { ...EMPTY_CARD_PREFS, ...account.card_prefs } : null);
+
+// An alert's preferences (older alerts kept one company and grade)
+export const cardPrefsOf = (alert) => {
+  const a = alert.attributes || {};
+  const want = alert.graded_preference || "either";
+  const kinds = a.kinds || [...(want !== "graded" ? ["raw"] : []), ...(want !== "raw" ? ["graded"] : []), "sealed"];
+  const grades = a.grades || (alert.preferred_grading_company ? { [alert.preferred_grading_company]: alert.min_grade || null } : {});
+  return { kinds, min_condition: a.min_condition || null, grades, sealed: a.sealed || null };
+};
+
+const gradeText = (grade) => (!grade ? "" : grade === BLACK_LABEL ? " Black Label" : grade === "10" ? " 10" : ` ${grade}+`);
+
+// Preferences in words: "Raw LP+ · PSA 9+ · Beckett Black Label"
+export const cardPrefsSummary = (prefs, { sealedOnly = false } = {}) => {
+  if (sealedOnly) return prefs.sealed === "factory" ? "Factory Sealed only" : "Factory Sealed or Damaged";
+  const parts = [];
+  if (prefs.kinds.includes("raw")) {
+    const worst = RAW_CONDITIONS.find((o) => o.value === prefs.min_condition);
+    parts.push(!worst ? "Raw, any condition" : prefs.min_condition === "NM" ? "Raw NM only" : `Raw ${worst.value}+`);
   }
-  const kind = alert.graded_preference || "either";
-  const parts = [CARD_KIND_OPTIONS.find((o) => o.value === kind)?.label || "Raw or graded"];
-  const worst = alert.attributes?.min_condition;
-  if (worst && kind !== "graded") {
-    const label = RAW_CONDITIONS.find((o) => o.value === worst)?.label;
-    parts.push(worst === "NM" ? `${label} only` : `${label} or better`);
+  if (prefs.kinds.includes("graded")) {
+    const companies = Object.entries(prefs.grades || {});
+    if (!companies.length) parts.push("Graded, any company");
+    else for (const [c, g] of companies) parts.push(`${companyLabel(c)}${gradeText(g)}`);
   }
-  if (kind !== "raw" && alert.preferred_grading_company) {
-    const grade = alert.min_grade;
-    const g = !grade ? "" : grade === BLACK_LABEL ? " Black Label" : grade === "10" ? " 10" : ` ${grade} or better`;
-    parts.push(`${companyLabel(alert.preferred_grading_company)}${g}`);
-  }
+  if (prefs.kinds.includes("sealed") && parts.length === 0) parts.push(prefs.sealed === "factory" ? "Factory Sealed only" : "Sealed");
   return parts.join(" · ");
 };
 
-// A card alert's preferences, as CardPrefsPicker edits them
-export const EMPTY_CARD_PREFS = {
-  graded_preference: "either",
-  min_condition: null,
-  preferred_grading_company: null,
-  min_grade: null,
-  sealed: null,
-};
-
-export const cardPrefsOf = (alert) => ({
-  graded_preference: alert.graded_preference || "either",
-  min_condition: alert.attributes?.min_condition || null,
-  preferred_grading_company: alert.preferred_grading_company || null,
-  min_grade: alert.min_grade || null,
-  sealed: alert.attributes?.sealed || null,
-});
+// A card alert's preferences in words (Your alerts)
+export const cardPrefsLabel = (alert) =>
+  cardPrefsSummary(cardPrefsOf(alert), { sealedOnly: alert.attributes?.card_type === "sealed" });
 
 // Sealed product (boxes, packs) only — the sealed choice instead of raw/graded
 export const isSealedOnly = (kinds) =>

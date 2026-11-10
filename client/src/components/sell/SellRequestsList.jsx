@@ -65,7 +65,7 @@ function RequestCard({ request, onChange }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold">
-            {request.items.length} pair{request.items.length === 1 ? "" : "s"} · {kind}
+            {request.items.length} item{request.items.length === 1 ? "" : "s"} · {kind}
           </p>
           <p className="text-xs text-text-muted">Sent {when(request.submitted_at || request.created_at)}</p>
         </div>
@@ -131,28 +131,28 @@ function RequestCard({ request, onChange }) {
               <span className="font-semibold">
                 {money(total)} {kind}
               </span>
-              {picking && ` for ${chosen.size} pair${chosen.size === 1 ? "" : "s"}`}
+              {picking && ` for ${chosen.size} item${chosen.size === 1 ? "" : "s"}`}
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             {offered.length > 0 && (
               <Button variant="primary" size="sm" disabled={!!busy || (picking && chosen.size === 0)} onClick={() => respond(picking ? [...chosen] : offered.map((i) => i.id))}>
-                {busy === "accept" ? <Spinner size={14} /> : picking ? `Accept ${chosen.size} pair${chosen.size === 1 ? "" : "s"}` : "Accept all"}
+                {busy === "accept" ? <Spinner size={14} /> : picking ? `Accept ${chosen.size} item${chosen.size === 1 ? "" : "s"}` : "Accept all"}
               </Button>
             )}
             {offered.length > 1 && !picking && (
               <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => setPicking(true)}>
-                Choose pairs
+                Choose items
               </Button>
             )}
             <Button variant="secondary" size="sm" disabled={!!busy} onClick={() => respond([])}>
               {busy === "decline" ? <Spinner size={14} /> : "Decline"}
             </Button>
           </div>
-          <p className="mt-2 text-xs text-text-muted">Nothing is final until you drop the pairs off at the store.</p>
+          <p className="mt-2 text-xs text-text-muted">Nothing is final until you drop the items off at the store.</p>
         </div>
       )}
-      {request.status === "accepted" && <p className="mt-3 text-sm text-text-muted">Bring the accepted pairs to the store. You'll get paid when they check them in.</p>}
+      {request.status === "accepted" && <p className="mt-3 text-sm text-text-muted">Bring the accepted items to the store. You'll get paid when they check them in.</p>}
       {request.status === "submitted" && (
         <button type="button" onClick={cancel} disabled={!!busy} className="mt-3 text-xs text-text-muted underline hover:text-text">
           {busy === "cancel" ? "Cancelling..." : "Cancel this request"}

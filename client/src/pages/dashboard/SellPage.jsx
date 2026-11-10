@@ -20,7 +20,7 @@ const TABS = [
 ];
 
 const STEPS = [
-  { icon: LuSearch, title: "Add your pairs", text: "Find each item, tap every size you have." },
+  { icon: LuSearch, title: "Add your items", text: "Find each item, tap every size you have." },
   { icon: LuCamera, title: "Snap photos", text: "2 for brand new, 4 for pre-owned." },
   { icon: LuStore, title: "Get an offer", text: "The store reviews and sends one offer." },
 ];
@@ -98,7 +98,7 @@ export default function SellPage() {
             <p className="text-base font-medium flex items-center gap-2">
               Sell your items <BetaBadge />
             </p>
-            <p className="text-xs text-text-muted">Send the store your pairs and get an offer in cash or store credit</p>
+            <p className="text-xs text-text-muted">Send the store your items and get an offer in cash or store credit</p>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ export default function SellPage() {
                 <div className="mt-6">
                   <Button variant="primary" size="lg" fullWidth onClick={() => setAdding(true)}>
                     <span className="flex items-center justify-center gap-2">
-                      <LuPlus size={18} /> Add pairs
+                      <LuPlus size={18} /> Add items
                     </span>
                   </Button>
                 </div>
@@ -185,7 +185,7 @@ export default function SellPage() {
                   onClick={() => setAdding(true)}
                   className="mt-3 w-full rounded-2xl border border-dashed border-text/25 py-3 text-sm text-text-muted hover:text-text hover:border-text/50 flex items-center justify-center gap-2"
                 >
-                  <LuPlus size={16} /> Add more pairs
+                  <LuPlus size={16} /> Add more items
                 </button>
 
                 <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
@@ -210,11 +210,11 @@ export default function SellPage() {
                   {error && <p className="mt-3 text-sm text-danger">{error}</p>}
                   <div className="mt-4">
                     <Button variant="primary" size="lg" fullWidth disabled={busy === "send"} onClick={send}>
-                      {busy === "send" ? <Spinner size={18} /> : `Send ${pairs.length} pair${pairs.length === 1 ? "" : "s"} to the store`}
+                      {busy === "send" ? <Spinner size={18} /> : `Send ${pairs.length} item${pairs.length === 1 ? "" : "s"} to the store`}
                     </Button>
                   </div>
                   <p className="mt-2 text-center text-xs text-text-muted">
-                    The store reviews every pair and sends one offer. You can accept all or some. Photos are deleted once you drop the pairs off.
+                    The store reviews every item and sends one offer. You can accept all or some. Photos are deleted once you drop the items off.
                   </p>
                 </div>
               </>

@@ -5,6 +5,7 @@ import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
 import { CATEGORY_META, SIZES_BY_CATEGORY } from "../../lib/categories.js";
 import { categoryFromStockx } from "../../lib/stockxCategory.js";
+import { boxOptions, packagingWord } from "../../lib/sellLabels.js";
 
 // "Add pairs" in Sell your items: find the item (StockX search, or describe
 // it), tap every size you have, then set condition, box and price per
@@ -15,11 +16,6 @@ import { categoryFromStockx } from "../../lib/stockxCategory.js";
 const CONDITIONS = [
   { key: "new", label: "Brand new" },
   { key: "used", label: "Pre-owned" },
-];
-const BOXES = [
-  { key: "original", label: "Original box" },
-  { key: "damaged", label: "Damaged box" },
-  { key: "none", label: "No box" },
 ];
 
 function Segmented({ options, value, onChange, label }) {
@@ -135,7 +131,7 @@ export default function AddPairs({ onAdded, onCancel }) {
       const res = await api.post("/sell/items", { items });
       onAdded(res.data.data);
     } catch (err) {
-      setError(err.response?.data?.message || "Couldn't add those pairs. Try again.");
+      setError(err.response?.data?.message || "Couldn't add those items. Try again.");
     } finally {
       setSaving(false);
     }
@@ -146,7 +142,7 @@ export default function AddPairs({ onAdded, onCancel }) {
       <button type="button" onClick={onCancel} className="mb-4 flex items-center gap-1.5 text-sm text-text-muted hover:text-text">
         <LuArrowLeft size={16} /> Back to your batch
       </button>
-      <h2 className="text-lg font-semibold">Add pairs</h2>
+      <h2 className="text-lg font-semibold">Add items</h2>
       <p className="text-sm text-text-muted mb-5">Same item, one or more sizes. You'll add photos next.</p>
 
       {/* The item */}
@@ -273,7 +269,7 @@ export default function AddPairs({ onAdded, onCancel }) {
                         <LuMinus size={14} />
                       </button>
                       <span>
-                        {g.qty} {g.qty === 1 ? "pair" : "pairs"}
+                        {g.qty} {g.qty === 1 ? "item" : "items"}
                       </span>
                       <button type="button" aria-label={`One more size ${size}`} disabled={g.qty >= 5} onClick={() => setGroup(size, { qty: g.qty + 1 })} className="p-0.5 disabled:opacity-30">
                         <LuPlus size={14} />
@@ -281,13 +277,13 @@ export default function AddPairs({ onAdded, onCancel }) {
                     </div>
                   </div>
                   <Segmented label={`Condition, size ${size}`} options={CONDITIONS} value={g.condition} onChange={(v) => setGroup(size, { condition: v })} />
-                  <Segmented label={`Box, size ${size}`} options={BOXES} value={g.box} onChange={(v) => setGroup(size, { box: v })} />
+                  <Segmented label={`${packagingWord(category) === "box" ? "Box" : "Packaging"}, size ${size}`} options={boxOptions(category)} value={g.box} onChange={(v) => setGroup(size, { box: v })} />
                   <div className="grid gap-2 sm:grid-cols-[1fr_9rem]">
                     <input
                       value={g.notes}
                       onChange={(e) => setGroup(size, { notes: e.target.value })}
                       maxLength={500}
-                      placeholder="Notes (optional) — worn twice, small scuff"
+                      placeholder="Notes (optional) — used twice, small scuff"
                       aria-label={`Notes, size ${size}`}
                       className="rounded-xl border border-border bg-surface-muted px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-text/10"
                     />
@@ -301,7 +297,7 @@ export default function AddPairs({ onAdded, onCancel }) {
                     />
                   </div>
                   <p className="text-xs text-text-muted">
-                    {g.condition === "used" ? "Pre-owned needs 4 photos" : "Brand new needs 2 photos"} per pair — you'll add them next.
+                    {g.condition === "used" ? "Pre-owned needs 4 photos" : "Brand new needs 2 photos"} per item — you'll add them next.
                   </p>
                 </div>
               );
@@ -313,7 +309,7 @@ export default function AddPairs({ onAdded, onCancel }) {
       {error && <p className="mt-4 text-sm text-danger">{error}</p>}
       <div className="mt-5">
         <Button variant="primary" size="lg" fullWidth disabled={saving || !pairCount} onClick={add}>
-          {saving ? <Spinner size={18} /> : pairCount ? `Add ${pairCount} pair${pairCount === 1 ? "" : "s"} to batch` : "Pick a size to add pairs"}
+          {saving ? <Spinner size={18} /> : pairCount ? `Add ${pairCount} item${pairCount === 1 ? "" : "s"} to batch` : "Pick a size to add items"}
         </Button>
       </div>
     </div>

@@ -95,8 +95,10 @@ export default function CustomerDashboard() {
   const [loadingAlerts, setLoadingAlerts] = useState(true);
 
   useEffect(() => {
+    // Signed in: also counts what's in the shopper's sizes (In stock tab)
     api
-      .get("/inventory/categories")
+      .get("/inventory/categories/mine")
+      .catch(() => api.get("/inventory/categories"))
       .then((res) => {
         const list = res.data.data || [];
         setCategories(list);
@@ -335,7 +337,7 @@ export default function CustomerDashboard() {
         >
           {categoryLabel(c.key, c.name)}
           {vertical && (
-            <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{c.count}</span>
+            <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{tab === "instock" && c.in_your_sizes != null ? c.in_your_sizes : c.count}</span>
           )}
         </button>
       ))}

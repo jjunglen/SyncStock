@@ -4,7 +4,7 @@ import { LuSearch, LuCircleCheck, LuCircleX, LuFootprints } from "react-icons/lu
 import DashboardNavbar from "../../components/layout/DashboardNavbar.jsx";
 import Button from "../../components/ui/Button.jsx";
 import api from "../../lib/api.js";
-import { CONDITION_OPTIONS, EMPTY_CARD_PREFS, isSealedOnly } from "../../lib/alertOptions.js";
+import { CONDITION_OPTIONS, EMPTY_CARD_PREFS, isSealedOnly, savedCardPrefs } from "../../lib/alertOptions.js";
 import CardPrefsPicker from "../../components/dashboard/CardPrefsPicker.jsx";
 import PriceRangeSlider from "../../components/ui/PriceRangeSlider.jsx";
 import { PRICE_MIN, PRICE_MAX, pricesFromRange } from "../../lib/priceRange.js";
@@ -39,6 +39,9 @@ export default function TrackShoe() {
   const [condition, setCondition] = useState("either");
   // Trading cards: raw or graded, and how good (CardPrefsPicker)
   const [cardPrefs, setCardPrefs] = useState(EMPTY_CARD_PREFS);
+  // The shopper's saved card preferences (Profile → Your sizes); each
+  // card alert starts from them
+  const [myCardPrefs, setMyCardPrefs] = useState(null);
   const [emailNotif, setEmailNotif] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -72,7 +75,12 @@ export default function TrackShoe() {
   useEffect(() => {
     api
       .get("/auth/me")
-      .then((res) => setMySizes(res.data.data.sizes || []))
+      .then((res) => {
+        setMySizes(res.data.data.sizes || []);
+        const saved = savedCardPrefs(res.data.data);
+        setMyCardPrefs(saved);
+        if (saved) setCardPrefs(saved);
+      })
       .catch(() => {});
     api
       .get("/inventory/categories")
@@ -124,7 +132,7 @@ export default function TrackShoe() {
         sizes: isCard ? [] : sizes,
         ...pricesFromRange(priceRange),
         condition_preference: isCard ? "either" : condition,
-        ...(isCard && { ...cardPrefs, card_type: isSealedOnly(cardKinds) ? "sealed" : null }),
+        ...(isCard && { card_prefs: cardPrefs, card_type: isSealedOnly(cardKinds) ? "sealed" : null }),
         notify_email: emailNotif,
         // The phone app is coming soon; website notifications stay on
         notify_inapp: true,
@@ -146,7 +154,7 @@ export default function TrackShoe() {
       setSizes([]);
       setPriceRange([PRICE_MIN, PRICE_MAX]);
       setCondition("either");
-      setCardPrefs(EMPTY_CARD_PREFS);
+      setCardPrefs(myCardPrefs || EMPTY_CARD_PREFS);
       setResults([]);
       setStoreResults([]);
     } catch (err) {
@@ -168,7 +176,7 @@ export default function TrackShoe() {
         showFormOnPhones();
         setSuccess(false);
         setError("");
-        setCardPrefs(EMPTY_CARD_PREFS);
+        setCardPrefs(myCardPrefs || EMPTY_CARD_PREFS);
         if (shoe.store) {
           // The store's product: its own sizes, starting with the
           // shopper's saved sizes it comes in
@@ -433,7 +441,14 @@ export default function TrackShoe() {
                 <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
 
                 {isCard ? (
-                  <CardPrefsPicker value={cardPrefs} onChange={setCardPrefs} kinds={cardKinds} />
+                  <div>
+                    {myCardPrefs && (
+                      <p className="mb-3 rounded-lg bg-primary/10 px-3 py-2 text-xs text-text">
+                        Starting from your card preferences — change them here for this card only.
+                      </p>
+                    )}
+                    <CardPrefsPicker value={cardPrefs} onChange={setCardPrefs} kinds={cardKinds} />
+                  </div>
                 ) : (
                 <div>
                   <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Condition</p>

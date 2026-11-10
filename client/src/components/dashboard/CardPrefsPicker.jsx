@@ -1,5 +1,6 @@
 import {
   CARD_KIND_OPTIONS,
+  CARD_KINDS,
   RAW_CONDITIONS,
   SEALED_OPTIONS,
   GRADING_COMPANIES,
@@ -8,17 +9,17 @@ import {
   isSealedOnly,
 } from "../../lib/alertOptions.js";
 
-// A trading card alert's preferences (Track a new item and the alert's
-// edit form):
+// Trading card preferences (lib/alertOptions.js shape):
 //   sealed product — Factory Sealed only, or Damaged too
 //   raw cards — worst condition: NM, LP or MP
-//   graded cards — grading company, then its lowest grade (Black Label
-//   for Beckett)
-//   value — { graded_preference, min_condition, preferred_grading_company, min_grade, sealed }
+//   graded cards — the companies wanted, each with its own lowest grade
+//   (Black Label for Beckett)
+// mode "alert" (Track, alert edit): raw / graded / either for one card.
+// mode "profile" (Your sizes): what they collect, sealed included.
 //   kinds — what the store lists this card as (sealed, graded, NM…), if known
 
 const selectClass =
-  "w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10 disabled:opacity-50";
+  "w-full bg-surface-muted border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10";
 
 function Segmented({ label, options, value, onChange }) {
   return (
@@ -45,52 +46,92 @@ function Segmented({ label, options, value, onChange }) {
   );
 }
 
-export default function CardPrefsPicker({ value, onChange, kinds = null, compact = false }) {
+function Chip({ on, onClick, children }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+        on ? "bg-primary text-primary-text border-primary font-medium" : "border-border bg-surface hover:border-text/30"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// The alert's raw / graded / either choice, from and to `kinds`
+const kindChoice = (kinds) => {
+  const raw = kinds.includes("raw");
+  const graded = kinds.includes("graded");
+  return raw && !graded ? "raw" : graded && !raw ? "graded" : "either";
+};
+const kindsFor = (choice) => (choice === "raw" ? ["raw", "sealed"] : choice === "graded" ? ["graded", "sealed"] : ["raw", "graded", "sealed"]);
+
+export default function CardPrefsPicker({ value, onChange, kinds = null, mode = "alert", compact = false }) {
   const label = compact
     ? "text-xs text-text-muted block mb-1.5"
     : "text-xs font-medium text-text-muted uppercase tracking-wider mb-2 block";
+  const set = (changes) => onChange({ ...value, ...changes });
 
-  if (isSealedOnly(kinds)) {
-    return (
-      <div>
-        <span className={label}>Condition</span>
-        <Segmented
-          label="Sealed condition"
-          options={SEALED_OPTIONS}
-          value={value.sealed || ""}
-          onChange={(v) => onChange({ ...value, sealed: v || null })}
-        />
-      </div>
-    );
-  }
+  const sealedPicker = (
+    <div>
+      <span className={label}>{mode === "profile" ? "Sealed product" : "Condition"}</span>
+      <Segmented
+        label="Sealed condition"
+        options={SEALED_OPTIONS}
+        value={value.sealed || ""}
+        onChange={(v) => set({ sealed: v || null })}
+      />
+    </div>
+  );
+  if (mode === "alert" && isSealedOnly(kinds)) return sealedPicker;
 
-  const kind = value.graded_preference || "either";
-  const company = value.preferred_grading_company || "";
-
-  const setCompany = (next) => {
-    // A grade only stays if the new company has it (Black Label is Beckett's)
-    const keep = value.min_grade && gradesFor(next).some((g) => g.value === value.min_grade);
-    onChange({ ...value, preferred_grading_company: next || null, min_grade: next && keep ? value.min_grade : null });
+  const grades = value.grades || {};
+  const companies = Object.keys(grades);
+  const toggleCompany = (company) => {
+    const next = { ...grades };
+    if (company in next) delete next[company];
+    else next[company] = null;
+    set({ grades: next });
+  };
+  const toggleKind = (kind) => {
+    const next = value.kinds.includes(kind) ? value.kinds.filter((k) => k !== kind) : [...value.kinds, kind];
+    if (next.length) set({ kinds: next });
   };
 
   return (
     <div className="space-y-4">
-      <div>
-        <span className={label}>Card condition</span>
-        <Segmented
-          label="Raw or graded"
-          options={CARD_KIND_OPTIONS}
-          value={kind}
-          onChange={(v) => onChange({ ...value, graded_preference: v })}
-        />
-      </div>
+      {mode === "profile" ? (
+        <div>
+          <span className={label}>I collect</span>
+          <div className="flex flex-wrap gap-2">
+            {CARD_KINDS.map((k) => (
+              <Chip key={k.value} on={value.kinds.includes(k.value)} onClick={() => toggleKind(k.value)}>
+                {k.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <span className={label}>Card condition</span>
+          <Segmented
+            label="Raw or graded"
+            options={CARD_KIND_OPTIONS}
+            value={kindChoice(value.kinds)}
+            onChange={(v) => set({ kinds: kindsFor(v) })}
+          />
+        </div>
+      )}
 
-      {kind !== "graded" && (
+      {value.kinds.includes("raw") && (
         <label className="block">
-          <span className={label}>Raw condition</span>
+          <span className={label}>Raw — worst condition</span>
           <select
             value={value.min_condition || ""}
-            onChange={(e) => onChange({ ...value, min_condition: e.target.value || null })}
+            onChange={(e) => set({ min_condition: e.target.value || null })}
             className={selectClass}
           >
             <option value="">Any condition</option>
@@ -103,38 +144,50 @@ export default function CardPrefsPicker({ value, onChange, kinds = null, compact
         </label>
       )}
 
-      {kind !== "raw" && (
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className={label}>Grading company</span>
-            <select value={company} onChange={(e) => setCompany(e.target.value)} className={selectClass}>
-              <option value="">Any company</option>
-              {GRADING_COMPANIES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
+      {value.kinds.includes("graded") && (
+        <div>
+          <span className={label}>Graded — companies</span>
+          <div className="flex flex-wrap gap-2">
+            {GRADING_COMPANIES.map((c) => (
+              <Chip key={c.value} on={c.value in grades} onClick={() => toggleCompany(c.value)}>
+                {c.label}
+              </Chip>
+            ))}
+          </div>
+          {companies.length === 0 ? (
+            <p className="mt-2 text-xs text-text-muted">Any company, any grade. Pick companies to set a lowest grade for each.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {GRADING_COMPANIES.filter((c) => c.value in grades).map((c) => (
+                <label key={c.value} className="flex items-center gap-3">
+                  <span className="w-16 shrink-0 text-sm">{c.label}</span>
+                  <select
+                    value={grades[c.value] || ""}
+                    onChange={(e) => set({ grades: { ...grades, [c.value]: e.target.value || null } })}
+                    className={selectClass}
+                    aria-label={`Lowest ${c.label} grade`}
+                  >
+                    <option value="">Any grade</option>
+                    {gradesFor(c.value).map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.value === BLACK_LABEL
+                          ? "Black Label only"
+                          : g.value === "10"
+                            ? c.value === "BGS"
+                              ? "10 or Black Label"
+                              : "10 only"
+                            : `${g.label} or better`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className={label}>Grade</span>
-            <select
-              value={value.min_grade || ""}
-              onChange={(e) => onChange({ ...value, min_grade: e.target.value || null })}
-              disabled={!company}
-              className={selectClass}
-            >
-              <option value="">{company ? "Any grade" : "Pick a company first"}</option>
-              {company &&
-                gradesFor(company).map((g) => (
-                  <option key={g.value} value={g.value}>
-                    {g.value === BLACK_LABEL ? "Black Label" : g.value === "10" ? (company === "BGS" ? "10 or Black Label" : "10 only") : `${g.label} or better`}
-                  </option>
-                ))}
-            </select>
-          </label>
+            </div>
+          )}
         </div>
       )}
+
+      {mode === "profile" && value.kinds.includes("sealed") && sealedPicker}
     </div>
   );
 }

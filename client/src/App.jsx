@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { IN_SHOPIFY_ADMIN } from "./lib/shopifyAdmin.js";
 import ChannelHome from "./pages/shopify/ChannelHome.jsx";
@@ -34,6 +34,8 @@ import Privacy from "./pages/legal/Privacy.jsx";
 import Terms from "./pages/legal/Terms.jsx";
 import Cookies from "./pages/legal/Cookies.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
+// Dev only: App Store screenshot compositions (never in the live build)
+const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
 import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
 
 function App() {
@@ -106,6 +108,7 @@ function App() {
       <Route path="/store/signup" element={<StoreAuthLayout><CustomerAuthForm initialMode="signup" /></StoreAuthLayout>} />
       {/* Any other address: the app's start page instead of a blank screen
           (Shopify can open admin paths the app doesn't have) */}
+      {AppStoreShots && <Route path="/dev/app-store" element={<Suspense fallback={null}><AppStoreShots /></Suspense>} />}
       <Route path="*" element={<Navigate to={IN_SHOPIFY_ADMIN ? "/channel" : "/"} replace />} />
     </Routes>
   );

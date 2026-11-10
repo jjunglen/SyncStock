@@ -5,6 +5,7 @@ import Spinner from "../ui/Spinner.jsx";
 import AuthPhoto from "../sell/AuthPhoto.jsx";
 import { Confidence } from "./PriceGuide.jsx";
 import api from "../../lib/api.js";
+import { boxLabel } from "../../lib/sellLabels.js";
 
 // Buy requests (merchant): batches shoppers sent. Open ones get an offer
 // per pair (pre-filled with the price guide's suggestion), accepted ones
@@ -25,7 +26,6 @@ const STATUS = {
   cancelled: ["Cancelled by shopper", "bg-text/5 text-text-muted"],
 };
 const CONDITION = { new: "brand new", used: "pre-owned" };
-const BOX = { original: "original box", damaged: "damaged box", none: "no box" };
 const money = (n) => (n === null || n === undefined || n === "" || Number.isNaN(Number(n)) ? "—" : `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
 const when = (d) => (d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 const withBonus = (n, r) => (r.payout_method === "credit" ? n * (1 + r.credit_bonus / 100) : n);
@@ -141,7 +141,7 @@ function RequestCard({ request, onChange }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-snug">{item.product_name}</p>
                   <p className="text-xs text-text-muted">
-                    {[item.style_code || "No SKU", `size ${item.size}`, CONDITION[item.condition], BOX[item.box]].join(" · ")}
+                    {[item.style_code || "No SKU", `size ${item.size}`, CONDITION[item.condition], boxLabel(item.box, item.category)?.toLowerCase()].join(" · ")}
                     {item.notes && ` · “${item.notes}”`}
                   </p>
                 </div>
@@ -343,7 +343,7 @@ export default function BuyRequestsList() {
         <div className="rounded-2xl border border-border bg-surface p-8 text-center">
           <LuInbox size={24} className="mx-auto mb-2 text-text-muted" aria-hidden="true" />
           <p className="text-sm text-text-muted">
-            {view === "open" ? "No requests waiting. Turn on Sell your items in Store settings so shoppers can send pairs." : "Nothing here yet."}
+            {view === "open" ? "No requests waiting. Turn on Sell your items in Store settings so shoppers can send items." : "Nothing here yet."}
           </p>
         </div>
       )}

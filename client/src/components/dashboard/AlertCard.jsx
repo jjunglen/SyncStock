@@ -39,7 +39,7 @@ export default function AlertCard({ alert, onDelete, onUpdated }) {
   };
 
   const handleSave = async () => {
-    const ok = await save({ ...pricesFromRange(priceRange), ...(isCard ? cardPrefs : { condition_preference: condition }) });
+    const ok = await save({ ...pricesFromRange(priceRange), ...(isCard ? { card_prefs: cardPrefs } : { condition_preference: condition }) });
     if (ok) setEditing(false);
   };
 

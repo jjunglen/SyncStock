@@ -4,19 +4,15 @@ import Spinner from "../ui/Spinner.jsx";
 import AuthPhoto from "./AuthPhoto.jsx";
 import api from "../../lib/api.js";
 import { resizePhoto } from "../../lib/photoResize.js";
+import { boxLabel, photoShots } from "../../lib/sellLabels.js";
 
 // One pair in the shopper's batch: details, the photo checklist and the
 // photo tiles. Tapping a tile opens the phone's camera (or photo library);
 // several photos can be picked at once. Each is shrunk before uploading.
 //   pair — from the API; onChange() reloads the batch
 
-const SHOTS = {
-  new: ["Pair, side view", "Box label"],
-  used: ["Left side", "Right side", "Soles", "Insole or tag", "Box label", "Extra"],
-};
 const MAX_PHOTOS = 6;
 const CONDITION = { new: "Brand new", used: "Pre-owned" };
-const BOX = { original: "Original box", damaged: "Damaged box", none: "No box" };
 
 export default function BatchPairCard({ pair, onChange }) {
   const input = useRef(null);
@@ -26,7 +22,8 @@ export default function BatchPairCard({ pair, onChange }) {
   const have = pair.photos.length;
   const need = pair.min_photos;
   const done = have >= need;
-  const shots = SHOTS[pair.condition];
+  // Shoes: sides, soles, box label; clothing: front, back, tag (sellLabels.js)
+  const shots = photoShots(pair.condition, pair.category);
 
   const addPhotos = async (e) => {
     const files = [...(e.target.files || [])].slice(0, MAX_PHOTOS - have);
@@ -71,7 +68,7 @@ export default function BatchPairCard({ pair, onChange }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-snug">{pair.product_name}</p>
           <p className="text-xs text-text-muted">
-            {[pair.style_code, `Size ${pair.size}`, BOX[pair.box], pair.asking_price ? `Asking $${pair.asking_price}` : null].filter(Boolean).join(" · ")}
+            {[pair.style_code, `Size ${pair.size}`, boxLabel(pair.box, pair.category), pair.asking_price ? `Asking $${pair.asking_price}` : null].filter(Boolean).join(" · ")}
           </p>
           {pair.notes && <p className="text-xs text-text-muted mt-0.5">“{pair.notes}”</p>}
         </div>

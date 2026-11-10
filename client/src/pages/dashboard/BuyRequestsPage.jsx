@@ -30,7 +30,7 @@ export default function BuyRequestsPage() {
               Buy requests
               <BetaBadge />
             </h1>
-            <p className="text-text-muted text-sm">Pairs shoppers want to sell you, priced from your own sales.</p>
+            <p className="text-text-muted text-sm">Items shoppers want to sell you, priced from your own sales.</p>
           </div>
         </div>
 

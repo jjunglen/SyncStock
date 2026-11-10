@@ -7,6 +7,8 @@ import SizeSelector from "../onboarding/SizeSelector.jsx";
 import api from "../../lib/api.js";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 import LogoutEverywhere from "../../components/auth/LogoutEverywhere.jsx";
+import CardPrefsPicker from "../../components/dashboard/CardPrefsPicker.jsx";
+import { EMPTY_CARD_PREFS, savedCardPrefs } from "../../lib/alertOptions.js";
 
 function Toggle({ checked, onChange, label, description }) {
   return (
@@ -34,6 +36,9 @@ export default function CustomerProfile() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [sizes, setSizes] = useState([]);
+  // Trading card preferences — shown when the store sells cards
+  const [cardPrefs, setCardPrefs] = useState(EMPTY_CARD_PREFS);
+  const [sellsCards, setSellsCards] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifyInapp, setNotifyInapp] = useState(true);
   const [notifySizeAlerts, setNotifySizeAlerts] = useState(false);
@@ -61,6 +66,7 @@ export default function CustomerProfile() {
         setFullName(data.full_name || "");
         setEmail(data.email || "");
         setSizes(data.sizes || []);
+        setCardPrefs(savedCardPrefs(data) || EMPTY_CARD_PREFS);
         setNotifyEmail(data.notify_email ?? true);
         setNotifyInapp(data.notify_inapp ?? true);
         setNotifySizeAlerts(data.notify_size_alerts ?? false);
@@ -71,6 +77,10 @@ export default function CustomerProfile() {
       })
       .catch(() => setError("Failed to load profile"))
       .finally(() => setLoading(false));
+    api
+      .get("/inventory/categories")
+      .then((res) => setSellsCards((res.data.data || []).some((c) => c.key === "trading_cards")))
+      .catch(() => {});
   }, []);
 
   const handleSave = async (e) => {
@@ -83,6 +93,7 @@ export default function CustomerProfile() {
         full_name: fullName,
         email,
         sizes,
+        ...(sellsCards && { card_prefs: cardPrefs }),
         notify_email: notifyEmail,
         notify_inapp: notifyInapp,
         notify_size_alerts: notifySizeAlerts,
@@ -188,6 +199,16 @@ export default function CustomerProfile() {
             </p>
             <SizeSelector selected={sizes} onChange={setSizes} />
           </div>
+
+          {sellsCards && (
+            <div className="rounded-xl border border-border bg-surface p-6">
+              <p className="text-sm font-semibold mb-1">Trading cards</p>
+              <p className="text-xs text-text-muted mb-4">
+                What you collect. Your In stock cards and new card alerts start with these.
+              </p>
+              <CardPrefsPicker value={cardPrefs} onChange={setCardPrefs} mode="profile" />
+            </div>
+          )}
 
           <div className="rounded-xl border border-border bg-surface p-6 divide-y divide-border">
             <p className="text-sm font-semibold pb-2">Notifications</p>
