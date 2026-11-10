@@ -26,9 +26,9 @@
   --color-accent: #22c55e;
   --color-accent-text: #ffffff;
 
-  /* "Beta" tags — a bright blue, shaded for each theme (light below) */
-  --color-beta: #7cb4ff;
-  --color-beta-soft: rgb(59 130 246 / 0.2);
+  /* "Beta" tags — a bright green, shaded for each theme (light below) */
+  --color-beta: #4ade80;
+  --color-beta-soft: rgb(34 197 94 / 0.18);
   /* The shiny "Sell your items" button in dark mode: a step lighter than
      the page so its edge stays visible (light mode: in color, below) */
   --color-shiny-fill: #161616;
@@ -74,8 +74,8 @@
   --color-primary-text: #fafafa;
   --color-card: #ffffff;
   --color-card-end: #fafafa;
-  --color-beta: #1d5fd6;
-  --color-beta-soft: #dbe8ff;
+  --color-beta: #15803d;
+  --color-beta-soft: #dcfce7;
   /* Light mode: the "Sell your items" button stands out in color — deep
      green, or the store's brand color (above) */
   --color-shiny-fill: #15803d;

@@ -6,8 +6,9 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import Switch from "../../components/ui/Switch.jsx";
 import api from "../../lib/api.js";
+import BetaBadge from "../../components/ui/BetaBadge.jsx";
 import { getMyStore } from "../../lib/myStore.js";
-import { categoryLabel } from "../../lib/categories.js";
+import { categoryLabel, BETA_CATEGORIES } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
 import BuyingSettings from "../../components/dashboard/BuyingSettings.jsx";
@@ -305,6 +306,7 @@ export default function StoreSettings() {
                         {key === "other" && (
                           <span className="text-xs text-text-muted">everything else</span>
                         )}
+                        {BETA_CATEGORIES.includes(key) && <BetaBadge size="xs" />}
                         {comingSoon && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-text/5 text-text-muted">
                             Coming soon

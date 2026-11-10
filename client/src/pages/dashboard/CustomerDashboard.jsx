@@ -18,7 +18,8 @@ import {
   CellToggle,
 } from "../../components/ui/AnimatedToggleLayout.jsx";
 import api from "../../lib/api.js";
-import { CATEGORY_META, SIZES_BY_CATEGORY, SIZELESS_CATEGORIES, categoryLabel } from "../../lib/categories.js";
+import { CATEGORY_META, SIZES_BY_CATEGORY, SIZELESS_CATEGORIES, BETA_CATEGORIES, categoryLabel } from "../../lib/categories.js";
+import BetaBadge from "../../components/ui/BetaBadge.jsx";
 import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 
 const TABS = [
@@ -335,7 +336,10 @@ export default function CustomerDashboard() {
               : "text-text hover:bg-text/10"
           }`}
         >
-          {categoryLabel(c.key, c.name)}
+          <span className="flex items-center gap-1.5">
+            {categoryLabel(c.key, c.name)}
+            {BETA_CATEGORIES.includes(c.key) && <BetaBadge size="xs" />}
+          </span>
           {vertical && (
             <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{tab === "instock" && c.in_your_sizes != null ? c.in_your_sizes : c.count}</span>
           )}

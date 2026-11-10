@@ -18,6 +18,9 @@ export const categoryLabel = (key, customName) =>
 // them, so "in your sizes" lists everything
 export const SIZELESS_CATEGORIES = ["trading_cards", "other"];
 
+// Categories still in beta: shown with a Beta tag
+export const BETA_CATEGORIES = ["trading_cards"];
+
 export const SNEAKER_SIZES = [
   "3.5M/5W", "4M/5.5W", "4.5M/6W", "5M/6.5W", "5.5M/7W", "6M/7.5W",
   "6.5M/8W", "7M/8.5W", "7.5M/9W", "8M/9.5W", "8.5M/10W", "9M/10.5W",

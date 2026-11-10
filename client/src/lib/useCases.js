@@ -106,6 +106,7 @@ export const USE_CASES = [
     path: "/for/trading-card-shops",
     navLabel: "Trading card shops",
     demo: "cards",
+    beta: true, // trading cards are in beta
     title: "Restock Alerts for Trading Card Shops on Shopify — SyncStock",
     description:
       "Restock alerts for Shopify trading card shops. Collectors set raw condition, grading company and lowest grade, or factory-sealed only, and get notified when a card that meets their standard is back.",

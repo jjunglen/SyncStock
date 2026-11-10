@@ -5,6 +5,7 @@ import Footer from "../components/marketing/Footer.jsx";
 import Section from "../components/marketing/Section.jsx";
 import MockAlertDemo from "../components/marketing/MockAlertDemo.jsx";
 import Button from "../components/ui/Button.jsx";
+import BetaBadge from "../components/ui/BetaBadge.jsx";
 import { USE_CASES, useCaseFor } from "../lib/useCases.js";
 import NotFound from "./NotFound.jsx";
 
@@ -29,7 +30,9 @@ export default function UseCasePage() {
       <main className="relative">
         <section className="line-b px-4 pt-32 pb-16 sm:pt-40 sm:pb-24">
           <div className="max-w-3xl mx-auto text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-text-muted">{page.eyebrow}</p>
+            <p className="flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-wider text-text-muted">
+              {page.eyebrow} {page.beta && <BetaBadge size="xs" className="normal-case tracking-normal" />}
+            </p>
             <h1 className="mt-3 font-display text-4xl font-semibold sm:text-6xl text-balance">{page.h1}</h1>
             <p className="mt-5 text-base sm:text-xl text-text-muted text-balance">{page.intro}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">

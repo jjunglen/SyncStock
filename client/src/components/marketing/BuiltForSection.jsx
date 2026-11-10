@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { LuArrowRight, LuFootprints, LuShirt, LuLayers } from "react-icons/lu";
 import Section from "./Section.jsx";
+import BetaBadge from "../ui/BetaBadge.jsx";
 import { USE_CASES } from "../../lib/useCases.js";
 
 // "Built for": the three store pages (lib/useCases.js), one click from
@@ -22,7 +23,9 @@ export default function BuiltForSection() {
                 className="group flex flex-col items-center rounded-xl border border-border bg-surface p-6 text-center transition-colors hover:border-text/30"
               >
                 <Icon size={22} aria-hidden="true" />
-                <h3 className="mt-3 text-base font-semibold">{page.navLabel}</h3>
+                <h3 className="mt-3 flex items-center gap-2 text-base font-semibold">
+                  {page.navLabel} {page.beta && <BetaBadge size="xs" />}
+                </h3>
                 <p className="mt-1 text-sm text-text-muted">{page.h1}</p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium">
                   Learn more <LuArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

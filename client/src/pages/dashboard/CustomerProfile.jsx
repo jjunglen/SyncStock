@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import SizeSelector from "../onboarding/SizeSelector.jsx";
 import api from "../../lib/api.js";
+import BetaBadge from "../../components/ui/BetaBadge.jsx";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 import LogoutEverywhere from "../../components/auth/LogoutEverywhere.jsx";
 import CardPrefsPicker from "../../components/dashboard/CardPrefsPicker.jsx";
@@ -202,7 +203,7 @@ export default function CustomerProfile() {
 
           {sellsCards && (
             <div className="rounded-xl border border-border bg-surface p-6">
-              <p className="text-sm font-semibold mb-1">Trading cards</p>
+              <p className="text-sm font-semibold mb-1 flex items-center gap-2">Trading cards <BetaBadge size="xs" /></p>
               <p className="text-xs text-text-muted mb-4">
                 What you collect. Your In stock cards and new card alerts start with these.
               </p>
