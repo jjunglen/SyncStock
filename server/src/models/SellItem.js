@@ -18,8 +18,12 @@ const SellItem = sequelize.define(
     size: { type: DataTypes.STRING(20), allowNull: false },
     // new | used
     condition: { type: DataTypes.STRING(8), allowNull: false },
-    // original | damaged | none
+    // original | damaged | none (sealed cards: original = factory sealed)
     box: { type: DataTypes.STRING(10), allowNull: false, defaultValue: "original" },
+    // Trading cards only: { type: raw | graded | sealed, raw_condition,
+    // grading_company, grade, cert_number }. condition holds the type and
+    // size a short label ("NM", "PSA 10", "Sealed").
+    card: { type: DataTypes.JSONB, allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },
     asking_price: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
     // The price guide's suggestion when the request was sent

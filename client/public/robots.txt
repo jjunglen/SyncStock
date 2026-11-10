@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /dev/
+Disallow: /shopify
+
+Sitemap: https://www.syncstock.io/sitemap.xml

@@ -31,3 +31,35 @@ const SHOTS = {
   },
 };
 export const photoShots = (condition, category) => SHOTS[isShoe(category) ? "shoe" : "other"][condition] || [];
+
+// Trading cards: front and back of the card (or slab, or sealed box)
+const CARD_SHOTS = {
+  raw: ["Front", "Back", "Close-up", "Extra"],
+  graded: ["Front of slab", "Back of slab", "Close-up", "Extra"],
+  sealed: ["Front", "Back", "Close-up of wrap", "Extra"],
+};
+export const sellPhotoShots = (item) =>
+  item.category === "trading_cards" ? CARD_SHOTS[item.condition] || CARD_SHOTS.raw : photoShots(item.condition, item.category);
+
+const RAW = { NM: "Near Mint", LP: "Lightly Played", MP: "Moderately Played" };
+const COMPANY = { PSA: "PSA", CGC: "CGC", BGS: "Beckett", OTHER: "Graded" };
+const CONDITION = { new: "Brand new", used: "Pre-owned" };
+
+// An item's details for lists: ["Size 10M/11.5W", "Pre-owned", "Original box"],
+// or for cards ["Beckett Black Label", "Cert 0012345678"], ["Raw", "Near Mint"],
+// ["Factory Sealed"]
+export const sellItemDetails = (item) => {
+  if (item.category === "trading_cards") {
+    const card = item.card || {};
+    if (item.condition === "graded") {
+      const grade = card.grade === "BL" ? "Black Label" : card.grade;
+      return [`${COMPANY[card.grading_company] || "Graded"} ${grade || ""}`.trim(), card.cert_number ? `Cert ${card.cert_number}` : null].filter(Boolean);
+    }
+    if (item.condition === "sealed") return [item.box === "damaged" ? "Sealed · Damaged" : "Factory Sealed"];
+    return ["Raw", RAW[card.raw_condition || item.size] || item.size];
+  }
+  return [`Size ${item.size}`, CONDITION[item.condition], boxLabel(item.box, item.category)].filter(Boolean);
+};
+
+// Short name for messages: "size 10M/11.5W" or "PSA 10"
+export const sellItemShort = (item) => (item.category === "trading_cards" ? sellItemDetails(item)[0] : `size ${item.size}`);

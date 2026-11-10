@@ -4,7 +4,7 @@ import Spinner from "../ui/Spinner.jsx";
 import AuthPhoto from "./AuthPhoto.jsx";
 import api from "../../lib/api.js";
 import { resizePhoto } from "../../lib/photoResize.js";
-import { boxLabel, photoShots } from "../../lib/sellLabels.js";
+import { sellItemDetails, sellItemShort, sellPhotoShots } from "../../lib/sellLabels.js";
 
 // One pair in the shopper's batch: details, the photo checklist and the
 // photo tiles. Tapping a tile opens the phone's camera (or photo library);
@@ -23,7 +23,9 @@ export default function BatchPairCard({ pair, onChange }) {
   const need = pair.min_photos;
   const done = have >= need;
   // Shoes: sides, soles, box label; clothing: front, back, tag (sellLabels.js)
-  const shots = photoShots(pair.condition, pair.category);
+  // Cards: front and back of the card, slab or box
+  const shots = sellPhotoShots(pair);
+  const isCard = pair.category === "trading_cards";
 
   const addPhotos = async (e) => {
     const files = [...(e.target.files || [])].slice(0, MAX_PHOTOS - have);
@@ -68,13 +70,13 @@ export default function BatchPairCard({ pair, onChange }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-snug">{pair.product_name}</p>
           <p className="text-xs text-text-muted">
-            {[pair.style_code, `Size ${pair.size}`, boxLabel(pair.box, pair.category), pair.asking_price ? `Asking $${pair.asking_price}` : null].filter(Boolean).join(" · ")}
+            {[pair.style_code, ...sellItemDetails(pair), pair.asking_price ? `Asking ${pair.asking_price}` : null].filter(Boolean).join(" · ")}
           </p>
           {pair.notes && <p className="text-xs text-text-muted mt-0.5">“{pair.notes}”</p>}
         </div>
         <button
           type="button"
-          aria-label={`Remove ${pair.product_name} size ${pair.size}`}
+          aria-label={`Remove ${pair.product_name} ${sellItemShort(pair)}`}
           disabled={!!busy}
           onClick={() => run("remove", () => api.delete(`/sell/items/${pair.id}`))}
           className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-text/5"
@@ -84,6 +86,7 @@ export default function BatchPairCard({ pair, onChange }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        {isCard ? <span /> : (
         <div role="radiogroup" aria-label="Condition" className="inline-grid grid-cols-2 gap-1 p-1 border border-text/15 rounded-xl bg-surface-muted">
           {Object.entries(CONDITION).map(([key, label]) => (
             <button
@@ -99,6 +102,7 @@ export default function BatchPairCard({ pair, onChange }) {
             </button>
           ))}
         </div>
+        )}
         <span className={`text-xs px-2 py-0.5 rounded-full ${done ? "bg-live/10 text-live" : "bg-warn/10 text-warn"}`}>
           {done ? `${have} photos — done` : `${have} of ${need} photos`}
         </span>

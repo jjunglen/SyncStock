@@ -1,42 +1,46 @@
 import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { IN_SHOPIFY_ADMIN } from "./lib/shopifyAdmin.js";
-import ChannelHome from "./pages/shopify/ChannelHome.jsx";
 import Landing from "./pages/Landing.jsx";
-import PricingPage from "./pages/Pricing.jsx";
 import AuthForm from "./components/auth/AuthForm.jsx";
-import ConnectShopify from "./pages/onboarding/ConnectShopify.jsx";
-import OnboardingSteps from "./pages/onboarding/OnboardingSteps.jsx";
-import EmailVerification from "./pages/EmailVerification.jsx";
-import ResetPassword from "./pages/ResetPassword.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
-import MerchantDashboard from "./components/dashboard/MerchantDashboard.jsx";
 import MarketingHeader from "./components/marketing/MarketingHeader.jsx";
-import SourcingPage from "./components/dashboard/SourcingPage.jsx";
-import PurchasesPage from "./pages/dashboard/PurchasesPage.jsx";
-import AccountSettings from "./pages/dashboard/AccountSettings.jsx";
-import CustomersPage from "./pages/dashboard/CustomersPage.jsx";
-import StoreSettings from "./pages/dashboard/StoreSettings.jsx";
-import SizeSettings from "./pages/dashboard/SizeSettings.jsx";
-import InStoreSignPage from "./pages/dashboard/InStoreSignPage.jsx";
-import StorePricingPage from "./pages/dashboard/StorePricingPage.jsx";
-import BuyRequestsPage from "./pages/dashboard/BuyRequestsPage.jsx";
-import SellPage from "./pages/dashboard/SellPage.jsx";
-import PlatformAdmin from "./pages/platform/PlatformAdmin.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
-import CustomerDashboard from "./pages/dashboard/CustomerDashboard.jsx";
-import TrackShoe from "./pages/dashboard/TrackShoe.jsx";
-import CustomerProfile from "./pages/dashboard/CustomerProfile.jsx";
-import CustomerAuthForm from "./pages/store/CustomerAuthForm.jsx";
 import StoreAuthLayout from "./components/store/StoreAuthLayout.jsx";
-import SelectSizes from "./pages/onboarding/SelectSizes.jsx";
-import Privacy from "./pages/legal/Privacy.jsx";
-import Terms from "./pages/legal/Terms.jsx";
-import Cookies from "./pages/legal/Cookies.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
+import Seo from "./components/Seo.jsx";
+import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
+
+// Pages load when opened, so the landing pages download fast
+const ChannelHome = lazy(() => import("./pages/shopify/ChannelHome.jsx"));
+const PricingPage = lazy(() => import("./pages/Pricing.jsx"));
+const ConnectShopify = lazy(() => import("./pages/onboarding/ConnectShopify.jsx"));
+const OnboardingSteps = lazy(() => import("./pages/onboarding/OnboardingSteps.jsx"));
+const EmailVerification = lazy(() => import("./pages/EmailVerification.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const MerchantDashboard = lazy(() => import("./components/dashboard/MerchantDashboard.jsx"));
+const SourcingPage = lazy(() => import("./components/dashboard/SourcingPage.jsx"));
+const PurchasesPage = lazy(() => import("./pages/dashboard/PurchasesPage.jsx"));
+const AccountSettings = lazy(() => import("./pages/dashboard/AccountSettings.jsx"));
+const CustomersPage = lazy(() => import("./pages/dashboard/CustomersPage.jsx"));
+const StoreSettings = lazy(() => import("./pages/dashboard/StoreSettings.jsx"));
+const SizeSettings = lazy(() => import("./pages/dashboard/SizeSettings.jsx"));
+const InStoreSignPage = lazy(() => import("./pages/dashboard/InStoreSignPage.jsx"));
+const StorePricingPage = lazy(() => import("./pages/dashboard/StorePricingPage.jsx"));
+const BuyRequestsPage = lazy(() => import("./pages/dashboard/BuyRequestsPage.jsx"));
+const SellPage = lazy(() => import("./pages/dashboard/SellPage.jsx"));
+const PlatformAdmin = lazy(() => import("./pages/platform/PlatformAdmin.jsx"));
+const CustomerDashboard = lazy(() => import("./pages/dashboard/CustomerDashboard.jsx"));
+const TrackShoe = lazy(() => import("./pages/dashboard/TrackShoe.jsx"));
+const CustomerProfile = lazy(() => import("./pages/dashboard/CustomerProfile.jsx"));
+const CustomerAuthForm = lazy(() => import("./pages/store/CustomerAuthForm.jsx"));
+const SelectSizes = lazy(() => import("./pages/onboarding/SelectSizes.jsx"));
+const Privacy = lazy(() => import("./pages/legal/Privacy.jsx"));
+const Terms = lazy(() => import("./pages/legal/Terms.jsx"));
+const Cookies = lazy(() => import("./pages/legal/Cookies.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 // Dev only: App Store screenshot compositions (never in the live build)
 const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
-import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
 
 function App() {
   const subdomain = getSubdomain();
@@ -55,6 +59,10 @@ function App() {
   }, [branded]);
 
   return (
+    <>
+    <Seo />
+    {/* Pages load on demand; a blank page-colored screen while one does */}
+    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
     <Routes>
       {/* Opening the app in the Shopify admin starts at the channel page */}
       <Route
@@ -106,11 +114,14 @@ function App() {
       <Route path="/onboarding/size" element={<ProtectedRoute loginPath="/store/login"><SelectSizes /></ProtectedRoute>} />
       <Route path="/store/login" element={<StoreAuthLayout><CustomerAuthForm initialMode="login" /></StoreAuthLayout>} />
       <Route path="/store/signup" element={<StoreAuthLayout><CustomerAuthForm initialMode="signup" /></StoreAuthLayout>} />
-      {/* Any other address: the app's start page instead of a blank screen
-          (Shopify can open admin paths the app doesn't have) */}
-      {AppStoreShots && <Route path="/dev/app-store" element={<Suspense fallback={null}><AppStoreShots /></Suspense>} />}
-      <Route path="*" element={<Navigate to={IN_SHOPIFY_ADMIN ? "/channel" : "/"} replace />} />
+      {/* Any other address: "Page not found" (not indexed); inside the
+          Shopify admin, the app's start page (Shopify can open admin paths
+          the app doesn't have) */}
+      {AppStoreShots && <Route path="/dev/app-store" element={<AppStoreShots />} />}
+      <Route path="*" element={IN_SHOPIFY_ADMIN ? <Navigate to="/channel" replace /> : <NotFound />} />
     </Routes>
+    </Suspense>
+    </>
   );
 }
 

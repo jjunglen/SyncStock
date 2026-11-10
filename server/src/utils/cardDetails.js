@@ -18,7 +18,7 @@ const PICKABLE_RAW = ["NM", "LP", "MP"];
 
 // Grades a shopper can pick as their lowest; "BL" (Black Label, above a
 // 10) is Beckett only
-const GRADES = ["BL", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1"];
+const GRADES = ["BL", "10", "9.5", "9", "8", "7", "6", "5", "4", "3", "2", "1"];
 const BLACK_LABEL = "BL";
 
 // Three levels of trust: full phrases anywhere (titles too); short codes

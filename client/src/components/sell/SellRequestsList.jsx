@@ -3,6 +3,7 @@ import { LuFootprints } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
+import { sellItemDetails, sellItemShort } from "../../lib/sellLabels.js";
 
 // The shopper's sent batches: where each one stands, and the store's offer
 // to accept (all or some pairs) or decline.
@@ -17,7 +18,6 @@ const STATUS = {
   expired: { label: "Expired", className: "bg-text/5 text-text-muted" },
   cancelled: { label: "Cancelled", className: "bg-text/5 text-text-muted" },
 };
-const CONDITION = { new: "brand new", used: "pre-owned" };
 const money = (n) => `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const when = (d) => (d ? new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "");
 
@@ -85,7 +85,7 @@ function RequestCard({ request, onChange }) {
               {picking && request.status === "offered" && offeredItem && (
                 <input
                   type="checkbox"
-                  aria-label={`Sell ${item.product_name} size ${item.size}`}
+                  aria-label={`Sell ${item.product_name} ${sellItemShort(item)}`}
                   checked={chosen.has(item.id)}
                   onChange={(e) =>
                     setChosen((prev) => {
@@ -104,7 +104,7 @@ function RequestCard({ request, onChange }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{item.product_name}</p>
                 <p className="text-xs text-text-muted">
-                  Size {item.size} · {CONDITION[item.condition]}
+                  {sellItemDetails(item).slice(0, 2).join(" · ")}
                   {item.decision === "declined" && " · not selling"}
                   {item.paid_price !== null && ` · paid ${money(item.paid_price)}`}
                 </p>

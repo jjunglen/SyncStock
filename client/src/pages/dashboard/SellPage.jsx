@@ -128,6 +128,7 @@ export default function SellPage() {
 
         {data && adding && (
           <AddPairs
+            sellCategories={data?.sell_categories}
             onCancel={() => setAdding(false)}
             onAdded={(next) => {
               setData((d) => ({ ...d, draft: next }));

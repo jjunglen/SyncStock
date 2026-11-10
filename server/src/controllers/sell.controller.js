@@ -11,6 +11,7 @@ const {
   OPEN_STATUSES,
   cleanItem,
   missingPhotos,
+  sellCategories,
   deletePhotos,
   serialize,
   withItems,
@@ -24,7 +25,7 @@ const fail = (res, status, message, extra = {}) => res.status(status).json({ suc
 
 // The shopper's membership at this store; the store must have selling on
 const shopperAt = async (req, res) => {
-  if (!req.store?.sell_enabled) {
+  if (!req.store?.sell_enabled || !sellCategories(req.store).length) {
     fail(res, 404, "Selling isn't available at this store");
     return null;
   }
@@ -73,6 +74,8 @@ const listRequests = async (req, res) => {
         draft: draft ? serialize(draft) : null,
         requests: rows.filter((r) => r.status !== "draft").map((r) => serialize(r)),
         credit_bonus: req.store.credit_bonus,
+        // What this store buys (its switched-on categories)
+        sell_categories: sellCategories(req.store),
       },
     });
   } catch (error) {
@@ -92,7 +95,7 @@ const addItems = async (req, res) => {
     if (!list.length) return fail(res, 400, "Add at least one item");
     const clean = [];
     for (const raw of list) {
-      const { item, error } = cleanItem(raw);
+      const { item, error } = cleanItem(raw, sellCategories(req.store));
       if (error) return fail(res, 400, error);
       clean.push(item);
     }
@@ -118,7 +121,7 @@ const updateItem = async (req, res) => {
     if (!membership) return;
     const item = await draftItem(req, membership, req.params.id);
     if (!item) return fail(res, 404, "Item not found");
-    const { item: clean, error } = cleanItem({ ...item.toJSON(), ...req.body });
+    const { item: clean, error } = cleanItem({ ...item.toJSON(), ...req.body }, sellCategories(req.store));
     if (error) return fail(res, 400, error);
     await item.update(clean);
     const fresh = await SellRequest.findByPk(item.request_id, withItems);
@@ -204,13 +207,15 @@ const submitRequest = async (req, res) => {
     const short = missingPhotos(request.items);
     if (short.length) {
       const s = short[0];
-      return fail(res, 400, `Add ${s.need - s.have} more photo${s.need - s.have === 1 ? "" : "s"} of the ${s.product_name} (size ${s.size})`, { missing: short });
+      return fail(res, 400, `Add ${s.need - s.have} more photo${s.need - s.have === 1 ? "" : "s"} of the ${s.product_name} (${s.category === "trading_cards" ? s.size : `size ${s.size}`})`, { missing: short });
     }
     const open = await SellRequest.count({ where: { store_id: req.store.id, user_id: membership.id, status: { [Op.in]: OPEN_STATUSES } } });
     if (open >= MAX_OPEN) return fail(res, 400, `You have ${open} batches waiting. Finish one before sending another.`);
 
     // Suggested offers, saved with each pair for the merchant
     for (const item of request.items) {
+      // Cards: suggestions by grade come with the card price guide
+      if (item.category === "trading_cards") continue;
       const s = await suggestFor(req.store, item);
       await item.update({ suggested_offer: s.offer, suggestion: s });
     }

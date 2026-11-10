@@ -5,7 +5,7 @@ import Spinner from "../ui/Spinner.jsx";
 import AuthPhoto from "../sell/AuthPhoto.jsx";
 import { Confidence } from "./PriceGuide.jsx";
 import api from "../../lib/api.js";
-import { boxLabel } from "../../lib/sellLabels.js";
+import { sellItemDetails, sellItemShort } from "../../lib/sellLabels.js";
 
 // Buy requests (merchant): batches shoppers sent. Open ones get an offer
 // per pair (pre-filled with the price guide's suggestion), accepted ones
@@ -25,7 +25,6 @@ const STATUS = {
   expired: ["Expired", "bg-text/5 text-text-muted"],
   cancelled: ["Cancelled by shopper", "bg-text/5 text-text-muted"],
 };
-const CONDITION = { new: "brand new", used: "pre-owned" };
 const money = (n) => (n === null || n === undefined || n === "" || Number.isNaN(Number(n)) ? "—" : `$${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
 const when = (d) => (d ? new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "");
 const withBonus = (n, r) => (r.payout_method === "credit" ? n * (1 + r.credit_bonus / 100) : n);
@@ -98,7 +97,7 @@ function RequestCard({ request, onChange }) {
     // A ticked pair with no price would be sent as "not buying"
     const unpriced = live.find((i) => !(Number(offers[i.id].price) > 0));
     if (unpriced) {
-      setError(`Enter an offer for the ${unpriced.product_name} (size ${unpriced.size}), or untick it.`);
+      setError(`Enter an offer for the ${unpriced.product_name} (${sellItemShort(unpriced)}), or untick it.`);
       return;
     }
     return act(
@@ -141,7 +140,7 @@ function RequestCard({ request, onChange }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold leading-snug">{item.product_name}</p>
                   <p className="text-xs text-text-muted">
-                    {[item.style_code || "No SKU", `size ${item.size}`, CONDITION[item.condition], boxLabel(item.box, item.category)?.toLowerCase()].join(" · ")}
+                    {[item.style_code || "No SKU", ...sellItemDetails(item)].join(" · ")}
                     {item.notes && ` · “${item.notes}”`}
                   </p>
                 </div>
@@ -203,7 +202,7 @@ function RequestCard({ request, onChange }) {
                         disabled={!o.on}
                         value={o.price}
                         onChange={(e) => setOffers((prev) => ({ ...prev, [item.id]: { ...prev[item.id], price: e.target.value.replace(/[^0-9.]/g, "") } }))}
-                        aria-label={`Offer for ${item.product_name} size ${item.size}`}
+                        aria-label={`Offer for ${item.product_name} ${sellItemShort(item)}`}
                         className="w-24 rounded-lg border border-border bg-surface-muted py-1.5 pl-6 pr-2 text-right text-sm text-text focus:outline-none focus:ring-2 focus:ring-text/10"
                       />
                     </span>
