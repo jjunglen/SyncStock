@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
 import {
   LuSearch,
   LuChevronDown,
@@ -56,6 +57,15 @@ const addFilters = (params, brand, priceKey, sort) => {
   if (range?.max != null) params.set("max_price", String(range.max));
   return params;
 };
+
+// One request per list: start a new one, cancelling the one before
+const startRequest = (ref) => {
+  ref.current?.abort();
+  const controller = new AbortController();
+  ref.current = controller;
+  return controller;
+};
+const cancelled = (err) => err?.name === "CanceledError" || err?.code === "ERR_CANCELED";
 
 export default function CustomerDashboard() {
   const location = useLocation();
@@ -151,7 +161,14 @@ export default function CustomerDashboard() {
   }, []);
 
   // silent: a background refresh (below), with no loading state
+  // Each list has one request at a time: a newer one (the next letter
+  // typed, a filter) cancels the one before, so an older answer can never
+  // land after a newer one and show the wrong results
+  const inStockRequest = useRef(null);
+  const browseRequest = useRef(null);
+
   const fetchInStock = useCallback((page, cat, brand, price, order, query, silent = false) => {
+    const request = startRequest(inStockRequest);
     if (!silent) setLoadingInStock(true);
     const params = addFilters(
       new URLSearchParams({ category: cat, page: String(page), limit: String(PAGE_SIZE) }),
@@ -161,18 +178,22 @@ export default function CustomerDashboard() {
     );
     if (query) params.set("q", query);
     api
-      .get(`/inventory/my-sizes?${params.toString()}`)
+      .get(`/inventory/my-sizes?${params.toString()}`, { signal: request.signal })
       .then((res) => {
         setInStockItems(res.data.data || []);
         setInStockMeta(res.data.meta || null);
       })
-      .catch((err) => console.error("Failed to load in-stock items:", err))
-      .finally(() => setLoadingInStock(false));
+      .catch((err) => !cancelled(err) && console.error("Failed to load in-stock items:", err))
+      .finally(() => inStockRequest.current === request && setLoadingInStock(false));
   }, []);
 
+  // Only the list on screen is fetched (each lives on its own tab), so a
+  // search sends one request, not two; the other list loads when its
+  // tab is opened
   useEffect(() => {
+    if (tab !== "instock") return;
     fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery);
-  }, [inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, fetchInStock]);
+  }, [tab, inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, fetchInStock]);
 
   // Brands to offer: in your sizes on In stock, everything on Browse
   useEffect(() => {
@@ -186,6 +207,7 @@ export default function CustomerDashboard() {
   }, [tab, category]);
 
   const fetchBrowse = useCallback((page, query, sizes, cat, brand, price, order, silent = false) => {
+    const request = startRequest(browseRequest);
     if (!silent) setLoadingBrowse(true);
     const params = new URLSearchParams({
       category: cat,
@@ -197,13 +219,13 @@ export default function CustomerDashboard() {
     addFilters(params, brand, price, order);
 
     api
-      .get(`/inventory/search?${params.toString()}`)
+      .get(`/inventory/search?${params.toString()}`, { signal: request.signal })
       .then((res) => {
         setBrowseItems(res.data.data || []);
         setBrowseMeta(res.data.meta || null);
       })
-      .catch((err) => console.error("Failed to load inventory:", err))
-      .finally(() => setLoadingBrowse(false));
+      .catch((err) => !cancelled(err) && console.error("Failed to load inventory:", err))
+      .finally(() => browseRequest.current === request && setLoadingBrowse(false));
   }, []);
 
   // Debounce raw typing into debouncedQuery
@@ -222,8 +244,9 @@ export default function CustomerDashboard() {
   // triggers exactly one fetch — Previous/Next just changes browsePage
   // and this picks it up the same way a filter change does.
   useEffect(() => {
+    if (tab !== "browse") return;
     fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort);
-  }, [browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, fetchBrowse]);
+  }, [tab, browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, fetchBrowse]);
 
   const loadAlerts = useCallback(() => {
     api
@@ -244,8 +267,9 @@ export default function CustomerDashboard() {
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
-      fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, true);
-      fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, true);
+      // Just the list on screen
+      if (tab === "instock") fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, true);
+      if (tab === "browse") fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, true);
       loadAlerts();
       if (selectedItemId) {
         api
@@ -260,7 +284,7 @@ export default function CustomerDashboard() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [inStockPage, browsePage, category, brandFilter, priceFilter, sort, debouncedQuery, sizeKey, selectedItemId, fetchInStock, fetchBrowse, loadAlerts]);
+  }, [tab, inStockPage, browsePage, category, brandFilter, priceFilter, sort, debouncedQuery, sizeKey, selectedItemId, fetchInStock, fetchBrowse, loadAlerts]);
 
   // "Need a different size?" in the popup opens that size's listing
   const openItem = (id) => {
@@ -438,14 +462,25 @@ export default function CustomerDashboard() {
       </p>
     ) : null;
 
+  // Nothing in stock for the search: offer an alert for it (Track an
+  // item, opened with the search running)
   const noSearchResults = (
     <div className="text-center py-16">
-      <p className="text-text-muted text-sm mb-3">
-        Nothing matches <span className="text-text">“{debouncedQuery}”</span>
+      <p className="text-text-muted text-sm mb-4">
+        Nothing in stock matches <span className="text-text">“{debouncedQuery}”</span> right now
       </p>
-      <button onClick={() => setBrowseQuery("")} className="text-sm text-text underline">
-        Clear search
-      </button>
+      {canAlertSearch(debouncedQuery, category) && (
+        <Button to={searchAlertPath(debouncedQuery, category, true)} variant="primary" className="mb-4">
+          <span className="flex items-center justify-center gap-2">
+            <LuBell size={16} /> Alert me when it&apos;s in
+          </span>
+        </Button>
+      )}
+      <p>
+        <button onClick={() => setBrowseQuery("")} className="text-sm text-text-muted hover:text-text underline">
+          Clear search
+        </button>
+      </p>
     </div>
   );
 
@@ -735,9 +770,7 @@ export default function CustomerDashboard() {
               ) : alerts.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="text-text-muted text-sm mb-4">No alerts yet</p>
-                  <Link to="/store/track">
-                    <Button variant="primary">Track your first shoe</Button>
-                  </Link>
+                  <Button to="/store/track" variant="primary">Track your first shoe</Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">

@@ -4,6 +4,7 @@ import StoreBrandMark from "./StoreBrandMark.jsx";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 import { useSignedIn } from "../../lib/useSignedIn.js";
 import { useCart, checkoutPath } from "../../lib/cart.js";
+import { storeHomePath } from "../../lib/storeLinks.js";
 import { LuShoppingBag, LuArrowLeft } from "react-icons/lu";
 
 // Top bar for a store's public pages (landing, Browse, products, log in,
@@ -24,13 +25,13 @@ export default function StoreHeader({ storeName: nameFromPage }) {
   // when they opened the form directly
   const goBack = () => {
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
-    else navigate("/store");
+    else navigate(storeHomePath());
   };
 
   return (
     <header className="fixed top-0 left-0 w-full z-40 bg-bg/90 backdrop-blur border-b border-border">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/store" className="flex min-w-0 items-center gap-2" aria-label={`${storeName} home`}>
+        <Link to={storeHomePath()} className="flex min-w-0 items-center gap-2" aria-label={`${storeName} home`}>
           <StoreBrandMark name={storeName} logoUrl={store?.logo_url} subtitle="Powered by Syncstock" />
         </Link>
         {onAuthPage ? (
@@ -45,50 +46,37 @@ export default function StoreHeader({ storeName: nameFromPage }) {
           // they're signed in, so the buttons don't swap after loading.
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {pathname !== "/browse" && (
-              <Link to="/browse" className="hidden sm:block">
-                <Button variant="ghost" size="sm">
+              <Button to="/browse" variant="ghost" size="sm" className="hidden sm:inline-flex">
                   Browse
                 </Button>
-              </Link>
             )}
             {cartItems.length > 0 && signedIn !== null && (
-              <Link
+              <Button
                 to={checkoutPath(signedIn, { review: true })}
-                aria-label={`Cart, ${cartItems.length} item${cartItems.length === 1 ? "" : "s"}`}
-              >
-                <Button variant="ghost" size="sm">
+                aria-label={`Cart, ${cartItems.length} item${cartItems.length === 1 ? "" : "s"}`} variant="ghost" size="sm">
                   <span className="flex items-center justify-center gap-2">
                     <LuShoppingBag size={16} /> {cartItems.length}
                   </span>
                 </Button>
-              </Link>
             )}
             {signedIn === true && (
-              <Link to="/store/dashboard">
-                <Button variant="primary" size="sm">
+              <Button to="/store/dashboard" variant="primary" size="sm">
                   Your alerts
                 </Button>
-              </Link>
             )}
             {signedIn === false && (
               <>
-                <Link to="/store/login" className="hidden sm:block">
-                  <Button variant="ghost" size="sm">
+                <Button to="/store/login" variant="ghost" size="sm" className="hidden sm:inline-flex">
                     Log in
                   </Button>
-                </Link>
                 {/* Phones have room for one button: it opens log in,
                     whose Sign up tab covers new shoppers */}
-                <Link to="/store/login" className="sm:hidden">
-                  <Button variant="primary" size="sm">
+                <Button to="/store/login" variant="primary" size="sm" className="sm:hidden">
                     Sign up / Log in
                   </Button>
-                </Link>
-                <Link to="/store/signup" className="hidden sm:block">
-                  <Button variant="primary" size="sm">
+                <Button to="/store/signup" variant="primary" size="sm" className="hidden sm:inline-flex">
                     Sign up free
                   </Button>
-                </Link>
               </>
             )}
           </div>

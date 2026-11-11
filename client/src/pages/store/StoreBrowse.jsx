@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { LuSearch, LuChevronDown, LuBellRing } from "react-icons/lu";
 import StoreHeader from "../../components/store/StoreHeader.jsx";
+import StoreFooter from "../../components/store/StoreFooter.jsx";
+import { getStoreCategories, categoryPath } from "../../lib/storeLinks.js";
+import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
 import ProductTile from "../../components/store/ProductTile.jsx";
 import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 import BetaBadge from "../../components/ui/BetaBadge.jsx";
@@ -96,9 +99,8 @@ export default function StoreBrowse() {
   };
 
   useEffect(() => {
-    api
-      .get("/inventory/categories")
-      .then((res) => setCategories(res.data.data || []))
+    getStoreCategories()
+      .then(setCategories)
       .catch(() => setCategories([]));
   }, []);
 
@@ -163,26 +165,29 @@ export default function StoreBrowse() {
     const s = next.toString();
     return `/browse${s ? `?${s}` : ""}`;
   };
-  const categoryLink = (key) => (key === categories?.[0]?.key ? "/browse" : `/browse?category=${key}`);
+  const categoryLink = (key) => categoryPath(key, categories);
 
   return (
-    <div className="min-h-screen bg-bg text-text pb-20">
+    <div className="min-h-screen bg-bg text-text">
       <StoreHeader storeName={store?.name} />
 
       <main className="pt-24 px-4 md:px-10 max-w-6xl mx-auto">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
           <div>
-            <h1 className="font-display text-3xl sm:text-4xl font-semibold">Shop {storeName}</h1>
+            <h1 className="font-display text-3xl sm:text-4xl font-semibold">
+              {/* A category's own page names it (matches its search title) */}
+              {category && categories?.length > 1 && category !== categories[0].key
+                ? `${categoryLabel(category, categories.find((c) => c.key === category)?.name)} at ${storeName}`
+                : `Shop ${storeName}`}
+            </h1>
             <p className="mt-2 text-sm text-text-muted">
               {meta && category ? `${meta.total} in stock right now` : "Everything in stock right now"}
             </p>
           </div>
           {signedIn === false && (
-            <Link to="/store/signup" className="hidden sm:block">
-              <Button variant="secondary" size="sm">
+            <Button to="/store/signup" variant="secondary" size="sm" className="hidden sm:inline-flex">
                 <span className="flex items-center justify-center gap-2"><LuBellRing size={14} /> Get alerts in your size</span>
               </Button>
-            </Link>
           )}
         </div>
 
@@ -255,6 +260,14 @@ export default function StoreBrowse() {
         {!loading && meta?.match === "close" && q && (
           <p className="text-sm text-text-muted mb-4">
             No exact matches for <span className="text-text">“{q}”</span>. Showing close matches.
+            {canAlertSearch(q, category) && signedIn !== null && (
+              <>
+                {" "}
+                <Link to={searchAlertPath(q, category, signedIn)} rel="nofollow" className="text-text underline">
+                  Get an alert when “{q}” is in
+                </Link>
+              </>
+            )}
           </p>
         )}
 
@@ -263,11 +276,39 @@ export default function StoreBrowse() {
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-sm text-text-muted mb-4">
-              {filtersActive ? "Nothing in stock matches that right now." : "Nothing in stock right now."}
+              {q ? (
+                <>
+                  Nothing in stock matches <span className="text-text">“{q}”</span> right now.
+                </>
+              ) : filtersActive ? (
+                "Nothing in stock matches that right now."
+              ) : (
+                "Nothing in stock right now."
+              )}
             </p>
-            <Link to="/store/signup">
-              <Button variant="primary">Get an alert when it lands</Button>
-            </Link>
+            {/* A search that found nothing becomes an alert for it */}
+            {canAlertSearch(q, category) ? (
+              <Button to={searchAlertPath(q, category, signedIn)} rel="nofollow" variant="primary">
+                <span className="flex items-center justify-center gap-2">
+                  <LuBellRing size={16} /> Alert me when “{q}” is in
+                </span>
+              </Button>
+            ) : (
+              <Button to="/store/signup" variant="primary">Get an alert when it lands</Button>
+            )}
+            {filtersActive && (
+              <p className="mt-4 text-sm">
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    update({ q: "", size: "", brand: "", price: "" });
+                  }}
+                  className="text-text-muted hover:text-text underline"
+                >
+                  Clear search and filters
+                </button>
+              </p>
+            )}
           </div>
         ) : (
           <>
@@ -307,12 +348,13 @@ export default function StoreBrowse() {
             <p className="mt-2 text-sm text-text-muted max-w-md mx-auto">
               Save your sizes and we'll tell you the moment something you want is back at {storeName}. Free, and takes 30 seconds.
             </p>
-            <Link to="/store/signup" className="inline-block mt-5">
-              <Button variant="primary">Get restock alerts</Button>
-            </Link>
+            <Button to="/store/signup" variant="primary" className="mt-5">Get restock alerts</Button>
           </div>
         )}
       </main>
+      <div className="mt-20">
+        <StoreFooter storeName={store?.name} />
+      </div>
     </div>
   );
 }

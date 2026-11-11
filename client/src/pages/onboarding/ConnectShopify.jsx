@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { LuStore, LuExternalLink } from "react-icons/lu";
 import Button from "../../components/ui/Button.jsx";
 import BlackHoleBackground from "../../components/ui/BlackHoleBackground.jsx";
+import MarketingHeader from "../../components/marketing/MarketingHeader.jsx";
 
 // Step 1 of merchant setup. SyncStock is installed from the Shopify App
 // Store — Shopify's rules don't allow asking merchants to type their
@@ -20,7 +21,8 @@ export default function ConnectShopify() {
   const error = ERRORS[new URLSearchParams(window.location.search).get("error")] || "";
 
   return (
-    <div className="min-h-screen bg-bg text-text relative overflow-hidden flex items-center justify-center px-4">
+    <main className="min-h-screen bg-bg text-text relative overflow-hidden flex items-center justify-center px-4 pt-24 pb-12">
+      <MarketingHeader />
       <div className="absolute inset-0 opacity-40 pointer-events-none">
         <BlackHoleBackground />
       </div>
@@ -44,7 +46,7 @@ export default function ConnectShopify() {
             <LuStore size={26} className="text-text" />
           </div>
           <div>
-            <p className="font-semibold">Install SyncStock from Shopify</p>
+            <h1 className="font-semibold">Install SyncStock from Shopify</h1>
             <p className="mt-1 text-text-muted text-sm">
               Add SyncStock to your store from the Shopify App Store. Once you
               approve it in Shopify, you'll come right back here to finish setup.
@@ -54,7 +56,7 @@ export default function ConnectShopify() {
 
         {error && <p className="text-danger text-xs">{error}</p>}
 
-        <Button variant="primary" fullWidth onClick={() => window.location.assign(APP_STORE_URL)}>
+        <Button href={APP_STORE_URL} variant="primary" fullWidth>
           <span className="flex items-center justify-center gap-2">
             Find SyncStock on the App Store <LuExternalLink size={16} />
           </span>
@@ -65,8 +67,12 @@ export default function ConnectShopify() {
           <Link to="/login" className="text-text underline">
             Log in
           </Link>
+          {" · "}
+          <Link to="/pricing" className="text-text underline">
+            See pricing
+          </Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

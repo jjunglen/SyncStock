@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { LuArrowUpRight, LuStore } from "react-icons/lu";
 import MarketingHeader from "../components/marketing/MarketingHeader.jsx";
 import Footer from "../components/marketing/Footer.jsx";
@@ -77,9 +76,7 @@ export default function StoresPage() {
           <div className="mt-16 rounded-2xl border border-border bg-surface p-8 text-center">
             <h2 className="text-xl font-semibold">Run a store on Shopify?</h2>
             <p className="mt-2 text-sm text-text-muted">Give your shoppers restock alerts in their size, and list your store here.</p>
-            <Link to="/onboarding" className="mt-5 inline-block">
-              <Button variant="primary">Connect your Shopify store</Button>
-            </Link>
+            <Button to="/onboarding" variant="primary" className="mt-5">Connect your Shopify store</Button>
           </div>
         </div>
       </main>

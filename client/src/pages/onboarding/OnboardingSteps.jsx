@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useEmblaCarousel from "embla-carousel-react";
 import {
   LuGlobe,
@@ -215,12 +215,8 @@ export default function OnboardingSteps() {
               </Button>
             ) : (
             <div className="flex gap-2">
-              <Link to="/login?redirect=%2Fonboarding%2Fsetup" className="flex-1">
-                <Button variant="primary" className="w-full">Log in</Button>
-              </Link>
-              <Link to="/onboarding" className="flex-1">
-                <Button variant="secondary" className="w-full">Connect Shopify</Button>
-              </Link>
+              <Button to="/login?redirect=%2Fonboarding%2Fsetup" variant="primary" className="flex-1 w-full">Log in</Button>
+              <Button to="/onboarding" variant="secondary" className="flex-1 w-full">Connect Shopify</Button>
             </div>
             )}
           </div>

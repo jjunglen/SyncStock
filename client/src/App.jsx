@@ -46,6 +46,27 @@ const UseCasePage = lazy(() => import("./pages/UseCasePage.jsx"));
 // Dev only: App Store screenshot compositions (never in the live build)
 const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
 
+// "Skip to content": the first thing a keyboard user tabs to, straight
+// past the header to the page's main content
+function SkipLink() {
+  return (
+    <a
+      href="#main"
+      className="skip-link"
+      onClick={(e) => {
+        const main = document.querySelector("main");
+        if (!main) return;
+        e.preventDefault();
+        main.setAttribute("tabindex", "-1");
+        main.focus();
+        main.scrollIntoView();
+      }}
+    >
+      Skip to content
+    </a>
+  );
+}
+
 function App() {
   const subdomain = getSubdomain();
   const { pathname, hash } = useLocation();
@@ -56,8 +77,22 @@ function App() {
   // section instead); the back button keeps the browser's own position
   const navType = useNavigationType();
   useEffect(() => {
-    if (hash || navType === "POP") return;
-    window.scrollTo(0, 0);
+    if (navType === "POP") return;
+    if (!hash) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    // A link to a section (/#features, /#how-it-works): scroll to it once
+    // the page has drawn it (pages load on demand, so keep looking briefly)
+    let tries = 0;
+    const timer = setInterval(() => {
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      if (target || ++tries > 30) {
+        clearInterval(timer);
+        target?.scrollIntoView({ block: "start" });
+      }
+    }, 100);
+    return () => clearInterval(timer);
   }, [pathname, hash, navType]);
 
   // The store's brand color on the shopper site — a store subdomain, or
@@ -75,6 +110,7 @@ function App() {
 
   return (
     <>
+    <SkipLink />
     <Seo />
     {/* Pages load on demand; a blank page-colored screen while one does */}
     <Suspense fallback={<div className="min-h-screen bg-bg" />}>
@@ -96,13 +132,13 @@ function App() {
       <Route path="/login" element={
         <div className="min-h-screen bg-bg">
           <MarketingHeader />
-          <div className="pt-16"><AuthForm initialMode="login" /></div>
+          <main className="pt-16"><AuthForm initialMode="login" /></main>
         </div>
       } />
       <Route path="/signup" element={
         <div className="min-h-screen bg-bg">
           <MarketingHeader />
-          <div className="pt-16"><AuthForm initialMode="signup" /></div>
+          <main className="pt-16"><AuthForm initialMode="signup" /></main>
         </div>
       } />
       <Route path="/onboarding" element={<ConnectShopify />} />

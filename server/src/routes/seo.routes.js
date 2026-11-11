@@ -76,6 +76,17 @@ router.get("/sitemap.xml", async (req, res) => {
       raw: true,
     });
 
+    // Each category's Browse page, in Browse's order. The first one is
+    // plain /browse (that's what /browse shows), so it isn't listed twice.
+    const categoryRows = await Inventory.findAll({
+      where: listable(store),
+      attributes: ["category", [fn("MAX", col("created_at")), "lastmod"]],
+      group: ["category"],
+      raw: true,
+    });
+    const order = Inventory.getAttributes().category.values;
+    const categories = categoryRows.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+
     const url = (loc, lastmod) =>
       `  <url><loc>${xmlEscape(loc)}</loc>${lastmod ? `<lastmod>${new Date(lastmod).toISOString()}</lastmod>` : ""}</url>`;
     const xml = [
@@ -83,6 +94,7 @@ router.get("/sitemap.xml", async (req, res) => {
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
       url(`${site}/`),
       url(`${site}/browse`, products[0]?.lastmod),
+      ...categories.slice(1).map((c) => url(`${site}/browse?category=${encodeURIComponent(c.category)}`, c.lastmod)),
       ...products.map((p) => url(site + productPath(p.shopify_product_id, p.name), p.lastmod)),
       "</urlset>",
       "",

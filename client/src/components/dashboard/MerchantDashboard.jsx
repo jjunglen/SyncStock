@@ -1,5 +1,17 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
+import { usePreviewMode } from "../../lib/previewMode.js";
+
+// A link, except inside the landing page preview (plain text there)
+function Link({ to, children, ...props }) {
+  const preview = usePreviewMode();
+  if (preview) return <span className={props.className}>{children}</span>;
+  return (
+    <RouterLink to={to} {...props}>
+      {children}
+    </RouterLink>
+  );
+}
 import {
   LuTrendingUp,
   LuUsers,
@@ -130,6 +142,8 @@ export function DashboardBody({
   // null while loading. Left out entirely (landing preview), the panel hides.
   mostViewed,
 }) {
+  // In the landing page preview this isn't the page's own heading
+  const Heading = usePreviewMode() ? "p" : "h1";
   // Bars are sized against the biggest number. The stages aren't
   // subsets of each other (one alert can be clicked many times), so
   // sizing them against active alerts ran past 100%.
@@ -142,7 +156,7 @@ export function DashboardBody({
     <>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display text-2xl font-semibold">Dashboard</h1>
+          <Heading className="font-display text-2xl font-semibold">Dashboard</Heading>
           <p className="text-text-muted text-sm mt-1">
             Here's how your store is performing.
           </p>

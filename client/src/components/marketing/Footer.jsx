@@ -9,6 +9,7 @@ const QUICK_LINKS = [
   { label: "How it works", href: "/#features" },
   { label: "Pricing", href: "/pricing" },
   { label: "Joined stores", href: "/stores" },
+  { label: "Install on Shopify", href: "/onboarding" },
   { label: "Sign in", href: "/login" },
 ];
 

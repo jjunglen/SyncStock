@@ -22,6 +22,7 @@ import { brandShades } from "../../lib/brandColors.js";
 import api from "../../lib/api.js";
 import { useTheme } from "../../lib/theme.js";
 import { useCart } from "../../lib/cart.js";
+import { storeHomePath } from "../../lib/storeLinks.js";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 
 // The sweep on the Sell button: the store's brand color in its dark-mode
@@ -62,7 +63,7 @@ export default function DashboardNavbar() {
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
-      navigate("/store");
+      navigate(storeHomePath());
     }
   };
 

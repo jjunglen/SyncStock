@@ -10,13 +10,13 @@ import AlertCard from "../dashboard/AlertCard.jsx";
 const IMG = {
   bapeWhite: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/1c0031e3-575e-4f89-b01b-cf612f1dec6d.png?v=1793138362",
   j4: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/cc4be9aa-763a-4fc1-a0b9-4c6bb56504ca.png?v=1792791332",
-  cream: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/e91e0e79-127b-414a-8756-a6942f4e6282.png?v=1793138083",
+  yeezyBlackRed: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/4af84fca-40d9-46f9-838d-e91df7d7a59e.png?v=1793400929",
   etb: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/bd77c45c-d20e-4d96-98e1-21ca450d985b.webp?v=1793462899",
 };
 
 const ITEMS = [
   { id: 1, product_name: "A Bathing Ape Bape Sta Low Crazy White", price: "325.00", size: "10M/11.5W", condition: "brand_new", image_url: IMG.bapeWhite },
-  { id: 2, product_name: "adidas Yeezy Boost 350 V2 Cream", price: "270.00", size: "10M/11.5W", condition: "pre_owned", image_url: IMG.cream },
+  { id: 2, product_name: "adidas Yeezy Boost 350 V2 Black Red", price: "185.00", size: "10M/11.5W", condition: "pre_owned", image_url: IMG.yeezyBlackRed },
   { id: 3, product_name: "Pokémon 30th Celebration Elite Trainer Box", price: "140.00", condition: "sealed", image_url: IMG.etb },
 ];
 

@@ -4,6 +4,8 @@ import { getSubdomain } from "../lib/getSubdomain.js";
 import { getStoreInfo } from "../lib/storeInfo.js";
 import { USE_CASES } from "../lib/useCases.js";
 import { applyPageMeta as apply, DEFAULT_DESCRIPTION } from "../lib/pageMeta.js";
+import { getStoreCategories, categoryPath } from "../lib/storeLinks.js";
+import { categoryLabel } from "../lib/categories.js";
 
 // Search and link-preview info for each page: title, description,
 // canonical address and whether search engines may index it. The
@@ -52,37 +54,47 @@ export default function Seo({ notFound = false }) {
     // pages (/p/…) set their own once the product loads.
     if (subdomain) {
       if (path.startsWith("/p/")) return;
+      const site = `https://${subdomain}.syncstock.io`;
       const home = path === "/" || path === "/store";
-      // Only the plain /browse: filtered and later pages are reached by
-      // links (and every product is in the store's sitemap)
-      const browse = path === "/browse" && !search;
-      const canonical = home
-        ? `https://${subdomain}.syncstock.io/`
-        : browse
-          ? `https://${subdomain}.syncstock.io/browse`
-          : null;
+      // Browse and each category's Browse page (?category= alone).
+      // Searches, filters and later pages are reached by links, noindex
+      // (every product is in the store's sitemap).
+      const params = new URLSearchParams(search);
+      const keys = [...params.keys()];
+      const asked = keys.length === 1 && keys[0] === "category" ? params.get("category") : null;
+      const browse = path === "/browse" && (!search || !!asked);
       const index = (home || browse) && !notFound;
+      const canonicalFor = (categories) =>
+        home ? `${site}/` : browse ? `${site}${categoryPath(asked, categories)}` : null;
       apply({
         title: "SyncStock",
         description: DEFAULT_DESCRIPTION,
-        canonical,
+        canonical: canonicalFor(null),
         index,
       });
-      getStoreInfo()
-        .then((info) => {
+      Promise.all([getStoreInfo(), browse ? getStoreCategories().catch(() => []) : null])
+        .then(([info, categories]) => {
           if (!info?.name) return;
+          const category = asked && categories?.find((c) => c.key === asked);
+          // An unknown category shows the first one: same page as /browse
+          const shown = category && category !== categories[0] ? category : null;
+          const label = shown && categoryLabel(shown.key, shown.name);
           apply({
             title: home
               ? `${info.name} — In-stock alerts`
-              : path === "/browse"
-                ? `Shop ${info.name} — In stock now`
-                : info.name,
+              : label
+                ? `${label} at ${info.name} — In stock now`
+                : path === "/browse"
+                  ? `Shop ${info.name} — In stock now`
+                  : info.name,
             description: home
               ? `Get notified the moment your size is back in stock at ${info.name}. Save your sizes and track the items you want.`
-              : path === "/browse"
-                ? `Everything in stock at ${info.name} right now, by size and price. Save your sizes and get an alert the moment what you want is back.`
-                : DEFAULT_DESCRIPTION,
-            canonical,
+              : label
+                ? `${label} in stock at ${info.name} right now, by size and price. Save your sizes and get an alert the moment what you want is back.`
+                : path === "/browse"
+                  ? `Everything in stock at ${info.name} right now, by size and price. Save your sizes and get an alert the moment what you want is back.`
+                  : DEFAULT_DESCRIPTION,
+            canonical: browse ? `${site}${categoryPath(shown?.key, categories)}` : canonicalFor(null),
             index,
           });
         })

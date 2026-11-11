@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { LuCircleCheck } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Section from "./Section.jsx";
@@ -36,11 +35,9 @@ export default function PricingSection() {
           <p className="relative -mt-2 text-sm text-text-muted">
             {PLAN.trialDays}-day free trial · billed through Shopify
           </p>
-          <Link to="/onboarding" className="relative">
-            <Button variant="primary" size="lg" className="w-full">
+          <Button to="/onboarding" variant="primary" size="lg" className="relative w-full">
               Connect your Shopify store
             </Button>
-          </Link>
           <hr className="border-border" />
           <ul className="relative flex flex-col gap-2">
             {PLAN.features.map((feature) => (

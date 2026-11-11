@@ -32,16 +32,12 @@ export default function HeroSection() {
         </p>
 
         <div className="animate-appear opacity-0 [animation-delay:300ms] relative z-10 flex flex-wrap justify-center gap-3">
-          <Link to="/onboarding">
-            <Button variant="primary" size="lg">
+          <Button to="/onboarding" variant="primary" size="lg">
               Connect your Shopify store
             </Button>
-          </Link>
-          <a href="#features">
-            <Button variant="secondary" size="lg">
+          <Button href="#features" variant="secondary" size="lg">
               See how it works
             </Button>
-          </a>
         </div>
 
         <div className="relative w-full pt-8 sm:pt-12">

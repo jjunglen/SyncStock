@@ -1,5 +1,6 @@
 import MerchantSidebar from "../dashboard/MerchantSidebar.jsx";
 import { DashboardBody } from "../dashboard/MerchantDashboard.jsx";
+import { PreviewMode } from "../../lib/previewMode.js";
 
 // The landing page hero's picture of the merchant dashboard: the real
 // sidebar and dashboard (components/dashboard), drawn with sample data so
@@ -28,6 +29,7 @@ const PURCHASES = [
 // fill: the whole screen, no fade — for App Store screenshots
 export default function DashboardPreview({ fill = false }) {
   return (
+    <PreviewMode.Provider value={true}>
     <div
       role="img"
       aria-label="Preview of the Syncstock merchant dashboard with sample data"
@@ -59,5 +61,6 @@ export default function DashboardPreview({ fill = false }) {
         />
       </div>
     </div>
+    </PreviewMode.Provider>
   );
 }

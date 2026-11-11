@@ -17,6 +17,7 @@ import Glow from "../components/ui/Glow.jsx";
 import SignalDot from "../components/ui/SignalDot.jsx";
 import Section from "../components/marketing/Section.jsx";
 import StoreHeader from "../components/store/StoreHeader.jsx";
+import StoreFooter from "../components/store/StoreFooter.jsx";
 import api from "../lib/api.js";
 import ProductTile from "../components/store/ProductTile.jsx";
 import { categoryLabel } from "../lib/categories.js";
@@ -184,16 +185,12 @@ export default function StoreLanding() {
               moment it's back — by email or push.
             </p>
             <div className="animate-appear opacity-0 [animation-delay:300ms] relative z-10 flex flex-wrap justify-center gap-3">
-              <Link to="/store/signup">
-                <Button variant="primary" size="lg">
+              <Button to="/store/signup" variant="primary" size="lg">
                   Create your alerts
                 </Button>
-              </Link>
-              <Link to="/browse">
-                <Button variant="secondary" size="lg">
+              <Button to="/browse" variant="secondary" size="lg">
                   Browse inventory
                 </Button>
-              </Link>
             </div>
 
             <div className="relative w-full pt-8 sm:pt-12 pb-16 sm:pb-24">
@@ -351,11 +348,9 @@ export default function StoreLanding() {
             <p className="text-text-muted">
               Join {storeName} and never miss your size again.
             </p>
-            <Link to="/store/signup">
-              <Button variant="primary" size="lg">
+            <Button to="/store/signup" variant="primary" size="lg">
                 Get started free
               </Button>
-            </Link>
           </div>
           <div className="absolute inset-0 opacity-80 transition-all duration-500 ease-in-out group-hover:-translate-y-8 group-hover:opacity-100">
             <Glow variant="bottom" />
@@ -363,18 +358,7 @@ export default function StoreLanding() {
         </section>
       </main>
 
-      <footer className="relative border-t border-border">
-        <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-text-muted">
-            © {new Date().getFullYear()} {storeName} · Powered by Syncstock
-          </p>
-          <nav className="flex gap-4 text-xs text-text-muted">
-            <a href="/privacy" className="hover:text-text transition-colors">Privacy</a>
-            <a href="/terms" className="hover:text-text transition-colors">Terms</a>
-            <a href="/cookies" className="hover:text-text transition-colors">Cookies</a>
-          </nav>
-        </div>
-      </footer>
+      <StoreFooter storeName={storeName} />
     </div>
   );
 }

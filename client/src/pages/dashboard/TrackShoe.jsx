@@ -29,7 +29,8 @@ const fromStore = (item) => ({
 });
 
 export default function TrackShoe() {
-  const [query, setQuery] = useState("");
+  // ?q=: arrived from a search that found nothing in stock — look it up
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("q")?.slice(0, 80) || "");
   const [results, setResults] = useState([]);
   const [storeResults, setStoreResults] = useState([]);
   const [selectedShoe, setSelectedShoe] = useState(null);
@@ -92,20 +93,26 @@ export default function TrackShoe() {
     if (!query.trim()) return; // cleared where the search box changes
     // The store's own products and StockX, side by side — one failing
     // still shows the other
+    // A newer search cancels this one, so older results never replace newer
+    const controller = new AbortController();
     const timeout = setTimeout(async () => {
       setSearching(true);
       const q = encodeURIComponent(query);
       const [store, stockx] = await Promise.allSettled([
-        api.get(`/inventory/trackable?q=${q}`),
-        api.get(`/stockx/search?q=${q}`),
+        api.get(`/inventory/trackable?q=${q}`, { signal: controller.signal }),
+        api.get(`/stockx/search?q=${q}`, { signal: controller.signal }),
       ]);
+      if (controller.signal.aborted) return;
       setStoreResults(store.status === "fulfilled" ? (store.value.data.data || []).map(fromStore) : []);
       setResults(stockx.status === "fulfilled" ? stockx.value.data.data || [] : []);
       if (store.status === "rejected") console.error("Store search failed", store.reason);
       if (stockx.status === "rejected") console.error("StockX search failed", stockx.reason);
       setSearching(false);
     }, 600);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [query]);
 
   // Trading cards have no sizes: the card picker replaces them

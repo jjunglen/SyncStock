@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import Button from "../ui/Button.jsx";
 import Glow from "../ui/Glow.jsx";
 
@@ -12,11 +11,9 @@ return (
         <p className="text-text-muted max-w-xl animate-appear [animation-delay:50ms]">
         Connect your Shopify store and your next restock starts selling itself.
         </p>
-        <Link to="/onboarding" className="animate-appear [animation-delay:100ms]">
-        <Button variant="primary" size="lg">
+        <Button to="/onboarding" variant="primary" size="lg" className="animate-appear [animation-delay:100ms]">
             Connect your Shopify store
         </Button>
-        </Link>
     </div>
     <div className="absolute inset-0 opacity-80 transition-all duration-500 ease-in-out group-hover:-translate-y-8 group-hover:opacity-100">
         <Glow

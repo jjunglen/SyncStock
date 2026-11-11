@@ -36,12 +36,8 @@ export default function UseCasePage() {
             <h1 className="mt-3 font-display text-4xl font-semibold sm:text-6xl text-balance">{page.h1}</h1>
             <p className="mt-5 text-base sm:text-xl text-text-muted text-balance">{page.intro}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link to="/onboarding">
-                <Button variant="primary" size="lg">Connect your Shopify store</Button>
-              </Link>
-              <Link to="/pricing">
-                <Button variant="secondary" size="lg">See pricing</Button>
-              </Link>
+              <Button to="/onboarding" variant="primary" size="lg">Connect your Shopify store</Button>
+              <Button to="/pricing" variant="secondary" size="lg">See pricing</Button>
             </div>
           </div>
         </section>

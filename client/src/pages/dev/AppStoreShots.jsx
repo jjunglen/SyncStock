@@ -26,7 +26,7 @@ import CardPrefsPicker from "../../components/dashboard/CardPrefsPicker.jsx";
 const IMG = {
   bapeWhite: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/1c0031e3-575e-4f89-b01b-cf612f1dec6d.png?v=1793138362",
   j4: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/cc4be9aa-763a-4fc1-a0b9-4c6bb56504ca.png?v=1792791332",
-  cream: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/e91e0e79-127b-414a-8756-a6942f4e6282.png?v=1793138083",
+  cream: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/4af84fca-40d9-46f9-838d-e91df7d7a59e.png?v=1793400929",
   bapeCamo: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/174945a5-e80a-4cd6-856a-620ad2054caa.png?v=1793836010",
   hoodie: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/547ada92-72a6-4786-b3d3-3aea992b0b9f.webp?v=1767480050",
   tee: "https://cdn.shopify.com/s/files/1/0702/0399/8482/files/e1d11691-0512-4405-8b76-e9f2a82cf843.webp?v=1759948193",

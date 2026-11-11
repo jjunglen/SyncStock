@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LuBellRing, LuChevronRight, LuShoppingBag, LuCheck } from "react-icons/lu";
 import StoreHeader from "../../components/store/StoreHeader.jsx";
+import StoreFooter from "../../components/store/StoreFooter.jsx";
+import { storeHomePath, useStoreCategories, categoryPath } from "../../lib/storeLinks.js";
 import ProductTile from "../../components/store/ProductTile.jsx";
 import Button from "../../components/ui/Button.jsx";
 import api from "../../lib/api.js";
@@ -48,6 +50,7 @@ function MissingProduct() {
 
 function StoreProduct({ productId }) {
   const store = useStoreInfo();
+  const categories = useStoreCategories();
   const signedIn = useSignedIn();
   const cart = useCart();
 
@@ -136,18 +139,28 @@ function StoreProduct({ productId }) {
       },
     }),
   };
+  const site = `https://${getSubdomain() || "www"}.syncstock.io`;
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { name: storeName || "Store", item: `${site}/` },
+      { name: categoryLabel(item.category, store?.other_category_name), item: `${site}${categoryPath(item.category, categories)}` },
+      { name: item.product_name, item: canonical },
+    ].map((crumb, i) => ({ "@type": "ListItem", position: i + 1, ...crumb })),
+  };
 
   return (
-    <div className="min-h-screen bg-bg text-text pb-20">
+    <div className="min-h-screen bg-bg text-text">
       <StoreHeader storeName={storeName} />
 
       <main className="pt-24 px-4 md:px-10 max-w-6xl mx-auto">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-xs text-text-muted mb-6">
-          <Link to="/" className="hover:text-text">{storeName || "Store"}</Link>
+          <Link to={storeHomePath()} className="hover:text-text">{storeName || "Store"}</Link>
           <LuChevronRight size={12} aria-hidden="true" />
-          <Link to="/browse" className="hover:text-text">Browse</Link>
+          <Link to="/browse" className="hover:text-text">Shop</Link>
           <LuChevronRight size={12} aria-hidden="true" />
-          <Link to={`/browse?category=${item.category}`} className="hover:text-text">
+          <Link to={categoryPath(item.category, categories)} className="hover:text-text">
             {categoryLabel(item.category, store?.other_category_name)}
           </Link>
         </nav>
@@ -209,11 +222,9 @@ function StoreProduct({ productId }) {
             <div className="mt-6 flex flex-col gap-3 sm:max-w-sm">
               {chosen?.in_stock ? (
                 inCart ? (
-                  <Link to={checkoutPath(signedIn)} rel="nofollow">
-                    <Button variant="primary" fullWidth>
+                  <Button to={checkoutPath(signedIn)} rel="nofollow" variant="primary" fullWidth>
                       <span className="flex items-center justify-center gap-2"><LuCheck size={16} /> In your cart · Check out ({cart.length})</span>
                     </Button>
-                  </Link>
                 ) : (
                   <Button variant="primary" fullWidth onClick={handleAdd} disabled={cartFull}>
                     <span className="flex items-center justify-center gap-2"><LuShoppingBag size={16} /> {cartFull ? `Cart full (${MAX_CART_ITEMS} items)` : "Add to cart"}</span>
@@ -224,11 +235,9 @@ function StoreProduct({ productId }) {
                   {chosen?.size ? `Size ${chosen.size} is sold out.` : "Sold out."} Get an alert and you'll hear the moment it's back.
                 </p>
               )}
-              <Link to={alertLink} rel="nofollow">
-                <Button variant={chosen?.in_stock ? "secondary" : "primary"} fullWidth>
+              <Button to={alertLink} rel="nofollow" variant={chosen?.in_stock ? "secondary" : "primary"} fullWidth>
                   <span className="flex items-center justify-center gap-2"><LuBellRing size={16} /> Get an alert for your size</span>
                 </Button>
-              </Link>
               {signedIn === false && (
                 <p className="text-xs text-text-muted">
                   You'll make a free account at checkout. It also saves your sizes, so you hear about restocks and price drops by email or push.
@@ -258,13 +267,17 @@ function StoreProduct({ productId }) {
         )}
 
         <div className="mt-14 text-center">
-          <Link to={`/browse?category=${item.category}`} className="text-sm text-text-muted hover:text-text underline">
+          <Link to={categoryPath(item.category, categories)} className="text-sm text-text-muted hover:text-text underline">
             Browse more {categoryLabel(item.category, store?.other_category_name).toLowerCase()} at {storeName || "this store"}
           </Link>
         </div>
 
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c") }} />
       </main>
+      <div className="mt-20">
+        <StoreFooter storeName={storeName} />
+      </div>
     </div>
   );
 }

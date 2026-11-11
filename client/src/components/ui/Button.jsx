@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Spinner from "./Spinner.jsx";
 
 const VARIANT_CLASSES = {
@@ -45,6 +46,11 @@ export default function Button({
   type = "button",
   className = "",
   children,
+  // A link styled as a button: `to` for pages on this site, `href` for
+  // anything else. One element, so it's a single tab stop and screen
+  // readers announce it as the link it is (never a button inside a link).
+  to,
+  href,
   ...props
 }) {
   const isDisabled = disabled || loading;
@@ -55,17 +61,15 @@ export default function Button({
     (iconOnly ? ICON_SIZE_CLASSES : SIZE_CLASSES)[size] ?? SIZE_CLASSES.md;
   const shapeClass = SHAPE_CLASSES[shape] ?? SHAPE_CLASSES.square;
 
-  return (
-    <button
-      type={type}
-      disabled={isDisabled}
-      className={`inline-flex items-center justify-center font-medium transition-colors duration-150
+  // "hidden sm:inline-flex" (only on bigger screens) sets its own display
+  const display = /(^|s)hidden(s|$)/.test(className) ? "" : "inline-flex";
+  const classes = `${display} items-center justify-center font-medium transition-colors duration-150
         ${stateClass} ${sizeClass} ${shapeClass}
         ${shadow ? "shadow-md" : ""}
         ${fullWidth ? "w-full" : ""}
-        ${className}`}
-      {...props}
-    >
+        ${className}`;
+  const content = (
+    <>
       {loading ? <Spinner size={size === "lg" ? 20 : 14} /> : prefix}
       {!iconOnly && children && (
         <span className="overflow-hidden whitespace-nowrap text-ellipsis">
@@ -74,6 +78,29 @@ export default function Button({
       )}
       {iconOnly && !loading && children}
       {!loading && suffix}
+    </>
+  );
+
+  if ((to || href) && !isDisabled) {
+    return to ? (
+      <Link to={to} className={classes} {...props}>
+        {content}
+      </Link>
+    ) : (
+      <a href={href} className={classes} {...props}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type={type}
+      disabled={isDisabled}
+      className={classes}
+      {...props}
+    >
+      {content}
     </button>
   );
 }

@@ -274,13 +274,11 @@ export default function StoreSettings() {
                     Uses your logo and brand color from Branding below. Put it by the register, on
                     the shoe wall, or in the window.
                   </p>
-                  <Link to="/settings/sign" target="_blank" rel="noopener">
-                    <Button variant="primary" size="sm">
+                  <Button to="/settings/sign" target="_blank" rel="noopener" variant="primary" size="sm">
                       <span className="flex items-center gap-1.5">
                         <LuPrinter size={14} /> Print or save as PDF
                       </span>
                     </Button>
-                  </Link>
                 </div>
               </div>
             </Section>

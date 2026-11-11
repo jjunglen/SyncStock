@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import Button from "../ui/Button.jsx";
 
 export default function PricingTeaser() {
@@ -10,11 +9,9 @@ export default function PricingTeaser() {
       <p className="text-text-muted mb-6">
         One plan. Everything included. No hidden fees.
       </p>
-      <Link to="/pricing">
-        <Button variant="primary" size="lg">
+      <Button to="/pricing" variant="primary" size="lg">
           Go to pricing
         </Button>
-      </Link>
     </div>
   );
 }

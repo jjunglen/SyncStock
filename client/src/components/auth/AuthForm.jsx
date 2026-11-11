@@ -205,7 +205,7 @@ export default function AuthForm({ initialMode = "login" }) {
       <div className="p-6 max-w-sm mx-auto">
         <div className="text-center mb-6">
           <LuKeyRound size={40} className="text-text mx-auto mb-3" />
-          <h2 className="text-xl font-semibold mb-1">Password recovery</h2>
+          <h1 className="text-xl font-semibold mb-1">Password recovery</h1>
           <p className="text-text-muted text-sm">
             Enter your email and we'll send you a reset link.
           </p>
@@ -268,9 +268,9 @@ export default function AuthForm({ initialMode = "login" }) {
       ) : null}
 
       <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold mb-1">
+        <h1 className="text-xl font-semibold mb-1">
           {authMode === "login" ? "Welcome back" : "Connect POS"}
-        </h2>
+        </h1>
         <p className="text-text-muted text-sm">
           {authMode === "login"
             ? "Sign in to manage your alerts"

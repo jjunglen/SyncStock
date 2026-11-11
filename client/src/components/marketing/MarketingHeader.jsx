@@ -17,7 +17,7 @@ export default function MarketingHeader() {
     ...NAV_ITEMS.map((item) => ({
       label: item.title,
       href: item.href,
-      onClick: () => (item.href.includes("#") ? (window.location.href = item.href) : navigate(item.href)),
+      onClick: () => navigate(item.href),
     })),
     { label: "Log in", href: "/login", onClick: () => navigate("/login") },
     { label: "Install on Shopify", href: "/onboarding", onClick: () => navigate("/onboarding") },
@@ -31,29 +31,25 @@ export default function MarketingHeader() {
             <SyncStockLogo size={26} />
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav aria-label="Main" className="hidden lg:flex items-center gap-1">
             {NAV_ITEMS.map((item) => (
-              <a
+              <Link
                 key={item.title}
-                href={item.href}
+                to={item.href}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium text-text-muted hover:text-text hover:bg-white/5 transition-colors"
               >
                 {item.title}
-              </a>
+              </Link>
             ))}
           </nav>
 
           <div className="hidden lg:flex items-center gap-2">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">
+            <Button to="/login" variant="ghost" size="sm">
                 Log in
               </Button>
-            </Link>
-            <Link to="/onboarding">
-              <Button variant="primary" size="sm">
+            <Button to="/onboarding" variant="primary" size="sm">
                 Install on Shopify
               </Button>
-            </Link>
           </div>
         </div>
       </header>

@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { LuCircleCheck } from "react-icons/lu";
 import Button from "../components/ui/Button.jsx";
 import MarketingHeader from "../components/marketing/MarketingHeader.jsx";
@@ -11,7 +10,7 @@ export default function PricingPage() {
     <div className="min-h-screen bg-bg text-text">
       <MarketingHeader />
 
-      <div className="relative overflow-hidden">
+      <main className="relative overflow-hidden">
         <div className="absolute inset-0 opacity-40 pointer-events-none">
           <BlackHoleBackground />
         </div>
@@ -49,14 +48,12 @@ export default function PricingPage() {
               ))}
             </div>
 
-            <Link to="/signup">
-              <Button variant="primary" className="w-full">
+            <Button to="/signup" variant="primary" className="w-full">
                 Get started
               </Button>
-            </Link>
           </div>
         </div>
-      </div>
+      </main>
 
       <Footer />
     </div>
