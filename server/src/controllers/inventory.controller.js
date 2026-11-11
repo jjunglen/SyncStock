@@ -30,10 +30,14 @@ const listable = (store, category) => {
   };
 };
 
-// Brand and price filters, shared by Browse and In stock
+// Brand, condition and price filters, shared by Browse and In stock.
+// Condition: brand new or pre-owned; items listed as "either" count as
+// both. (Trading cards have their own conditions, set in card prefs.)
+const FILTER_CONDITIONS = ["brand_new", "pre_owned"];
 const isPrice = (value) => /^\d+(\.\d{1,2})?$/.test(String(value));
-const applyFilters = (where, { brand, min_price, max_price }) => {
+const applyFilters = (where, { brand, condition, min_price, max_price }) => {
   if (brand) where.brand = String(brand);
+  if (FILTER_CONDITIONS.includes(condition)) where.condition = { [Op.in]: [condition, "either"] };
   if (min_price && isPrice(min_price)) where.price = { ...where.price, [Op.gte]: min_price };
   if (max_price && isPrice(max_price)) where.price = { ...where.price, [Op.lte]: max_price };
   return where;
@@ -273,6 +277,18 @@ const getCategories = async (req, res) => {
       raw: true,
     });
     const counts = Object.fromEntries(rows.map((r) => [r.category, Number(r.count)]));
+    // How many are brand new and pre-owned in each (the Condition filter
+    // only shows where there are both)
+    const conditionRows = await Inventory.findAll({
+      where: { ...listable(req.store), condition: { [Op.in]: [...FILTER_CONDITIONS, "either"] } },
+      attributes: ["category", "condition", [fn("COUNT", col("id")), "count"]],
+      group: ["category", "condition"],
+      raw: true,
+    });
+    const conditionsIn = (category) => {
+      const of = (c) => Number(conditionRows.find((r) => r.category === category && r.condition === c)?.count || 0);
+      return { brand_new: of("brand_new") + of("either"), pre_owned: of("pre_owned") + of("either") };
+    };
     const chart = counts.other > 0 ? await otherSizeChart(req.store) : null;
     const shown = CATEGORIES.filter((c) => counts[c] > 0);
     const inYourSizes = req.account
@@ -289,6 +305,7 @@ const getCategories = async (req, res) => {
       key: c,
       count: counts[c],
       ...(inYourSizes && { in_your_sizes: inYourSizes[c] }),
+      ...(c !== "trading_cards" && { conditions: conditionsIn(c) }),
       // The merchant's name for "other" ("Snowboards"); null = default
       name: c === "other" ? otherCategoryName(req.store) : null,
       // "other": the store's size chart, for shoppers' saved sizes

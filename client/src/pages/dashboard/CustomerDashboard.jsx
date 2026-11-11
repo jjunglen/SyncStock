@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
 import SearchSuggest from "../../components/store/SearchSuggest.jsx";
@@ -53,9 +53,11 @@ const sortOptions = (searching) =>
     ? [{ value: "", label: "Sort: Best match" }, { value: "newest", label: "Newest" }, ...PRICE_SORTS]
     : [{ value: "", label: "Sort: Newest" }, ...PRICE_SORTS];
 
-// Adds the brand and price filters and sort to an inventory request
-const addFilters = (params, brand, priceKey, sort) => {
+// Adds the brand, condition and price filters and sort to an inventory
+// request (filters: { brand, condition })
+const addFilters = (params, { brand, condition }, priceKey, sort) => {
   if (brand) params.set("brand", brand);
+  if (condition) params.set("condition", condition);
   if (sort) params.set("sort", sort);
   const range = PRICE_RANGES.find((r) => r.key === priceKey);
   if (range?.min != null) params.set("min_price", String(range.min));
@@ -103,9 +105,12 @@ export default function CustomerDashboard() {
   // Brand + price filters apply to both In stock and Browse
   const [brandFilter, setBrandFilter] = useState("");
   const [priceFilter, setPriceFilter] = useState("");
+  const [conditionFilter, setConditionFilter] = useState("");
+  // Brand and condition together, so requests and effects take one value
+  const filters = useMemo(() => ({ brand: brandFilter, condition: conditionFilter }), [brandFilter, conditionFilter]);
   const [brandOptions, setBrandOptions] = useState([]);
   const [sort, setSort] = useState("");
-  const filtersActive = !!(brandFilter || priceFilter);
+  const filtersActive = !!(brandFilter || priceFilter || conditionFilter);
 
   const [alerts, setAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
@@ -135,11 +140,17 @@ export default function CustomerDashboard() {
     setSelectedSizes([]);
     setBrandFilter("");
     setPriceFilter("");
+    setConditionFilter("");
   };
 
   // A filter change starts both lists from page 1
   const changeBrand = (value) => {
     setBrandFilter(value);
+    setInStockPage(1);
+    setBrowsePage(1);
+  };
+  const changeCondition = (value) => {
+    setConditionFilter(value);
     setInStockPage(1);
     setBrowsePage(1);
   };
@@ -156,6 +167,7 @@ export default function CustomerDashboard() {
   const clearFilters = () => {
     changeBrand("");
     changePrice("");
+    changeCondition("");
   };
 
   useEffect(() => {
@@ -172,12 +184,12 @@ export default function CustomerDashboard() {
   const inStockRequest = useRef(null);
   const browseRequest = useRef(null);
 
-  const fetchInStock = useCallback((page, cat, brand, price, order, query, silent = false) => {
+  const fetchInStock = useCallback((page, cat, picked, price, order, query, silent = false) => {
     const request = startRequest(inStockRequest);
     if (!silent) setLoadingInStock(true);
     const params = addFilters(
       new URLSearchParams({ category: cat, page: String(page), limit: String(PAGE_SIZE) }),
-      brand,
+      picked,
       price,
       order,
     );
@@ -197,8 +209,8 @@ export default function CustomerDashboard() {
   // tab is opened
   useEffect(() => {
     if (tab !== "instock") return;
-    fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery);
-  }, [tab, inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, fetchInStock]);
+    fetchInStock(inStockPage, category, filters, priceFilter, sort, debouncedQuery);
+  }, [tab, inStockPage, category, filters, priceFilter, sort, debouncedQuery, fetchInStock]);
 
   // Brands to offer: in your sizes on In stock, everything on Browse
   useEffect(() => {
@@ -211,7 +223,7 @@ export default function CustomerDashboard() {
       .catch((err) => console.error("Failed to load brands:", err));
   }, [tab, category]);
 
-  const fetchBrowse = useCallback((page, query, sizes, cat, brand, price, order, silent = false) => {
+  const fetchBrowse = useCallback((page, query, sizes, cat, picked, price, order, silent = false) => {
     const request = startRequest(browseRequest);
     if (!silent) setLoadingBrowse(true);
     const params = new URLSearchParams({
@@ -221,7 +233,7 @@ export default function CustomerDashboard() {
     });
     if (query) params.set("q", query);
     if (sizes) params.set("size", sizes); // one or more, comma-separated
-    addFilters(params, brand, price, order);
+    addFilters(params, picked, price, order);
 
     api
       .get(`/inventory/search?${params.toString()}`, { signal: request.signal })
@@ -250,8 +262,8 @@ export default function CustomerDashboard() {
   // and this picks it up the same way a filter change does.
   useEffect(() => {
     if (tab !== "browse") return;
-    fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort);
-  }, [tab, browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, fetchBrowse]);
+    fetchBrowse(browsePage, debouncedQuery, sizeKey, category, filters, priceFilter, sort);
+  }, [tab, browsePage, debouncedQuery, sizeKey, category, filters, priceFilter, sort, fetchBrowse]);
 
   const loadAlerts = useCallback(() => {
     api
@@ -273,8 +285,8 @@ export default function CustomerDashboard() {
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
       // Just the list on screen
-      if (tab === "instock") fetchInStock(inStockPage, category, brandFilter, priceFilter, sort, debouncedQuery, true);
-      if (tab === "browse") fetchBrowse(browsePage, debouncedQuery, sizeKey, category, brandFilter, priceFilter, sort, true);
+      if (tab === "instock") fetchInStock(inStockPage, category, filters, priceFilter, sort, debouncedQuery, true);
+      if (tab === "browse") fetchBrowse(browsePage, debouncedQuery, sizeKey, category, filters, priceFilter, sort, true);
       loadAlerts();
       if (selectedItemId) {
         api
@@ -289,7 +301,7 @@ export default function CustomerDashboard() {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [tab, inStockPage, browsePage, category, brandFilter, priceFilter, sort, debouncedQuery, sizeKey, selectedItemId, fetchInStock, fetchBrowse, loadAlerts]);
+  }, [tab, inStockPage, browsePage, category, filters, priceFilter, sort, debouncedQuery, sizeKey, selectedItemId, fetchInStock, fetchBrowse, loadAlerts]);
 
   // "Need a different size?" in the popup opens that size's listing
   const openItem = (id) => {
@@ -411,6 +423,17 @@ export default function CustomerDashboard() {
     </div>
   );
 
+  // Condition: only where the category has both brand new and pre-owned
+  const categoryInfo = categories.find((c) => c.key === category);
+  const conditionChoices =
+    categoryInfo?.conditions?.brand_new > 0 && categoryInfo.conditions.pre_owned > 0
+      ? [
+          { value: "", label: "Any condition" },
+          { value: "brand_new", label: "Brand new" },
+          { value: "pre_owned", label: "Pre-owned" },
+        ]
+      : null;
+
   const brandAndPriceFilters = (
     <>
       {filterSelect("Brand", brandFilter, changeBrand, [
@@ -420,6 +443,7 @@ export default function CustomerDashboard() {
           label: b.count ? `${b.brand} (${b.count})` : b.brand,
         })),
       ])}
+      {conditionChoices && filterSelect("Condition", conditionFilter, changeCondition, conditionChoices)}
       {filterSelect(
         "Price",
         priceFilter,

@@ -79,6 +79,7 @@ export default function StoreBrowse() {
   const sizeKey = params.get("size") || "";
   const brand = params.get("brand") || "";
   const price = params.get("price") || "";
+  const condition = params.get("condition") || "";
   const sort = params.get("sort") || "";
   const page = Math.max(1, parseInt(params.get("page"), 10) || 1);
   const asked = params.get("category");
@@ -132,12 +133,13 @@ export default function StoreBrowse() {
     if (q) search.set("q", q);
     if (sizeKey) search.set("size", sizeKey);
     if (brand) search.set("brand", brand);
+    if (condition) search.set("condition", condition);
     if (sort) search.set("sort", sort);
     const range = PRICE_RANGES.find((r) => r.key === price);
     if (range?.min != null) search.set("min_price", String(range.min));
     if (range?.max != null) search.set("max_price", String(range.max));
     return search.toString();
-  }, [category, page, q, sizeKey, brand, price, sort]);
+  }, [category, page, q, sizeKey, brand, condition, price, sort]);
 
   useEffect(() => {
     if (!request) return;
@@ -159,7 +161,17 @@ export default function StoreBrowse() {
   const storeName = store?.name || "this store";
   const sizes = SIZES_BY_CATEGORY[category] || [];
   const selectedSizes = sizeKey ? sizeKey.split(",") : [];
-  const filtersActive = !!(q || sizeKey || brand || price);
+  const filtersActive = !!(q || sizeKey || brand || condition || price);
+  // Condition: only where the category has both brand new and pre-owned
+  const conditions = categories?.find((c) => c.key === category)?.conditions;
+  const conditionChoices =
+    conditions?.brand_new > 0 && conditions.pre_owned > 0
+      ? [
+          { value: "", label: "Any condition" },
+          { value: "brand_new", label: "Brand new" },
+          { value: "pre_owned", label: "Pre-owned" },
+        ]
+      : null;
 
   const brandChoices =
     brand && !brands.some((b) => b.brand === brand) ? [{ brand, count: 0 }, ...brands] : brands;
@@ -241,6 +253,14 @@ export default function StoreBrowse() {
               ...brandChoices.map((b) => ({ value: b.brand, label: b.count ? `${b.brand} (${b.count})` : b.brand })),
             ]}
           />
+          {conditionChoices && (
+            <FilterSelect
+              label="Condition"
+              value={condition}
+              onChange={(v) => update({ condition: v })}
+              options={conditionChoices}
+            />
+          )}
           <FilterSelect
             label="Price"
             value={price}
@@ -257,7 +277,7 @@ export default function StoreBrowse() {
             <button
               onClick={() => {
                 setQuery("");
-                update({ q: "", size: "", brand: "", price: "" });
+                update({ q: "", size: "", brand: "", condition: "", price: "" });
               }}
               className="text-sm text-text-muted hover:text-text underline whitespace-nowrap"
             >
@@ -310,7 +330,7 @@ export default function StoreBrowse() {
                 <button
                   onClick={() => {
                     setQuery("");
-                    update({ q: "", size: "", brand: "", price: "" });
+                    update({ q: "", size: "", brand: "", condition: "", price: "" });
                   }}
                   className="text-text-muted hover:text-text underline"
                 >
