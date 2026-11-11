@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
+import SearchSuggest from "../../components/store/SearchSuggest.jsx";
 import {
   LuSearch,
   LuChevronDown,
@@ -42,16 +43,20 @@ const PRICE_RANGES = [
   { key: "500-", label: "$500+", min: 500 },
 ];
 
-const SORTS = [
-  { value: "newest", label: "Newest" },
+const PRICE_SORTS = [
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
 ];
+// "" is the default: best match first while searching, otherwise newest
+const sortOptions = (searching) =>
+  searching
+    ? [{ value: "", label: "Sort: Best match" }, { value: "newest", label: "Newest" }, ...PRICE_SORTS]
+    : [{ value: "", label: "Sort: Newest" }, ...PRICE_SORTS];
 
 // Adds the brand and price filters and sort to an inventory request
 const addFilters = (params, brand, priceKey, sort) => {
   if (brand) params.set("brand", brand);
-  if (sort && sort !== "newest") params.set("sort", sort);
+  if (sort) params.set("sort", sort);
   const range = PRICE_RANGES.find((r) => r.key === priceKey);
   if (range?.min != null) params.set("min_price", String(range.min));
   if (range?.max != null) params.set("max_price", String(range.max));
@@ -99,7 +104,7 @@ export default function CustomerDashboard() {
   const [brandFilter, setBrandFilter] = useState("");
   const [priceFilter, setPriceFilter] = useState("");
   const [brandOptions, setBrandOptions] = useState([]);
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState("");
   const filtersActive = !!(brandFilter || priceFilter);
 
   const [alerts, setAlerts] = useState([]);
@@ -421,10 +426,7 @@ export default function CustomerDashboard() {
         changePrice,
         PRICE_RANGES.map((r) => ({ value: r.key, label: r.label })),
       )}
-      {filterSelect("Sort", sort === "newest" ? "" : sort, (v) => changeSort(v || "newest"), [
-        { value: "", label: "Sort: Newest" },
-        ...SORTS.slice(1).map((o) => ({ value: o.value, label: o.label })),
-      ])}
+      {filterSelect("Sort", !debouncedQuery && sort === "newest" ? "" : sort, changeSort, sortOptions(!!debouncedQuery))}
       {filtersActive && (
         <button
           onClick={clearFilters}
@@ -437,21 +439,18 @@ export default function CustomerDashboard() {
   );
 
   // One search box for both tabs (it keeps its text when switching)
+  // with suggestions while typing (a brand sets the brand filter)
   const searchBox = (placeholder) => (
-    <div className="relative flex-1 min-w-[200px]">
-      <LuSearch
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-        size={16}
-      />
-      <input
-        type="search"
-        value={browseQuery}
-        onChange={(e) => setBrowseQuery(e.target.value)}
-        placeholder={placeholder}
-        aria-label="Search"
-        className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-text/10"
-      />
-    </div>
+    <SearchSuggest
+      value={browseQuery}
+      onChange={setBrowseQuery}
+      category={category}
+      placeholder={placeholder}
+      onPickBrand={(picked) => {
+        setBrowseQuery("");
+        changeBrand(picked);
+      }}
+    />
   );
 
   // The server found no exact matches and returned the closest ones

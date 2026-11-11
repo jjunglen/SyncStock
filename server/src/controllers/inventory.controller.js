@@ -6,7 +6,7 @@ const { enabledCategories, otherCategoryName } = require("../utils/storeSettings
 const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const { cardPrefsWhere } = require("../utils/cardDetails.js");
-const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
+const { searchInventoryItems, suggestInventory, cleanQuery } = require("../utils/inventorySearch.js");
 const { recordSearch } = require("../services/searchLog.service.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
@@ -46,6 +46,9 @@ const SORTS = {
   price_desc: [["price", "DESC NULLS LAST"], ["created_at", "DESC"]],
 };
 const sortOrder = (sort) => SORTS[sort] || SORTS.newest;
+// A search with no sort chosen lists the best matches first
+// (utils/inventorySearch.js); ?sort=newest asks for newest instead
+const bestMatch = (sort) => !SORTS[sort];
 
 const invalidCategory = (res) =>
   res.status(400).json({ success: false, message: "Invalid category" });
@@ -153,6 +156,7 @@ const searchInventory = async (req, res) => {
       where,
       q,
       order: sortOrder(req.query.sort),
+      bestMatch: bestMatch(req.query.sort),
       limit,
       offset,
     });
@@ -238,6 +242,7 @@ const getInventoryInMySizes = async (req, res) => {
       where,
       q: req.query.q,
       order: sortOrder(req.query.sort),
+      bestMatch: bestMatch(req.query.sort),
       limit,
       offset,
     });
@@ -434,6 +439,7 @@ const getTrackableProducts = async (req, res) => {
       },
       q,
       order: [["created_at", "DESC"]],
+      bestMatch: true,
       limit: TRACKABLE_ROWS,
       offset: 0,
     });
@@ -484,8 +490,24 @@ const getTrackableProducts = async (req, res) => {
   }
 };
 
+// GET /api/inventory/suggest?q=jord&category=sneakers — suggestions under
+// the search box while typing: matching product names and brands among
+// the listed items. Not recorded in the search monitor (searches are).
+const suggestSearch = async (req, res) => {
+  try {
+    const { category } = req.query;
+    if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
+    const data = await suggestInventory(Inventory, { where: listable(req.store, category), q: req.query.q });
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Search suggestions error:", error.message);
+    return res.status(500).json({ success: false, message: "Suggestions failed" });
+  }
+};
+
 module.exports = {
   listable,
+  suggestSearch,
   getPublicProduct,
   getTrackableProducts,
   getBrands,

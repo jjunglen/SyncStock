@@ -62,7 +62,7 @@ export default function Button({
   const shapeClass = SHAPE_CLASSES[shape] ?? SHAPE_CLASSES.square;
 
   // "hidden sm:inline-flex" (only on bigger screens) sets its own display
-  const display = /(^|s)hidden(s|$)/.test(className) ? "" : "inline-flex";
+  const display = /(^|\s)hidden(\s|$)/.test(className) ? "" : "inline-flex";
   const classes = `${display} items-center justify-center font-medium transition-colors duration-150
         ${stateClass} ${sizeClass} ${shapeClass}
         ${shadow ? "shadow-md" : ""}

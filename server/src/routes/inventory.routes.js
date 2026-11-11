@@ -5,7 +5,7 @@ const {
   attachAccountIfPresent,
 } = require("../middleware/tenant.middleware.js");
 const { authenticateAccount } = require("../middleware/auth.middleware.js");
-const { publicLimiter } = require("../middleware/rateLimit.middleware.js");
+const { publicLimiter, suggestLimiter } = require("../middleware/rateLimit.middleware.js");
 const {
   getInventory,
   getInventoryItem,
@@ -17,12 +17,15 @@ const {
   recordProductView,
   getTrackableProducts,
   getPublicProduct,
+  suggestSearch,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
 // Browsing is public (the store's /browse and /p/ pages, open to search
 // engines too); alerts, sizes and anything personal need an account
 router.get("/search", publicLimiter, resolveStoreFromSubdomain, searchInventory);
+// Suggestions under the search box while typing
+router.get("/suggest", suggestLimiter, resolveStoreFromSubdomain, suggestSearch);
 // A product's public page (/p/<id>-<name>)
 router.get("/product/:productId", publicLimiter, resolveStoreFromSubdomain, getPublicProduct);
 // "Track a new item": the store's own products, sold-out ones included

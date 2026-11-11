@@ -1,4 +1,4 @@
-const { Op, literal } = require("sequelize");
+const { Op, literal, fn, col } = require("sequelize");
 const { sequelize } = require("../config/database.js");
 
 // Inventory search (Browse and In stock), in two passes:
@@ -62,16 +62,29 @@ const sequenceRegex = (sequence) => {
 
 const FIELDS = ["product_name", "sku", "brand"];
 
-// SQL: every search word (or one of its alternatives) is in a field
-const wordMatchCondition = (query) => {
+// The style code with only letters and numbers, so "CT8527100",
+// "ct8527 100" and "CT8527-100" are the same code
+const SKU_CODE = `regexp_replace(lower(coalesce("Inventory"."sku", '')), '[^a-z0-9]', '', 'g')`;
+const codeOf = (query) => words(query).join("");
+const MIN_CODE_LENGTH = 6;
+
+// SQL: every search word (or one of its alternatives) is in a field, or
+// the search is a style code written without its dash
+const wordMatchCondition = (query, fields = FIELDS) => {
   const groups = words(query).map((word) => {
     const options = alternativesFor(word).flatMap((sequence) => {
       const pattern = sequelize.escape(sequenceRegex(sequence));
-      return FIELDS.map((field) => `"Inventory"."${field}" ~* ${pattern}`);
+      return fields.map((field) => `"Inventory"."${field}" ~* ${pattern}`);
     });
     return `(${options.join(" OR ")})`;
   });
-  return groups.length ? literal(groups.join(" AND ")) : null;
+  if (!groups.length) return null;
+  const code = codeOf(query);
+  const byCode =
+    fields.includes("sku") && code.length >= MIN_CODE_LENGTH && /\d/.test(code)
+      ? ` OR ${SKU_CODE} = ${sequelize.escape(code)}`
+      : "";
+  return literal(`((${groups.join(" AND ")})${byCode})`);
 };
 
 const similarity = (query) =>
@@ -79,9 +92,32 @@ const similarity = (query) =>
 
 const cleanQuery = (q) => String(q || "").trim().slice(0, MAX_QUERY_LENGTH);
 
+// Best match first: how closely an item matches the search, 0 (best) to 3
+//   0  the style code, ignoring dashes and spaces ("dz5485 612")
+//   1  the whole name ("Jordan 4 Retro Bred Reimagined")
+//   2  the search appears in the name as typed ("dunk low" → "Nike Dunk Low …")
+//   3  every word is there somewhere (name, brand or code, any order)
+// then the most similar names, then `then` (newest). Where the search
+// sits in the name doesn't count: most names start with the brand.
+const relevanceOrder = (query, then = []) => {
+  const list = words(query);
+  if (!list.length) return then;
+  const code = codeOf(query);
+  const name = 'lower("Inventory"."product_name")';
+  const phrase = sequenceRegex(list);
+  const codeRank = code.length >= 4 ? `WHEN ${SKU_CODE} = ${sequelize.escape(code)} THEN 0` : "";
+  const rank = `CASE ${codeRank}
+    WHEN btrim(regexp_replace(${name}, '[^a-z0-9]+', ' ', 'g')) = ${sequelize.escape(list.join(" "))} THEN 1
+    WHEN ${name} ~ ${sequelize.escape(phrase)} THEN 2
+    ELSE 3 END`;
+  return [[literal(rank), "ASC"], [literal(similarity(query)), "DESC"], ...then];
+};
+
 // Runs the search on top of the page's other filters (`where`).
 // Returns { count, rows, match } — match is "exact", "close" or "all".
-const searchInventoryItems = async (Inventory, { where, q, order, limit, offset }) => {
+//   bestMatch — best matches first (relevanceOrder), `order` breaking
+//   ties; otherwise just `order` (a sort the shopper chose)
+const searchInventoryItems = async (Inventory, { where, q, order, limit, offset, bestMatch = false }) => {
   const query = cleanQuery(q);
   const condition = query ? wordMatchCondition(query) : null;
   if (!condition) {
@@ -91,7 +127,7 @@ const searchInventoryItems = async (Inventory, { where, q, order, limit, offset 
 
   const exact = await Inventory.findAndCountAll({
     where: { ...where, [Op.and]: [...(where[Op.and] || []), condition] },
-    order,
+    order: bestMatch ? relevanceOrder(query, order) : order,
     limit,
     offset,
   });
@@ -110,4 +146,45 @@ const searchInventoryItems = async (Inventory, { where, q, order, limit, offset 
   return { ...close, match: close.count > 0 ? "close" : "exact" };
 };
 
-module.exports = { searchInventoryItems, wordMatchCondition, cleanQuery };
+// Suggestions while typing: up to 6 product names (best match first,
+// one per name) and up to 3 brands, among the items in `where`
+const SUGGESTED_PRODUCTS = 6;
+const SUGGESTED_BRANDS = 3;
+const suggestInventory = async (Inventory, { where, q }) => {
+  const query = cleanQuery(q);
+  const none = { products: [], brands: [] };
+  if (query.replace(/[^a-z0-9]/gi, "").length < 2) return none;
+  const condition = wordMatchCondition(query);
+  if (!condition) return none;
+  const and = where[Op.and] || [];
+
+  const [rows, brandRows] = await Promise.all([
+    Inventory.findAll({
+      where: { ...where, [Op.and]: [...and, condition] },
+      attributes: ["product_name", "image_url"],
+      order: relevanceOrder(query, [["created_at", "DESC"]]),
+      limit: 40,
+    }),
+    Inventory.findAll({
+      where: { ...where, [Op.and]: [...and, wordMatchCondition(query, ["brand"])] },
+      attributes: ["brand", [fn("COUNT", col("id")), "count"]],
+      group: ["brand"],
+      order: [[literal('"count"'), "DESC"]],
+      limit: SUGGESTED_BRANDS,
+      raw: true,
+    }),
+  ]);
+
+  const products = new Map();
+  for (const row of rows) {
+    const key = row.product_name.trim().toLowerCase();
+    if (!products.has(key)) products.set(key, { name: row.product_name.trim(), image_url: row.image_url });
+    if (products.size >= SUGGESTED_PRODUCTS) break;
+  }
+  return {
+    products: [...products.values()],
+    brands: brandRows.filter((b) => b.brand).map((b) => ({ brand: b.brand, count: Number(b.count) })),
+  };
+};
+
+module.exports = { searchInventoryItems, suggestInventory, relevanceOrder, wordMatchCondition, cleanQuery };

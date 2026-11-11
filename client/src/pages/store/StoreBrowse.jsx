@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { LuSearch, LuChevronDown, LuBellRing } from "react-icons/lu";
+import { LuChevronDown, LuBellRing } from "react-icons/lu";
+import SearchSuggest from "../../components/store/SearchSuggest.jsx";
 import StoreHeader from "../../components/store/StoreHeader.jsx";
 import StoreFooter from "../../components/store/StoreFooter.jsx";
 import { getStoreCategories, categoryPath } from "../../lib/storeLinks.js";
@@ -30,11 +31,16 @@ const PRICE_RANGES = [
   { key: "500-", label: "$500+", min: 500 },
 ];
 
-const SORTS = [
-  { value: "", label: "Sort: Newest" },
+const PRICE_SORTS = [
   { value: "price_asc", label: "Price: low to high" },
   { value: "price_desc", label: "Price: high to low" },
 ];
+// With a search, the default is best match first (the server's order),
+// and Newest is a choice; without one, the default is newest
+const sortOptions = (searching) =>
+  searching
+    ? [{ value: "", label: "Sort: Best match" }, { value: "newest", label: "Newest" }, ...PRICE_SORTS]
+    : [{ value: "", label: "Sort: Newest" }, ...PRICE_SORTS];
 
 const selectClass =
   "w-full appearance-none text-sm border border-border bg-surface text-text-muted pl-4 pr-9 py-2.5 rounded-lg focus:outline-none cursor-pointer";
@@ -212,17 +218,15 @@ export default function StoreBrowse() {
         )}
 
         <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${storeName}`}
-              aria-label="Search"
-              className="w-full bg-surface border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-text/10"
-            />
-          </div>
+          <SearchSuggest
+            value={query}
+            onChange={setQuery}
+            category={category}
+            placeholder={`Search ${storeName}`}
+            // The box empties from the address (like Back), so its delayed
+            // update can't land afterwards and drop the brand
+            onPickBrand={(picked) => update({ q: "", brand: picked })}
+          />
           {sizes.length > 0 && (
             <div className="flex-1 min-w-[8.5rem] sm:flex-none sm:min-w-0">
               <SizeFilter value={selectedSizes} onChange={(list) => update({ size: list.join(",") })} sizes={sizes} />
@@ -243,7 +247,12 @@ export default function StoreBrowse() {
             onChange={(v) => update({ price: v })}
             options={PRICE_RANGES.map((r) => ({ value: r.key, label: r.label }))}
           />
-          <FilterSelect label="Sort" value={sort} onChange={(v) => update({ sort: v })} options={SORTS} />
+          <FilterSelect
+            label="Sort"
+            value={!q && sort === "newest" ? "" : sort}
+            onChange={(v) => update({ sort: v })}
+            options={sortOptions(!!q)}
+          />
           {filtersActive && (
             <button
               onClick={() => {
