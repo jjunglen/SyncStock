@@ -1,5 +1,7 @@
 const bcrypt = require("bcryptjs");
-const { Account, User, Store } = require("../models/index.js");
+const { literal } = require("sequelize");
+const { Account, User, Store, AlertEmail } = require("../models/index.js");
+const { isBot } = require("../utils/visitor.js");
 const {
     signToken,
     signEmailVerifyToken,
@@ -258,6 +260,15 @@ const merchantLogin = async (req, res) => {
 const emailLinkLogin = async (req, res) => {
   try {
     const link = verifyEmailLoginToken(req.query.t);
+    // Count the click for its email (any link in it, first one sets the
+    // time). Email security scanners that open links are skipped where
+    // they say they're bots.
+    if (link?.eid && !isBot(req)) {
+      AlertEmail.update(
+        { clicks: literal("clicks + 1"), first_clicked_at: literal("COALESCE(first_clicked_at, NOW())") },
+        { where: { id: link.eid } },
+      ).catch((err) => console.error("Email click record error:", err.message));
+    }
     const store = link ? await Store.findByPk(link.store_id) : null;
     const path = safeRedirectPath(req.query.to) || "/store/dashboard";
     if (!link || !store) {

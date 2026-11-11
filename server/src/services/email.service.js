@@ -164,14 +164,15 @@ const plainText = ({ greetingText, intro, parts, both, ctaHref, footer, unsubscr
     `Unsubscribe from alert emails: ${unsubscribeHref}`,
   ].join("\n");
 
-const sendDigestEmail = async ({ store, account, membershipId, alerts: alertItems = [], sizes: sizeItems = [] }) => {
+// emailId: the AlertEmail row the digest records once this is sent
+const sendDigestEmail = async ({ store, account, membershipId, emailId = null, alerts: alertItems = [], sizes: sizeItems = [] }) => {
   if (!resend) {
     console.warn("Skipping email - Resend not configured");
     return;
   }
 
   // Every link signs the shopper in when tapped (utils/emailLink.js)
-  const signed = signedLinker(store, account.id);
+  const signed = signedLinker(store, account.id, emailId);
   const alerts = alertItems.map((i) => ({ ...i, shopify_url: signed(i.shopify_url) }));
   const sizes = sizeItems.map((i) => ({ ...i, shopify_url: signed(i.shopify_url) }));
 

@@ -1,7 +1,9 @@
+const crypto = require("crypto");
 const { Op } = require("sequelize");
 const {
   PendingNotification,
   NotificationLog,
+  AlertEmail,
   Inventory,
   Alert,
   Store,
@@ -162,13 +164,20 @@ const deliverDigest = async (storeId, userId, queuedItems) => {
     if (emailItems.length > 0) {
       const alertMatches = emailItems.filter((i) => i.alert_id);
       const sizeMatches = emailItems.filter((i) => !i.alert_id);
+      // Its id goes into the email's links, so clicks count for it
+      const emailId = crypto.randomUUID();
       await sendDigestEmail({
         store,
         account,
         membershipId: user.id,
+        emailId,
         alerts: alertMatches,
         sizes: sizeMatches,
       });
+      // Recorded only once it's sent; a failure here mustn't resend it
+      AlertEmail.create({ id: emailId, store_id: store.id, account_id: account.id, items: emailItems.length }).catch(
+        (err) => console.error("Alert email record error:", err.message),
+      );
       // Who got it and how big it was. The address is partly hidden (logs
       // are kept by Railway); the account ID identifies the shopper.
       console.log(

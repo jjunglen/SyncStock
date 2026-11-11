@@ -190,6 +190,13 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    // Subdomains the store used before (changed by the platform admin);
+    // old links and printed QR signs forward to the current one
+    former_subdomains: {
+      type: DataTypes.ARRAY(DataTypes.STRING(63)),
+      allowNull: false,
+      defaultValue: [],
+    },
     // Search engines may show the shopper site (Browse, product pages).
     // Off: no sitemap and every page says noindex (seo.routes.js,
     // client lib/pageMeta.js; migrateSearchIndexing.js)

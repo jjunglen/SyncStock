@@ -24,16 +24,9 @@ const { verifySessionToken } = require("../utils/shopifySession.js");
 const { connect: connectChannel, CHANNEL_SCOPES, isChannelStore } = require("../services/channel.service.js");
 const { PUBLISHING_SCOPES } = require("../services/autoPublish.service.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
+const { recordVisit } = require("../services/visit.service.js");
 
-const RESERVED_SUBDOMAINS = [
-  "www",
-  "api",
-  "app",
-  "admin",
-  "mail",
-  "syncstock",
-  "store",
-];
+const { RESERVED_SUBDOMAINS, isValidSubdomainFormat, subdomainTaken } = require("../utils/subdomain.js");
 
 const slugify = (name) =>
   name
@@ -47,19 +40,11 @@ const generateSubdomain = async (name) => {
 
   let candidate = base;
   let suffix = 1;
-  while (await Store.findOne({ where: { subdomain: candidate } })) {
+  while (await subdomainTaken(candidate)) {
     candidate = `${base}-${suffix}`;
     suffix++;
   }
   return candidate;
-};
-
-const isValidSubdomainFormat = (value) => {
-  if (!value || value.length < 3 || value.length > 30) return false;
-  if (!/^[a-z0-9-]+$/.test(value)) return false;
-  if (value.startsWith("-") || value.endsWith("-")) return false;
-  if (RESERVED_SUBDOMAINS.includes(value)) return false;
-  return true;
 };
 
 // Webhooks SyncStock needs on each store. Each arrives at
@@ -609,8 +594,7 @@ const updateSubdomain = async (req, res) => {
       });
     }
 
-    const existing = await Store.findOne({ where: { subdomain: cleaned } });
-    if (existing && existing.id !== req.store.id) {
+    if (await subdomainTaken(cleaned, req.store.id)) {
       return res
         .status(409)
         .json({ success: false, message: "That subdomain is already taken" });
@@ -739,6 +723,8 @@ const getStore = async (req, res) => {
       .status(400)
       .json({ success: false, message: "Store not resolved" });
   }
+  // Every store page loads this once: count the visit (mobile vs desktop)
+  recordVisit(req);
   return res.status(200).json({
     success: true,
     data: {
@@ -884,8 +870,11 @@ const goToStore = async (req, res) => {
 const scanInStore = async (req, res) => {
   try {
     const subdomain = String(req.params.subdomain || "").toLowerCase();
-    const store = /^[a-z0-9-]{1,63}$/.test(subdomain)
-      ? await Store.findOne({ where: { subdomain } })
+    const valid = /^[a-z0-9-]{1,63}$/.test(subdomain);
+    // Signs printed before the store's subdomain changed still work
+    const store = valid
+      ? (await Store.findOne({ where: { subdomain } })) ||
+        (await Store.findOne({ where: { former_subdomains: { [Op.contains]: [subdomain] } } }))
       : null;
     if (!store || store.status !== "active") return res.redirect(process.env.FRONTEND_URL);
 

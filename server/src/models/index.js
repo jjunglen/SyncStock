@@ -18,6 +18,9 @@ const DeviceToken = require("./DeviceToken.js");
 const SaleHistory = require("./SaleHistory.js");
 const SellRequest = require("./SellRequest.js");
 const SellItem = require("./SellItem.js");
+const SearchLog = require("./SearchLog.js");
+const SiteVisit = require("./SiteVisit.js");
+const AlertEmail = require("./AlertEmail.js");
 const SellPhoto = require("./SellPhoto.js");
 
 Store.hasMany(User, { foreignKey: "store_id", onDelete: "CASCADE" });
@@ -40,6 +43,10 @@ SellPhoto.belongsTo(SellItem, { foreignKey: "item_id" });
 Store.hasMany(StockxPriceCheck, { foreignKey: "store_id", onDelete: "CASCADE" });
 // Views go when the store or the shopper's account is deleted
 Store.hasMany(ProductView, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(SearchLog, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(SiteVisit, { foreignKey: "store_id", onDelete: "CASCADE" });
+Store.hasMany(AlertEmail, { foreignKey: "store_id", onDelete: "CASCADE" });
+Account.hasMany(AlertEmail, { foreignKey: "account_id", onDelete: "CASCADE" });
 Account.hasMany(ProductView, { foreignKey: "account_id", onDelete: "CASCADE" });
 // App notification devices go with the account
 Account.hasMany(DeviceToken, { foreignKey: "account_id", onDelete: "CASCADE" });
@@ -103,6 +110,9 @@ NotificationLog.hasMany(AlertClick, {
 module.exports = {
   sequelize,
   ProductView,
+  SearchLog,
+  SiteVisit,
+  AlertEmail,
   Store,
   Account,
   User,

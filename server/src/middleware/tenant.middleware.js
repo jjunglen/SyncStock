@@ -33,9 +33,19 @@ const resolveStoreFromSubdomain = async (req, res, next) => {
     }
     const store = await Store.findOne({ where: { subdomain } });
     if (!store || store.status !== "active") {
-      return res
-        .status(404)
-        .json({ success: false, message: "Store not found or not active" });
+      // The store's old subdomain (changed by the platform admin): the
+      // site sends shoppers on to the new one (client lib/storeInfo.js)
+      const moved = store
+        ? null
+        : await Store.findOne({
+            where: { former_subdomains: { [Op.contains]: [String(subdomain).toLowerCase()] }, status: "active" },
+            attributes: ["subdomain"],
+          });
+      return res.status(404).json({
+        success: false,
+        message: "Store not found or not active",
+        ...(moved && { moved_to: moved.subdomain }),
+      });
     }
     req.store = store;
     next();

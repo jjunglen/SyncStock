@@ -7,6 +7,7 @@ const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js")
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const { cardPrefsWhere } = require("../utils/cardDetails.js");
 const { searchInventoryItems, cleanQuery } = require("../utils/inventorySearch.js");
+const { recordSearch } = require("../services/searchLog.service.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
@@ -156,11 +157,14 @@ const searchInventory = async (req, res) => {
       offset,
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       data: rows,
       meta: { ...buildMeta(count, page, limit), match },
     });
+    // For the search monitor: first page only (later pages are the same search)
+    if (q && page === 1) recordSearch(req, { q, results: count, match, source: "browse" });
+    return;
   } catch (error) {
     console.error("Search inventory error:", error.message);
     return res.status(500).json({ success: false, message: "Search failed" });
@@ -470,7 +474,10 @@ const getTrackableProducts = async (req, res) => {
         .sort(([a], [b]) => sizeOrder(a, b))
         .map(([size, inStock]) => ({ size, in_stock: inStock })),
     }));
-    return res.status(200).json({ success: true, data });
+    res.status(200).json({ success: true, data });
+    // For the search monitor: how many of the store's products matched
+    recordSearch(req, { q, results: data.length, match: data.length ? "exact" : null, source: "track" });
+    return;
   } catch (error) {
     console.error("Trackable products error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to search the store" });

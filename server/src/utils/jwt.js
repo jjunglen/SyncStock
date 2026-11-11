@@ -24,8 +24,9 @@ const signToken = (account, { via, remember = true } = {}) =>
 // Sign-in link for one shopper at one store, used in alert emails: tapping
 // a shoe logs them in even in an email app's own browser (which doesn't
 // share the phone browser's login). Lasts 7 days from the email.
-const signEmailLoginToken = (accountId, storeId) =>
-  jwt.sign({ id: accountId, store_id: storeId, purpose: "email-login" }, process.env.JWT_SECRET, {
+// emailId: the AlertEmail it's in, so a click counts for that email
+const signEmailLoginToken = (accountId, storeId, emailId = null) =>
+  jwt.sign({ id: accountId, store_id: storeId, purpose: "email-login", ...(emailId && { eid: emailId }) }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 

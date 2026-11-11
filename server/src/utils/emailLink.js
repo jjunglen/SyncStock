@@ -5,9 +5,10 @@ const { storeBaseUrl } = require("./storeUrl.js");
 // shopper (GET /api/auth/email-link), so tapping it in an alert email
 // opens the page already logged in. One token per email covers all of
 // its links. Links anywhere else are left as they are.
-const signedLinker = (store, accountId) => {
+// emailId: the AlertEmail row, so clicks count for that email
+const signedLinker = (store, accountId, emailId = null) => {
   const base = storeBaseUrl(store);
-  const token = signEmailLoginToken(accountId, store.id);
+  const token = signEmailLoginToken(accountId, store.id, emailId);
   return (url) => {
     if (typeof url !== "string" || !url.startsWith(base)) return url;
     const path = url.slice(base.length) || "/";

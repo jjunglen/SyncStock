@@ -125,6 +125,22 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       } catch (err) {
         console.error("Product view cleanup error:", err.message);
       }
+      // The search monitor and device split look back at most 90 days
+      try {
+        const { Op } = require("sequelize");
+        const { SearchLog } = require("./src/models/index.js");
+        const removed = await SearchLog.destroy({
+          where: { created_at: { [Op.lt]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+        });
+        if (removed) console.log(`Removed ${removed} searches older than 90 days`);
+        const { SiteVisit } = require("./src/models/index.js");
+        const visits = await SiteVisit.destroy({
+          where: { day: { [Op.lt]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) } },
+        });
+        if (visits) console.log(`Removed ${visits} site visits older than 90 days`);
+      } catch (err) {
+        console.error("Search log cleanup error:", err.message);
+      }
     },
     { timezone: "America/Chicago" },
   );

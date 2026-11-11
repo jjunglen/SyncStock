@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LuLogOut,
@@ -9,10 +9,14 @@ import {
   LuMousePointerClick,
   LuShoppingBag,
   LuFootprints,
+  LuMail,
 } from "react-icons/lu";
 import api from "../../lib/api.js";
 import SyncStockMark from "../../components/ui/SyncStockMark.jsx";
 import SalesHistory from "./SalesHistory.jsx";
+import SearchMonitor from "./SearchMonitor.jsx";
+import SubdomainEditor from "./SubdomainEditor.jsx";
+import { WantedItem, AllWanted } from "./WantedList.jsx";
 
 // SyncStock's own admin page: how every store is doing, and what
 // shoppers want across all of them. The server only answers for the
@@ -56,16 +60,14 @@ function storeState(store) {
 const billingLabel = (store) =>
   store.plan === "internal" || store.billing_status === "exempt" ? "Free (flagship)" : store.billing_status || "No plan";
 
-function StoreRow({ store, days }) {
+function StoreRow({ store, days, onChanged }) {
   const state = storeState(store);
   return (
     <div className="p-4 border-b border-border last:border-0">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="font-semibold truncate">{store.name}</p>
-          <p className="text-xs text-text-muted truncate">
-            {store.subdomain}.syncstock.io · {store.shopify_domain}
-          </p>
+          <SubdomainEditor store={store} onChanged={(changes) => onChanged(store.id, changes)} />
         </div>
         <div className="flex flex-wrap gap-1.5">
           <span className={`text-xs px-2 py-0.5 rounded-full ${state.className}`}>{state.label}</span>
@@ -135,6 +137,62 @@ function Bars({ rows, labelKey, emptyText }) {
   );
 }
 
+// The page's sections, in order, for the menu bar
+const MENU = [
+  { id: "overview", label: "Overview" },
+  { id: "stores", label: "Stores" },
+  { id: "wanted", label: "What shoppers want" },
+  { id: "activity", label: "Shopper activity" },
+  { id: "sales", label: "Sales history" },
+];
+
+// Menu bar under the header: jumps to a section, and highlights the one
+// on screen. Scrolls sideways on phones.
+function AdminMenu() {
+  const [current, setCurrent] = useState("overview");
+
+  useEffect(() => {
+    const onScroll = () => {
+      // The last section whose top has passed under the header
+      let active = MENU[0].id;
+      for (const { id } of MENU) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top < 160) active = id;
+      }
+      // At the very bottom, the last section counts even if it's short
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) {
+        active = [...MENU].reverse().find(({ id }) => document.getElementById(id))?.id || active;
+      }
+      setCurrent(active);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <nav aria-label="Admin sections" className="border-t border-border">
+      <div className="mx-auto max-w-6xl flex gap-1 overflow-x-auto px-4 sm:px-6 py-2 [scrollbar-width:none]">
+        {MENU.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+              setCurrent(id);
+            }}
+            aria-current={current === id ? "true" : undefined}
+            className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
+              current === id ? "bg-text text-bg" : "text-text-muted hover:text-text hover:bg-text/5"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 const Panel = ({ title, hint, children }) => (
   <section className="rounded-xl border border-border bg-surface p-4 sm:p-5 min-w-0">
     <h2 className="font-semibold">{title}</h2>
@@ -148,6 +206,8 @@ export default function PlatformAdmin() {
   const [overview, setOverview] = useState(null);
   const [demand, setDemand] = useState(null);
   const [category, setCategory] = useState("all");
+  const [showAllWanted, setShowAllWanted] = useState(false);
+  const closeAllWanted = useCallback(() => setShowAllWanted(false), []);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -196,11 +256,12 @@ export default function PlatformAdmin() {
             Log out
           </button>
         </div>
+        <AdminMenu />
       </header>
 
       <div className="mx-auto max-w-6xl min-w-0 p-4 sm:p-6">
         <div>
-          <h1 className="font-display text-2xl font-semibold mb-1">All stores</h1>
+          <h1 id="overview" className="font-display text-2xl font-semibold mb-1 scroll-mt-32">All stores</h1>
           <p className="text-text-muted text-sm mb-6">
             Every store on SyncStock. Counts only — no shopper names or emails.
           </p>
@@ -244,14 +305,40 @@ export default function PlatformAdmin() {
                   label={`Purchases (${days}d)`}
                   value={count(totals.recent_purchases)}
                 />
+                <Stat
+                  icon={LuMail}
+                  label={`Alert emails clicked (${days}d)`}
+                  value={
+                    totals.emails?.people
+                      ? `${count(totals.emails.people_clicked)} of ${count(totals.emails.people)} people`
+                      : "—"
+                  }
+                  hint={
+                    totals.emails?.sent
+                      ? `${Math.round((totals.emails.clicked / totals.emails.sent) * 100)}% of ${count(totals.emails.sent)} emails · ${count(totals.emails.clicks)} clicks`
+                      : "Counting from the next alert email"
+                  }
+                />
               </div>
 
-              <h2 className="font-semibold mb-3">Stores</h2>
+              <h2 id="stores" className="font-semibold mb-3 scroll-mt-32">Stores</h2>
               <div className="rounded-xl border border-border bg-surface mb-10">
                 {overview.stores.length === 0 ? (
                   <p className="p-4 text-sm text-text-muted">No stores yet.</p>
                 ) : (
-                  overview.stores.map((store) => <StoreRow key={store.id} store={store} days={days} />)
+                  overview.stores.map((store) => (
+                    <StoreRow
+                      key={store.id}
+                      store={store}
+                      days={days}
+                      onChanged={(id, changes) =>
+                        setOverview((o) => ({
+                          ...o,
+                          stores: o.stores.map((s) => (s.id === id ? { ...s, ...changes } : s)),
+                        }))
+                      }
+                    />
+                  ))
                 )}
               </div>
             </>
@@ -259,7 +346,7 @@ export default function PlatformAdmin() {
 
           {!error && (
             <>
-              <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+              <div id="wanted" className="flex flex-wrap items-end justify-between gap-3 mb-4 scroll-mt-32">
                 <div>
                   <h2 className="font-semibold">What shoppers want</h2>
                   <p className="text-xs text-text-muted">Active alerts across every store.</p>
@@ -291,41 +378,26 @@ export default function PlatformAdmin() {
               ) : (
                 <div className="grid gap-4 lg:grid-cols-3">
                   <div className="lg:col-span-2 min-w-0">
-                    <Panel title="Most wanted" hint="Shoppers waiting, and the sizes they want most">
+                    <Panel title="Most wanted" hint="Top 10: shoppers waiting, and the sizes they want most">
                       {demand.most_wanted.length === 0 ? (
                         <p className="text-sm text-text-muted">No active alerts here yet.</p>
                       ) : (
+                        <>
                         <ol className="divide-y divide-border">
                           {demand.most_wanted.map((item, i) => (
-                            <li key={item.product_key} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                              <span className="w-5 text-sm text-text-muted shrink-0">{i + 1}</span>
-                              <div className="size-12 shrink-0 rounded-lg bg-white flex items-center justify-center overflow-hidden">
-                                {item.image_url ? (
-                                  <img src={item.image_url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
-                                ) : (
-                                  <LuFootprints size={18} className="text-neutral-300" />
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-medium line-clamp-2">{item.product_name}</p>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {item.top_sizes.map((s) => (
-                                    <span key={s.size} className="text-[11px] px-1.5 py-0.5 rounded bg-text/10 text-text-muted">
-                                      {s.size}
-                                      {s.shoppers > 1 && ` ×${s.shoppers}`}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-sm font-semibold">{count(item.shoppers)}</p>
-                                <p className="text-[11px] text-text-muted">
-                                  {item.stores} {item.stores === 1 ? "store" : "stores"}
-                                </p>
-                              </div>
-                            </li>
+                            <WantedItem key={item.product_key} item={item} rank={i + 1} />
                           ))}
                         </ol>
+                        {demand.wanted_total > demand.most_wanted.length && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllWanted(true)}
+                            className="mt-4 w-full rounded-lg border border-border py-2 text-sm text-text-muted hover:text-text hover:border-text/30 transition-colors"
+                          >
+                            See all {count(demand.wanted_total)}
+                          </button>
+                        )}
+                        </>
                       )}
                     </Panel>
                   </div>
@@ -371,7 +443,17 @@ export default function PlatformAdmin() {
             </>
           )}
 
-          {!error && overview && <SalesHistory stores={overview.stores} />}
+          {showAllWanted && <AllWanted category={category} onClose={closeAllWanted} />}
+          {!error && overview && (
+            <div id="activity" className="scroll-mt-32">
+              <SearchMonitor stores={overview.stores} />
+            </div>
+          )}
+          {!error && overview && (
+            <div id="sales" className="scroll-mt-32">
+              <SalesHistory stores={overview.stores} />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -13,6 +13,12 @@ export const getStoreInfo = () => {
       .get("/store")
       .then((res) => res.data.data)
       .catch((err) => {
+        // This store moved to a new subdomain: same page, new address
+        const movedTo = err.response?.data?.moved_to;
+        if (movedTo && /^[a-z0-9-]{1,63}$/.test(movedTo) && /\.syncstock\.io$/.test(window.location.hostname)) {
+          const { pathname, search, hash } = window.location;
+          window.location.replace(`https://${movedTo}.syncstock.io${pathname}${search}${hash}`);
+        }
         request = null; // let the next caller try again
         throw err;
       });

@@ -77,7 +77,14 @@ export default function StoreHeader({ storeName: nameFromPage }) {
                     Log in
                   </Button>
                 </Link>
-                <Link to="/store/signup">
+                {/* Phones have room for one button: it opens log in,
+                    whose Sign up tab covers new shoppers */}
+                <Link to="/store/login" className="sm:hidden">
+                  <Button variant="primary" size="sm">
+                    Sign up / Log in
+                  </Button>
+                </Link>
+                <Link to="/store/signup" className="hidden sm:block">
                   <Button variant="primary" size="sm">
                     Sign up free
                   </Button>
