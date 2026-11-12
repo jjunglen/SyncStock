@@ -117,7 +117,8 @@ const subscribeToMobile = (onChange) => {
   return () => query.removeEventListener("change", onChange);
 };
 const useIsMobile = () =>
-  useSyncExternalStore(subscribeToMobile, () => window.matchMedia(MOBILE_QUERY).matches);
+  // (desktop when pages are built ahead of time, scripts/prerender.mjs)
+  useSyncExternalStore(subscribeToMobile, () => window.matchMedia(MOBILE_QUERY).matches, () => false);
 
 function NavOption({ item, isSelected, onClick, open }) {
   const Icon = item.icon;

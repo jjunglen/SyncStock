@@ -12,6 +12,15 @@
       "has": [{ "type": "host", "value": "(?<store>[a-z0-9-]+)\\.syncstock\\.io" }],
       "destination": "https://api.syncstock.io/api/seo/sitemap.xml?store=:store"
     },
+    { "source": "/", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/home.html" },
+    { "source": "/pricing", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/pricing.html" },
+    { "source": "/stores", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/stores.html" },
+    { "source": "/for/sneaker-stores", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/for-sneaker-stores.html" },
+    { "source": "/for/streetwear-stores", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/for-streetwear-stores.html" },
+    { "source": "/for/trading-card-shops", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/for-trading-card-shops.html" },
+    { "source": "/privacy", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/privacy.html" },
+    { "source": "/terms", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/terms.html" },
+    { "source": "/cookies", "has": [{ "type": "host", "value": "www.syncstock.io" }], "destination": "/www/cookies.html" },
     { "source": "/shopify", "destination": "/shopify.html" },
     { "source": "/shopify/(.*)", "destination": "/shopify.html" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -80,5 +80,5 @@ export const checkoutPath = (signedIn, { review = false } = {}) => {
 };
 
 export function useCart() {
-  return useSyncExternalStore(subscribe, () => snapshot);
+  return useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
 }

@@ -9,6 +9,13 @@ import { categoryLabel } from "../lib/categories.js";
 // "Joined stores" (syncstock.io/stores): stores on SyncStock that chose to
 // be listed (Store settings → Joined stores). Each card opens the store's
 // shopper site, so new shoppers can find stores and save their sizes.
+// How it works for shoppers — the same at every store
+const SHOPPER_STEPS = [
+  { title: "Pick a store", text: "Open a store below and browse what's in stock right now, by size, brand and price." },
+  { title: "Save your sizes", text: "Sign up free and save your shoe and clothing sizes, then pick the items you want." },
+  { title: "Get the alert", text: "The moment one is back in your size, you get an email, a push notification or an in-app alert, with a link straight to it." },
+];
+
 export default function StoresPage() {
   const [stores, setStores] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -72,6 +79,22 @@ export default function StoresPage() {
           {stores && stores.length === 0 && (
             <p className="mt-12 text-center text-sm text-text-muted">Stores will show up here as they join.</p>
           )}
+
+          <section className="mt-16">
+            <h2 className="text-center text-2xl font-semibold">How restock alerts work</h2>
+            <ol className="mt-8 grid gap-4 sm:grid-cols-3">
+              {SHOPPER_STEPS.map(({ title, text }, i) => (
+                <li key={title} className="rounded-xl border border-border bg-surface p-5">
+                  <p className="text-xs font-medium text-text-muted">Step {i + 1}</p>
+                  <h3 className="mt-1 font-semibold">{title}</h3>
+                  <p className="mt-2 text-sm text-text-muted">{text}</p>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-6 text-center text-sm text-text-muted">
+              Free for shoppers. Each store has its own page, so your sizes and alerts stay with the stores you choose.
+            </p>
+          </section>
 
           <div className="mt-16 rounded-2xl border border-border bg-surface p-8 text-center">
             <h2 className="text-xl font-semibold">Run a store on Shopify?</h2>

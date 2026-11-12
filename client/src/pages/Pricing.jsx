@@ -3,7 +3,32 @@ import Button from "../components/ui/Button.jsx";
 import MarketingHeader from "../components/marketing/MarketingHeader.jsx";
 import Footer from "../components/marketing/Footer.jsx";
 import BlackHoleBackground from "../components/ui/BlackHoleBackground.jsx";
+import FAQSection from "../components/marketing/FAQSection.jsx";
 import { PLAN } from "../lib/plan.js";
+
+// Billing questions (the home page has the product ones)
+const PRICING_FAQS = [
+  {
+    q: "How does the free trial work?",
+    a: `Connect your Shopify store and you get ${PLAN.trialDays} days with everything included. Your whole catalog syncs and shoppers can sign up and set alerts during the trial. The first charge comes after it ends.`,
+  },
+  {
+    q: "How am I billed?",
+    a: `Through Shopify, on the same bill as your other apps: ${PLAN.price} a month. There's no separate card to add and no contract.`,
+  },
+  {
+    q: "Is there a limit on alerts or products?",
+    a: "No. Alerts are unlimited, and your full catalog syncs, including what you listed before installing. You don't pay more as more shoppers sign up.",
+  },
+  {
+    q: "Do my shoppers pay anything?",
+    a: "No. Shoppers sign up free on your store's SyncStock page, save their sizes and get alerts by email, push and in-app at no cost.",
+  },
+  {
+    q: "How do I cancel?",
+    a: "Uninstall SyncStock from your Shopify admin. Billing stops with it, and nothing else needs to be cancelled.",
+  },
+];
 
 export default function PricingPage() {
   return (
@@ -52,6 +77,9 @@ export default function PricingPage() {
                 Get started
               </Button>
           </div>
+        </div>
+        <div className="relative z-10">
+          <FAQSection items={PRICING_FAQS} title="Pricing questions" />
         </div>
       </main>
 

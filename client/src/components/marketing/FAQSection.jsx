@@ -30,15 +30,16 @@ const FAQS = [
   },
 ];
 
-export default function FAQSection() {
+// items: other questions ([{ q, a }]), e.g. the pricing page's
+export default function FAQSection({ items = FAQS, title = "Questions and answers" }) {
   return (
     <Section>
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-8">
         <h2 className="font-display text-center text-3xl font-semibold sm:text-5xl">
-          Questions and answers
+          {title}
         </h2>
         <div className="w-full max-w-3xl divide-y divide-border border-y border-border">
-          {FAQS.map(({ q, a }) => (
+          {items.map(({ q, a }) => (
             <details key={q} className="group py-2">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-left font-medium [&::-webkit-details-marker]:hidden">
                 {q}
