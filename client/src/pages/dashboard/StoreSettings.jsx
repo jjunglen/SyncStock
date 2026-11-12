@@ -169,9 +169,9 @@ export default function StoreSettings() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full bg-bg text-text">
+      <div className="flex flex-col md:flex-row min-h-screen w-full bg-bg text-text">
         <MerchantSidebar />
-        <div className="flex-1 p-6"><Spinner size={20} /></div>
+        <div className="flex-1 p-4 sm:p-6"><Spinner size={20} /></div>
       </div>
     );
   }
@@ -182,10 +182,10 @@ export default function StoreSettings() {
   const validColor = /^#[0-9a-f]{6}$/i.test(color);
 
   return (
-    <div className="flex min-h-screen w-full bg-bg text-text">
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-bg text-text">
       <MerchantSidebar />
 
-      <div className="flex-1 p-6 overflow-auto max-w-xl">
+      <div className="flex-1 p-4 sm:p-6 overflow-auto max-w-xl">
         <div className="flex items-center gap-3 mb-8">
           <div className="p-2 bg-primary/10 rounded-lg">
             <LuSettings size={18} className="text-text" />

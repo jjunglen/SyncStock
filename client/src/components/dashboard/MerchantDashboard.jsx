@@ -105,10 +105,10 @@ export default function MerchantDashboard() {
   }, []);
 
   return (
-    <div className="flex min-h-screen w-full bg-bg text-text">
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-bg text-text">
       <MerchantSidebar />
 
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-4 sm:p-6 overflow-auto">
         <DashboardBody
           sourcing={sourcing}
           loadingSourcing={loadingSourcing}

@@ -40,9 +40,9 @@ export default function StorePricingPage() {
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-bg text-text">
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-bg text-text">
       <MerchantSidebar />
-      <div className="flex-1 p-6 overflow-auto min-w-0">
+      <div className="flex-1 p-4 sm:p-6 overflow-auto min-w-0">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-primary/10 rounded-lg">
             <LuScale size={18} className="text-text" />

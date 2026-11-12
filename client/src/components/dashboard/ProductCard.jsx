@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LuInfo, LuX } from "react-icons/lu";
+import { LuInfo, LuX, LuArrowRight } from "react-icons/lu";
 import { useLayout } from "../ui/AnimatedToggleLayout.jsx";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
 
@@ -32,7 +32,8 @@ function DetailsButton({ open, onToggle, large }) {
 // Slides up over the card with the product's description from Shopify.
 // Always white text on a dark panel (in both themes): fixed colors also
 // keep older iPhone/iPad Safari from drawing dark text on a dark panel.
-function DetailsPanel({ item, open, onClose }) {
+// onOpen: "See condition" opens the full product (condition, notes, sizes)
+function DetailsPanel({ item, open, onClose, onOpen }) {
   return (
     <div
       onClick={keepInCard}
@@ -59,11 +60,29 @@ function DetailsPanel({ item, open, onClose }) {
       <p className="flex-1 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed whitespace-pre-line">
         {item.description}
       </p>
+      {onOpen && (
+        <div className="flex justify-end border-t border-white/10 px-3 py-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              keepInCard(e);
+              onClose();
+              onOpen();
+            }}
+            tabIndex={open ? 0 : -1}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 -mr-1 text-sm font-medium text-white hover:bg-white/10"
+          >
+            See condition <LuArrowRight size={15} aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-export default function ProductCard({ item }) {
+// onOpen: opens the product (the dashboard's product view); the details
+// panel's "See condition" uses it
+export default function ProductCard({ item, onOpen }) {
   const layout = useLayout();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails = !!item.description;
@@ -106,7 +125,7 @@ export default function ProductCard({ item }) {
             </span>
           </div>
         </div>
-        {hasDetails && <DetailsPanel item={item} open={detailsOpen} onClose={() => setDetailsOpen(false)} />}
+        {hasDetails && <DetailsPanel item={item} open={detailsOpen} onClose={() => setDetailsOpen(false)} onOpen={onOpen} />}
       </div>
     );
   }
@@ -157,7 +176,7 @@ export default function ProductCard({ item }) {
           )}
         </div>
       </div>
-      {hasDetails && <DetailsPanel item={item} open={detailsOpen} onClose={() => setDetailsOpen(false)} />}
+      {hasDetails && <DetailsPanel item={item} open={detailsOpen} onClose={() => setDetailsOpen(false)} onOpen={onOpen} />}
     </div>
   );
 }

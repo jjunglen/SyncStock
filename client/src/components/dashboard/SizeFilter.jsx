@@ -8,7 +8,23 @@ import SizeSelector from "../../pages/onboarding/SizeSelector.jsx";
 // or Done. "My sizes" ticks the shopper's saved sizes in one go.
 export default function SizeFilter({ value, onChange, sizes, mySizes = [] }) {
   const [open, setOpen] = useState(false);
+  // Which way the panel opens: rightward from the button's left edge, or
+  // leftward from its right edge when there isn't room on the right (a
+  // filter on the right of the row, on phones 375–550px wide)
+  const [alignRight, setAlignRight] = useState(false);
   const rootRef = useRef(null);
+
+  const toggle = () => {
+    if (!open && rootRef.current) {
+      const box = rootRef.current.getBoundingClientRect();
+      const panel = Math.min(352, window.innerWidth - 32); // w-[22rem], capped to the screen
+      const fitsRight = box.left + panel <= window.innerWidth - 16;
+      const fitsLeft = box.right - panel >= 16;
+      // Phones up to 375px wide keep the original rightward panel
+      setAlignRight(window.innerWidth > 375 && !fitsRight && fitsLeft);
+    }
+    setOpen((o) => !o);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +51,7 @@ export default function SizeFilter({ value, onChange, sizes, mySizes = [] }) {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Size"
@@ -55,7 +71,7 @@ export default function SizeFilter({ value, onChange, sizes, mySizes = [] }) {
         <div
           role="dialog"
           aria-label="Choose sizes"
-          className="absolute left-0 top-full z-30 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] max-h-[26rem] overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-xl"
+          className={`absolute ${alignRight ? "right-0" : "left-0"} top-full z-30 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] max-h-[26rem] overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-xl`}
         >
           <div className="flex items-center justify-between gap-3 mb-3">
             <p className="text-xs text-text-muted">Pick one or more sizes</p>

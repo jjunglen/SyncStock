@@ -645,7 +645,7 @@ export default function CustomerDashboard() {
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
                       >
-                        <ProductCard item={item} />
+                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} />
                       </CellToggle>
                     ))}
                   </ContainerToggle>
@@ -730,7 +730,7 @@ export default function CustomerDashboard() {
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
                       >
-                        <ProductCard item={item} />
+                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} />
                       </CellToggle>
                     ))}
                   </ContainerToggle>

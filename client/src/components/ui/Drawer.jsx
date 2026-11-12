@@ -116,8 +116,9 @@ export function DrawerSection({ title, children }) {
 }
 
 // One menu row: icon and label, a real link (crawlable, opens in a new
-// tab on long-press). `href` for other sites, `to` for pages here.
-export function DrawerLink({ to, href, icon: Icon, active = false, onClick, children }) {
+// tab on long-press). `href` for other sites, `to` for pages here;
+// newTab opens an `href` in a new tab.
+export function DrawerLink({ to, href, icon: Icon, active = false, newTab = false, onClick, children }) {
   const className = `flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] transition-colors hover:bg-text/5 ${
     active ? "bg-text/5 font-medium text-text" : "text-text"
   }`;
@@ -128,7 +129,7 @@ export function DrawerLink({ to, href, icon: Icon, active = false, onClick, chil
     </>
   );
   return href ? (
-    <a href={href} className={className} onClick={onClick}>
+    <a href={href} className={className} onClick={onClick} {...(newTab && { target: "_blank", rel: "noopener noreferrer" })}>
       {content}
     </a>
   ) : (
