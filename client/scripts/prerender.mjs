@@ -92,5 +92,10 @@ for (const [page, file] of Object.entries(PAGES)) {
   fs.writeFileSync(path.join(dist, "www", file), html);
 }
 
+// The app's page is served as app.html (vercel.json): Vercel serves a
+// matching file before any rewrite, so a dist/index.html would answer "/"
+// on every host and www's home would never get its pre-built page
+fs.renameSync(path.join(dist, "index.html"), path.join(dist, "app.html"));
+
 fs.rmSync(ssrOut, { recursive: true, force: true });
 console.log(`prerender: ${Object.keys(PAGES).length} www pages`);

@@ -17,7 +17,8 @@ export default function StoreFooter({ storeName: nameFromPage }) {
   const signedIn = useSignedIn();
   const categories = useStoreCategories();
 
-  const linkClass = "text-text-muted hover:text-text transition-colors";
+  // Taller than the text, so links are easy to tap on phones
+  const linkClass = "inline-block py-1.5 text-text-muted hover:text-text transition-colors";
 
   return (
     <footer className="border-t border-border bg-bg">
@@ -33,7 +34,7 @@ export default function StoreFooter({ storeName: nameFromPage }) {
 
         <nav aria-label="Shop">
           <h2 className="font-semibold mb-3">Shop</h2>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             <li>
               <Link to="/browse" className={linkClass}>
                 Everything in stock
@@ -51,7 +52,7 @@ export default function StoreFooter({ storeName: nameFromPage }) {
 
         <nav aria-label="Your account">
           <h2 className="font-semibold mb-3">Your alerts</h2>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             {signedIn ? (
               <>
                 <li>
@@ -82,7 +83,7 @@ export default function StoreFooter({ storeName: nameFromPage }) {
 
         <nav aria-label="About">
           <h2 className="font-semibold mb-3">About</h2>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             <li>
               <a href={`${SITE}/stores`} className={linkClass}>More stores on Syncstock</a>
             </li>

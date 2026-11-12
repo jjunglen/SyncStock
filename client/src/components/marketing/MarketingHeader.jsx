@@ -1,27 +1,29 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { LuMenu, LuSparkles, LuTag, LuStore, LuFootprints, LuShirt, LuLayers } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import { SyncStockLogo } from "../ui/SyncStockMark.jsx";
-import FloatingMenu from "../ui/FloatingMenu.jsx";
+import Drawer, { DrawerSection, DrawerLink } from "../ui/Drawer.jsx";
+import { USE_CASES } from "../../lib/useCases.js";
 
 const NAV_ITEMS = [
-  { title: "How it works", href: "/#features" },
-  { title: "Pricing", href: "/pricing" },
-  { title: "Joined stores", href: "/stores" },
+  { title: "How it works", href: "/#features", icon: LuSparkles },
+  { title: "Pricing", href: "/pricing", icon: LuTag },
+  { title: "Joined stores", href: "/stores", icon: LuStore },
 ];
 
-export default function MarketingHeader() {
-  const navigate = useNavigate();
+// An icon for each "Built for" page (lib/useCases.js)
+const USE_CASE_ICONS = {
+  "/for/sneaker-stores": LuFootprints,
+  "/for/streetwear-stores": LuShirt,
+  "/for/trading-card-shops": LuLayers,
+};
 
-  // Real links (href) so crawlers on phones see them too
-  const mobileMenuItems = [
-    ...NAV_ITEMS.map((item) => ({
-      label: item.title,
-      href: item.href,
-      onClick: () => navigate(item.href),
-    })),
-    { label: "Log in", href: "/login", onClick: () => navigate("/login") },
-    { label: "Install on Shopify", href: "/onboarding", onClick: () => navigate("/onboarding") },
-  ];
+export default function MarketingHeader() {
+  const { pathname } = useLocation();
+  // Phones and tablets: the menu drawer (components/ui/Drawer.jsx)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <>
@@ -45,18 +47,62 @@ export default function MarketingHeader() {
 
           <div className="hidden lg:flex items-center gap-2">
             <Button to="/login" variant="ghost" size="sm">
-                Log in
-              </Button>
+              Log in
+            </Button>
             <Button to="/onboarding" variant="primary" size="sm">
-                Install on Shopify
-              </Button>
+              Install on Shopify
+            </Button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={menuOpen}
+            className="lg:hidden -mr-1 flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-text transition-colors hover:bg-text/5"
+          >
+            <LuMenu size={18} aria-hidden="true" />
+            Menu
+          </button>
         </div>
       </header>
 
-      <div className="lg:hidden">
-        <FloatingMenu items={mobileMenuItems} position="top-right" />
-      </div>
+      <Drawer
+        open={menuOpen}
+        onClose={closeMenu}
+        title="Syncstock"
+        footer={
+          <div className="flex flex-col gap-2">
+            <Button to="/onboarding" variant="primary" fullWidth onClick={closeMenu}>
+              Install on Shopify
+            </Button>
+            <Button to="/login" variant="secondary" fullWidth onClick={closeMenu}>
+              Log in
+            </Button>
+          </div>
+        }
+      >
+        <DrawerSection>
+          {NAV_ITEMS.map((item) => (
+            <DrawerLink key={item.href} to={item.href} icon={item.icon} active={pathname === item.href} onClick={closeMenu}>
+              {item.title}
+            </DrawerLink>
+          ))}
+        </DrawerSection>
+        <DrawerSection title="Built for">
+          {USE_CASES.map((page) => (
+            <DrawerLink
+              key={page.path}
+              to={page.path}
+              icon={USE_CASE_ICONS[page.path]}
+              active={pathname === page.path}
+              onClick={closeMenu}
+            >
+              {page.navLabel}
+            </DrawerLink>
+          ))}
+        </DrawerSection>
+      </Drawer>
     </>
   );
 }

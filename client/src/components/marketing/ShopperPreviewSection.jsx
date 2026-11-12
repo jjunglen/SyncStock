@@ -65,7 +65,7 @@ export default function ShopperPreviewSection() {
           inert
           role="img"
           aria-label="Preview of a store's shopper site with sample items: items in the shopper's size, a restock alert and the back-in-stock email"
-          className="mt-10 sm:mt-14 grid gap-4 lg:grid-cols-[1fr_320px] select-none"
+          className="mt-10 sm:mt-14 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px] select-none"
         >
           {/* The shopper's In stock tab */}
           <div className="rounded-2xl bg-border/50 p-2">

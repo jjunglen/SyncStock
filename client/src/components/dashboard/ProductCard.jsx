@@ -123,21 +123,25 @@ export default function ProductCard({ item }) {
         ) : (
           <div className="w-full h-full bg-surface-muted" />
         )}
-        {itemConditionLabel(item) && (
-          <span
-            className={`absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/60 text-white"}`}
-          >
-            {itemConditionLabel(item)}
-          </span>
-        )}
-        {item.size && (
-          <span className="absolute top-2 right-2 text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/60 text-white">
-          {item.size}
-        </span>
-        )}
+        {/* One row that wraps, so the condition and size never overlap on
+            a narrow (two-across) phone card */}
+        <div className="absolute top-2 inset-x-2 flex flex-wrap items-start justify-between gap-1 pointer-events-none">
+          {itemConditionLabel(item) && (
+            <span
+              className={`text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/60 text-white"}`}
+            >
+              {itemConditionLabel(item)}
+            </span>
+          )}
+          {item.size && (
+            <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap bg-black/60 text-white">
+              {item.size}
+            </span>
+          )}
+        </div>
       </div>
       <div className="p-3">
-        <p className="text-xs md:text-sm font-medium text-text leading-tight line-clamp-2 mb-2 min-h-[2.5rem]">
+        <p className="text-xs md:text-sm font-medium text-text leading-tight line-clamp-2 mb-2 min-h-[2.5em]">
           {item.product_name}
         </p>
         <div className="flex items-center justify-between gap-2">
@@ -147,7 +151,7 @@ export default function ProductCard({ item }) {
           {hasDetails ? (
             <DetailsButton open={detailsOpen} onToggle={toggleDetails} />
           ) : (
-            <span className="text-xs font-medium bg-text/5 text-text-muted px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-medium bg-text/5 text-text-muted px-2.5 py-1 rounded-lg whitespace-nowrap">
               View →
             </span>
           )}

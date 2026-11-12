@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LuBell,
   LuLayoutDashboard,
@@ -11,9 +11,12 @@ import {
   LuMoon,
   LuShoppingBag,
   LuHandCoins,
+  LuMenu,
+  LuStore,
 } from "react-icons/lu";
 import StoreBrandMark from "../store/StoreBrandMark.jsx";
-import FloatingMenu from "../ui/FloatingMenu.jsx";
+import Drawer, { DrawerSection, DrawerLink, DrawerButton } from "../ui/Drawer.jsx";
+import BetaBadge from "../ui/BetaBadge.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import CartDrawer from "../dashboard/CartDrawer.jsx";
 import Button from "../ui/Button.jsx";
@@ -37,7 +40,11 @@ const sweepColor = (brand) => brandShades(brand)?.dark.color || "#ff5f00";
 
 export default function DashboardNavbar() {
   const navigate = useNavigate();
+  const { pathname, search } = useLocation();
   const store = useStoreInfo();
+  // Phones and tablets: the menu drawer (components/ui/Drawer.jsx)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
   const storeName = store?.name || "";
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   // ?cart=open opens the cart; ?cart=checkout (back from sign-up, or
@@ -67,41 +74,17 @@ export default function DashboardNavbar() {
     }
   };
 
-  const mobileMenuItems = [
-    {
-      label: "Home",
-      icon: LuLayoutDashboard,
-      onClick: () => navigate("/store/dashboard?tab=instock"),
-    },
-    {
-      label: "Browse",
-      icon: LuSearch,
-      onClick: () => navigate("/store/dashboard?tab=browse"),
-    },
-    {
-      label: "Track an item",
-      icon: LuPlus,
-      onClick: () => navigate("/store/track"),
-    },
+  // Which menu row is the page on screen (the dashboard's tabs are ?tab=)
+  const tab = pathname === "/store/dashboard" ? new URLSearchParams(search).get("tab") || "instock" : null;
+  const menuItems = [
+    { label: "In stock in your sizes", icon: LuLayoutDashboard, to: "/store/dashboard?tab=instock", active: tab === "instock" },
+    { label: "Browse", icon: LuSearch, to: "/store/dashboard?tab=browse", active: tab === "browse" },
+    { label: "Your alerts", icon: LuBell, to: "/store/dashboard?tab=alerts", active: tab === "alerts" },
+    { label: "Track an item", icon: LuPlus, to: "/store/track", active: pathname === "/store/track" },
     ...(store?.sell_enabled
-      ? [
-          {
-            label: "Sell your items (Beta)",
-            icon: LuHandCoins,
-            onClick: () => navigate("/store/sell"),
-          },
-        ]
+      ? [{ label: "Sell your items", icon: LuHandCoins, to: "/store/sell", active: pathname === "/store/sell", beta: true }]
       : []),
-    {
-      label: "Alerts",
-      icon: LuBell,
-      onClick: () => navigate("/store/dashboard?tab=alerts"),
-    },
-    {
-      label: "Profile",
-      icon: LuUser,
-      onClick: () => navigate("/store/profile"),
-    },
+    { label: "Profile and sizes", icon: LuUser, to: "/store/profile", active: pathname === "/store/profile" },
   ];
 
   return (
@@ -132,7 +115,7 @@ export default function DashboardNavbar() {
             )}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
+              className="hidden lg:block p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
               aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
             >
               {theme === "light" ? <LuMoon size={18} /> : <LuSun size={18} />}
@@ -153,15 +136,9 @@ export default function DashboardNavbar() {
             <button
               onClick={() => navigate("/store/profile")}
               className="hidden lg:flex p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors"
+              aria-label="Profile and sizes"
             >
               <LuUser size={18} />
-            </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-text/5 transition-colors lg:hidden"
-              aria-label="Sign out"
-            >
-              <LuLogOut size={18} />
             </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
@@ -169,15 +146,49 @@ export default function DashboardNavbar() {
             >
               Sign out
             </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Menu"
+              aria-haspopup="dialog"
+              aria-expanded={menuOpen}
+              className="lg:hidden -mr-2 p-2.5 rounded-lg text-text hover:bg-text/5 transition-colors"
+            >
+              <LuMenu size={20} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </header>
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} storeName={storeName} autoCheckout={cartParam === "checkout"} />
 
-      <div className="lg:hidden">
-        <FloatingMenu items={mobileMenuItems} position="bottom-right" />
-      </div>
+      <Drawer open={menuOpen} onClose={closeMenu} title={storeName || "Menu"}>
+        <DrawerSection>
+          {menuItems.map((item) => (
+            <DrawerLink key={item.to} to={item.to} icon={item.icon} active={item.active} onClick={closeMenu}>
+              {item.label}
+              {item.beta && <BetaBadge size="xs" className="ml-2 align-middle" />}
+            </DrawerLink>
+          ))}
+        </DrawerSection>
+        <DrawerSection title="More">
+          <DrawerLink to={storeHomePath()} icon={LuStore} onClick={closeMenu}>
+            {storeName ? `${storeName} home page` : "Store home page"}
+          </DrawerLink>
+          <DrawerButton icon={theme === "light" ? LuMoon : LuSun} onClick={toggleTheme}>
+            {theme === "light" ? "Dark mode" : "Light mode"}
+          </DrawerButton>
+          <DrawerButton
+            icon={LuLogOut}
+            onClick={() => {
+              closeMenu();
+              setShowLogoutConfirm(true);
+            }}
+          >
+            Sign out
+          </DrawerButton>
+        </DrawerSection>
+      </Drawer>
 
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">

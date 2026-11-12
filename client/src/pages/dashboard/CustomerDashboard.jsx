@@ -761,7 +761,15 @@ export default function CustomerDashboard() {
             </>
           )}
 
-          {tab === "alerts" && (
+          {tab === "alerts" && (() => {
+            // The selected category's alerts. An alert in a category this
+            // store no longer shows appears under every tab, so it's never
+            // out of reach.
+            const tabbed = new Set(categories.map((c) => c.key));
+            const shownAlerts = alerts.filter((a) => (a.category || "sneakers") === category || !tabbed.has(a.category || "sneakers"));
+            const label = categoryLabel(category, categories.find((c) => c.key === category)?.name);
+            const trackPath = ["sneakers", "clothing"].includes(category) ? `/store/track?category=${category}` : "/store/track";
+            return (
             <>
               <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
                 <div className="flex items-center gap-3">
@@ -771,9 +779,10 @@ export default function CustomerDashboard() {
                   <div>
                     <p className="text-base font-medium">
                       <span className="text-text font-semibold">
-                        {alerts.length}
+                        {shownAlerts.length}
                       </span>{" "}
-                      shoes tracked
+                      {shownAlerts.length === 1 ? "item" : "items"} tracked
+                      {categories.length > 1 && <span className="text-text-muted"> in {label}</span>}
                     </p>
                     <p className="text-xs text-text-muted">
                       We'll notify you the second they drop
@@ -781,7 +790,7 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
                 <Link
-                  to="/store/track"
+                  to={trackPath}
                   className="flex items-center gap-2 bg-primary/10 text-text text-sm px-4 py-2.5 rounded-lg hover:bg-primary/15 transition-colors"
                 >
                   <LuPlus size={16} /> Track a new item
@@ -790,14 +799,16 @@ export default function CustomerDashboard() {
 
               {loadingAlerts ? (
                 <p className="text-text-muted text-sm">Loading...</p>
-              ) : alerts.length === 0 ? (
+              ) : shownAlerts.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-text-muted text-sm mb-4">No alerts yet</p>
-                  <Button to="/store/track" variant="primary">Track your first shoe</Button>
+                  <p className="text-text-muted text-sm mb-4">
+                    {categories.length > 1 ? `No ${label} alerts yet` : "No alerts yet"}
+                  </p>
+                  <Button to={trackPath} variant="primary">Track your first item</Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-                  {alerts.map((alert) => (
+                  {shownAlerts.map((alert) => (
                     <AlertCard
                       key={alert.id}
                       alert={alert}
@@ -810,7 +821,8 @@ export default function CustomerDashboard() {
                 </div>
               )}
             </>
-          )}
+            );
+          })()}
           </div>
         </div>
       </div>

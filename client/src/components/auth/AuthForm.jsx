@@ -340,7 +340,8 @@ export default function AuthForm({ initialMode = "login" }) {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2.5 rounded-lg text-text-muted hover:text-text"
               >
                 {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
               </button>

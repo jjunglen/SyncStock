@@ -1,11 +1,28 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Button from "../ui/Button.jsx";
 import StoreBrandMark from "./StoreBrandMark.jsx";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 import { useSignedIn } from "../../lib/useSignedIn.js";
 import { useCart, checkoutPath } from "../../lib/cart.js";
-import { storeHomePath } from "../../lib/storeLinks.js";
-import { LuShoppingBag, LuArrowLeft } from "react-icons/lu";
+import { storeHomePath, useStoreCategories, categoryPath } from "../../lib/storeLinks.js";
+import { categoryLabel } from "../../lib/categories.js";
+import Drawer, { DrawerSection, DrawerLink } from "../ui/Drawer.jsx";
+import {
+  LuShoppingBag,
+  LuArrowLeft,
+  LuMenu,
+  LuHouse,
+  LuSearch,
+  LuTag,
+  LuBell,
+  LuPlus,
+  LuUser,
+  LuCircleHelp,
+  LuStore,
+} from "react-icons/lu";
+
+const SITE = "https://www.syncstock.io";
 
 // Top bar for a store's public pages (landing, Browse, products, log in,
 // sign up). The store name always links back to the store page, so
@@ -19,6 +36,11 @@ export default function StoreHeader({ storeName: nameFromPage }) {
   const signedIn = useSignedIn();
   const onAuthPage = pathname === "/store/login" || pathname === "/store/signup";
   const cartItems = useCart();
+  const categories = useStoreCategories();
+  // Phones: the menu drawer (Browse, categories, the shopper's pages)
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+  const home = storeHomePath();
 
   // Log in / sign up already have Login and Sign up tabs, so the header
   // just offers a way back: the page they came from, or the store page
@@ -29,6 +51,7 @@ export default function StoreHeader({ storeName: nameFromPage }) {
   };
 
   return (
+    <>
     <header className="fixed top-0 left-0 w-full z-40 bg-bg/90 backdrop-blur border-b border-border">
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link to={storeHomePath()} className="flex min-w-0 items-center gap-2" aria-label={`${storeName} home`}>
@@ -41,9 +64,9 @@ export default function StoreHeader({ storeName: nameFromPage }) {
             </span>
           </Button>
         ) : (
-          // Phones: just the cart and the main button (Browse is on the
-          // page itself). Nothing account-related until we know whether
-          // they're signed in, so the buttons don't swap after loading.
+          // Phones: the cart, the main button and the menu (Browse lives
+          // there). Nothing account-related until we know whether they're
+          // signed in, so the buttons don't swap after loading.
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {pathname !== "/browse" && (
               <Button to="/browse" variant="ghost" size="sm" className="hidden sm:inline-flex">
@@ -79,9 +102,74 @@ export default function StoreHeader({ storeName: nameFromPage }) {
                   </Button>
               </>
             )}
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Menu"
+              aria-haspopup="dialog"
+              aria-expanded={menuOpen}
+              className="sm:hidden -mr-2 rounded-lg p-2.5 text-text transition-colors hover:bg-text/5"
+            >
+              <LuMenu size={20} aria-hidden="true" />
+            </button>
           </div>
         )}
       </div>
     </header>
+
+    <Drawer
+      open={menuOpen}
+      onClose={closeMenu}
+      title={storeName}
+      footer={
+        signedIn === false ? (
+          <div className="flex flex-col gap-2">
+            <Button to="/store/signup" variant="primary" fullWidth onClick={closeMenu}>
+              Sign up free
+            </Button>
+            <Button to="/store/login" variant="secondary" fullWidth onClick={closeMenu}>
+              Log in
+            </Button>
+          </div>
+        ) : null
+      }
+    >
+      <DrawerSection title="Shop">
+        <DrawerLink to={home} icon={LuHouse} active={pathname === home} onClick={closeMenu}>
+          Home
+        </DrawerLink>
+        <DrawerLink to="/browse" icon={LuSearch} active={pathname === "/browse"} onClick={closeMenu}>
+          Everything in stock
+        </DrawerLink>
+        {(categories || []).length > 1 &&
+          categories.map((c) => (
+            <DrawerLink key={c.key} to={categoryPath(c.key, categories)} icon={LuTag} onClick={closeMenu}>
+              {categoryLabel(c.key, c.name)}
+            </DrawerLink>
+          ))}
+      </DrawerSection>
+      {signedIn === true && (
+        <DrawerSection title="Your alerts">
+          <DrawerLink to="/store/dashboard" icon={LuBell} onClick={closeMenu}>
+            Your dashboard
+          </DrawerLink>
+          <DrawerLink to="/store/track" icon={LuPlus} onClick={closeMenu}>
+            Track an item
+          </DrawerLink>
+          <DrawerLink to="/store/profile" icon={LuUser} onClick={closeMenu}>
+            Profile and sizes
+          </DrawerLink>
+        </DrawerSection>
+      )}
+      <DrawerSection title="More">
+        <DrawerLink to={`${home}#how-it-works`} icon={LuCircleHelp} onClick={closeMenu}>
+          How alerts work
+        </DrawerLink>
+        <DrawerLink href={`${SITE}/stores`} icon={LuStore} onClick={closeMenu}>
+          More stores on Syncstock
+        </DrawerLink>
+      </DrawerSection>
+    </Drawer>
+    </>
   );
 }

@@ -203,7 +203,7 @@ export default function StoreBrowse() {
             </p>
           </div>
           {signedIn === false && (
-            <Button to="/store/signup" variant="secondary" size="sm" className="hidden sm:inline-flex">
+            <Button to="/store/signup" variant="secondary" size="sm">
                 <span className="flex items-center justify-center gap-2"><LuBellRing size={14} /> Get alerts in your size</span>
               </Button>
           )}

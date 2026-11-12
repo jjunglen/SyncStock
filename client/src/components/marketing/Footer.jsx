@@ -25,9 +25,9 @@ export default function Footer() {
 
           <div>
             <h3 className="text-sm font-semibold mb-3">Quick links</h3>
-            <nav className="flex flex-col gap-2 text-sm">
+            <nav className="flex flex-col text-sm">
               {QUICK_LINKS.map((link) => (
-                <Link key={link.label} to={link.href} className="text-text-muted hover:text-text transition-colors">
+                <Link key={link.label} to={link.href} className="py-1.5 text-text-muted hover:text-text transition-colors">
                   {link.label}
                 </Link>
               ))}
@@ -36,9 +36,9 @@ export default function Footer() {
 
           <div>
             <h3 className="text-sm font-semibold mb-3">Built for</h3>
-            <nav className="flex flex-col gap-2 text-sm">
+            <nav className="flex flex-col text-sm">
               {USE_CASES.map((page) => (
-                <Link key={page.path} to={page.path} className="text-text-muted hover:text-text transition-colors">
+                <Link key={page.path} to={page.path} className="py-1.5 text-text-muted hover:text-text transition-colors">
                   {page.navLabel}
                 </Link>
               ))}
@@ -55,10 +55,10 @@ export default function Footer() {
 
         <div className="mt-10 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-text-muted">© {new Date().getFullYear()} Syncstock. All rights reserved.</p>
-          <nav className="flex gap-4 text-xs text-text-muted">
-            <Link to="/privacy" className="hover:text-text transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-text transition-colors">Terms</Link>
-            <Link to="/cookies" className="hover:text-text transition-colors">Cookies</Link>
+          <nav className="flex gap-2 text-xs text-text-muted">
+            <Link to="/privacy" className="px-1 py-2 hover:text-text transition-colors">Privacy</Link>
+            <Link to="/terms" className="px-1 py-2 hover:text-text transition-colors">Terms</Link>
+            <Link to="/cookies" className="px-1 py-2 hover:text-text transition-colors">Cookies</Link>
           </nav>
         </div>
       </div>
