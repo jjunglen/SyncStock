@@ -58,6 +58,13 @@ const handleComplianceWebhook = async (req, res) => {
       const result = await redactCustomer(store, email);
       console.log(`Compliance customers/redact for ${shopDomain}:`, JSON.stringify(result));
     } else if (topic === "shop/redact") {
+      // Only a store that's actually uninstalled is deleted. One that's
+      // installed and running (reinstalled, or never really removed)
+      // keeps its data whatever arrives.
+      if (!store.uninstalled_at) {
+        console.log(`Compliance shop/redact for ${shopDomain} ignored — the store is installed`);
+        return;
+      }
       await deleteStoreData(store);
       console.log(`Compliance shop/redact: deleted all data for ${shopDomain}`);
     } else {

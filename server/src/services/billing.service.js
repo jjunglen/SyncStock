@@ -22,7 +22,18 @@ const exemptEmails = () =>
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
+// The same stores by their Shopify address, so the exemption doesn't
+// depend on who the store's admins are (an admin account removed or
+// changed, or the store reinstalled from the other SyncStock app).
+// Comma-separated x.myshopify.com.
+const exemptShops = () =>
+  (process.env.BILLING_EXEMPT_SHOPS || "the-laboratory-dtx-9766.myshopify.com")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+
 const isBillingExempt = async (store) => {
+  if (store.shopify_domain && exemptShops().includes(store.shopify_domain.toLowerCase())) return true;
   const admins = await User.findAll({
     where: { store_id: store.id, role: "admin" },
     include: [{ model: Account, attributes: ["email"] }],
