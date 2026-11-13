@@ -135,7 +135,14 @@ function StoreProduct({ productId }) {
         price: Number(item.price).toFixed(2),
         availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
         ...(CONDITION_SCHEMA[item.condition] && { itemCondition: CONDITION_SCHEMA[item.condition] }),
-        ...(storeName && { seller: { "@type": "Organization", name: storeName } }),
+        // The same store as its home page's OnlineStore (pages/StoreLanding.jsx)
+        ...(storeName && {
+          seller: {
+            "@type": "OnlineStore",
+            name: storeName,
+            ...(getSubdomain() && { "@id": `https://${getSubdomain()}.syncstock.io/#store` }),
+          },
+        }),
       },
     }),
   };

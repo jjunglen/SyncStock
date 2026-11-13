@@ -21,6 +21,7 @@ import StoreFooter from "../components/store/StoreFooter.jsx";
 import api from "../lib/api.js";
 import ProductTile from "../components/store/ProductTile.jsx";
 import { categoryLabel } from "../lib/categories.js";
+import { getSubdomain } from "../lib/getSubdomain.js";
 
 // Shopper-facing page on a store's subdomain. Same visual language as
 // the merchant landing (pages/Landing.jsx); every product shown is the
@@ -132,6 +133,32 @@ export default function StoreLanding() {
   const carried = categories
     .map((c) => categoryLabel(c.key, c.name))
     .filter(Boolean);
+  // For search engines: who this store is (an online store with its
+  // name, address and logo) and its website. Product pages carry their
+  // own Product data, with this store as the seller.
+  const subdomain = getSubdomain() || (import.meta.env.DEV && import.meta.env.VITE_DEV_STORE);
+  const site = subdomain ? `https://${subdomain}.syncstock.io` : null;
+  const storeSchema =
+    store?.name && site
+      ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "OnlineStore",
+            "@id": `${site}/#store`,
+            name: store.name,
+            url: `${site}/`,
+            ...(store.logo_url && { logo: store.logo_url, image: store.logo_url }),
+            description: `${carried.length ? `${carried.join(", ")} in stock at ${store.name}` : `Shop ${store.name}`}. Save your sizes and get an alert the moment what you want is back.`,
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: store.name,
+            url: `${site}/`,
+            publisher: { "@id": `${site}/#store` },
+          },
+        ]
+      : null;
   const featured = inventory.find((i) => i.size) || inventory[0];
   const strip = inventory.slice(0, 12);
   const recent = inventory.slice(0, 8);
@@ -169,6 +196,13 @@ export default function StoreLanding() {
       </div>
 
       <StoreHeader storeName={store?.name} />
+      {storeSchema?.map((item) => (
+        <script
+          key={item["@type"]}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(item).replace(/</g, "\\u003c") }}
+        />
+      ))}
 
       <main className="relative">
         {/* Hero */}
