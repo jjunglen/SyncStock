@@ -90,6 +90,9 @@ router.get("/settings", ...admin, getSettings);
 router.get("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").getSizeSettings);
 router.put("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").updateSizeSettings);
 router.put("/settings", ...admin, updateSettings);
+// Coming soon drop times (merchant)
+router.get("/coming-soon", ...admin, require("../controllers/comingSoon.controller.js").getComingSoonDrops);
+router.put("/coming-soon/:productId", ...admin, require("../controllers/comingSoon.controller.js").setDropTime);
 router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);
 router.delete("/logo", ...admin, deleteLogo);
 router.get("/logo/:id", serveLogo);

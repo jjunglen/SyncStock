@@ -12,6 +12,7 @@ import { categoryLabel, BETA_CATEGORIES } from "../../lib/categories.js";
 import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
 import BuyingSettings from "../../components/dashboard/BuyingSettings.jsx";
+import ComingSoonDrops from "../../components/dashboard/ComingSoonDrops.jsx";
 
 const MAX_LOGO_BYTES = 300 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -759,6 +760,7 @@ export default function StoreSettings() {
                 <p className="text-xs text-text-muted mt-3">
                   Needs Automatic publishing on: in Shopify, open Sales channels → SyncStock.
                 </p>
+                {settings.coming_soon && <ComingSoonDrops />}
               </Section>
             )}
           </>

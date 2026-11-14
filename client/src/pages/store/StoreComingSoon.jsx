@@ -7,6 +7,7 @@ import { useStoreInfo } from "../../lib/storeInfo.js";
 import { useSignedIn } from "../../lib/useSignedIn.js";
 import { useStoreCategories } from "../../lib/storeLinks.js";
 import { categoryLabel } from "../../lib/categories.js";
+import BackToTop from "../../components/ui/BackToTop.jsx";
 
 // The store's Coming soon page (/coming-soon), when the merchant turned it
 // on in Store settings: what's on its way, with an alert for each. Not
@@ -38,6 +39,7 @@ export default function StoreComingSoon() {
   return (
     <div className="min-h-screen bg-bg text-text">
       <StoreHeader storeName={store?.name} />
+      <BackToTop />
       <main className="pt-24 pb-16 px-4 md:px-10 max-w-6xl mx-auto">
         <h1 className="font-display text-3xl sm:text-4xl font-semibold">Coming soon to {storeName}</h1>
         <p className="mt-2 mb-6 text-sm text-text-muted">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { LuChevronDown, LuBellRing } from "react-icons/lu";
 import SearchSuggest from "../../components/store/SearchSuggest.jsx";
@@ -15,10 +15,15 @@ import api from "../../lib/api.js";
 import { useStoreInfo } from "../../lib/storeInfo.js";
 import { useSignedIn } from "../../lib/useSignedIn.js";
 import { SIZES_BY_CATEGORY, BETA_CATEGORIES, categoryLabel } from "../../lib/categories.js";
+import LoadMore from "../../components/ui/LoadMore.jsx";
+import useInfiniteList from "../../lib/useInfiniteList.js";
+import BackToTop from "../../components/ui/BackToTop.jsx";
 
 // The store's public catalog (/browse): everything in stock, no account
-// needed. Every filter lives in the address (?category=&q=&size=&page=),
-// so pages can be shared and search engines can follow the page links.
+// needed. Every filter lives in the address (?category=&q=&size=), so
+// searches can be shared. Products load a batch at a time as the shopper
+// scrolls; "Load more" is also a real ?page= link, so search engines can
+// still reach every product.
 // Only the plain /browse is indexed (components/Seo.jsx).
 
 const PAGE_SIZE = 24;
@@ -73,8 +78,6 @@ export default function StoreBrowse() {
 
   const [categories, setCategories] = useState(null);
   const [brands, setBrands] = useState([]);
-  // The last results, with the request they answer
-  const [result, setResult] = useState(null);
 
   const q = params.get("q") || "";
   const sizeKey = params.get("size") || "";
@@ -128,37 +131,27 @@ export default function StoreBrowse() {
       .catch(() => setBrands([]));
   }, [category]);
 
-  const request = useMemo(() => {
-    if (!category) return null;
-    const search = new URLSearchParams({ category, page: String(page), limit: String(PAGE_SIZE) });
-    if (q) search.set("q", q);
-    if (sizeKey) search.set("size", sizeKey);
-    if (brand) search.set("brand", brand);
-    // Trading cards have their own kinds (sealed, raw, graded): ?card=
-    if (condition) search.set(category === "trading_cards" ? "card" : "condition", condition);
-    if (sort) search.set("sort", sort);
-    const range = PRICE_RANGES.find((r) => r.key === price);
-    if (range?.min != null) search.set("min_price", String(range.min));
-    if (range?.max != null) search.set("max_price", String(range.max));
-    return search.toString();
-  }, [category, page, q, sizeKey, brand, condition, price, sort]);
+  const list = useInfiniteList(
+    (n) => {
+      const search = new URLSearchParams({ category: category || "", page: String(n), limit: String(PAGE_SIZE) });
+      if (q) search.set("q", q);
+      if (sizeKey) search.set("size", sizeKey);
+      if (brand) search.set("brand", brand);
+      // Trading cards have their own kinds (sealed, raw, graded): ?card=
+      if (condition) search.set(category === "trading_cards" ? "card" : "condition", condition);
+      if (sort) search.set("sort", sort);
+      const range = PRICE_RANGES.find((r) => r.key === price);
+      if (range?.min != null) search.set("min_price", String(range.min));
+      if (range?.max != null) search.set("max_price", String(range.max));
+        return `/inventory/search?${search.toString()}`;
+    },
+    { enabled: !!category, startPage: page },
+  );
 
-  useEffect(() => {
-    if (!request) return;
-    let active = true;
-    api
-      .get(`/inventory/search?${request}`)
-      .then((res) => active && setResult({ request, items: res.data.data || [], meta: res.data.meta || null }))
-      .catch(() => active && setResult({ request, items: [], meta: null }));
-    return () => {
-      active = false;
-    };
-  }, [request]);
-
-  // Still loading: categories, or the results for this request
-  const loading = categories === null || (!!request && result?.request !== request);
-  const items = (request && result?.items) || [];
-  const meta = request ? result?.meta : null;
+  // Still loading: categories, or the first batch for this search
+  const loading = categories === null || list.loading;
+  const items = list.items;
+  const meta = list.meta;
 
   const storeName = store?.name || "this store";
   const sizes = SIZES_BY_CATEGORY[category] || [];
@@ -193,6 +186,7 @@ export default function StoreBrowse() {
   return (
     <div className="min-h-screen bg-bg text-text">
       <StoreHeader storeName={store?.name} />
+      <BackToTop />
 
       <main className="pt-24 px-4 md:px-10 max-w-6xl mx-auto">
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
@@ -356,33 +350,20 @@ export default function StoreBrowse() {
           </div>
         ) : (
           <>
+            {page > 1 && (
+              <p className="mb-4 text-sm">
+                <Link to={pageLink(1)} rel="prev" className="text-text-muted hover:text-text underline">
+                  Back to the newest
+                </Link>
+              </p>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {items.map((item) => (
                 <ProductTile key={item.id} item={item} />
               ))}
             </div>
 
-            {meta && meta.totalPages > 1 && (
-              <nav aria-label="Pages" className="flex items-center justify-between mt-8">
-                {page > 1 ? (
-                  <Link to={pageLink(page - 1)} rel="prev" className="text-sm text-text-muted hover:text-text">
-                    Previous
-                  </Link>
-                ) : (
-                  <span className="text-sm text-text-muted opacity-30">Previous</span>
-                )}
-                <span className="text-xs text-text-muted">
-                  Page {meta.page} of {meta.totalPages}
-                </span>
-                {page < meta.totalPages ? (
-                  <Link to={pageLink(page + 1)} rel="next" className="text-sm text-text-muted hover:text-text">
-                    Next
-                  </Link>
-                ) : (
-                  <span className="text-sm text-text-muted opacity-30">Next</span>
-                )}
-              </nav>
-            )}
+            {list.hasMore && <LoadMore onMore={list.loadMore} loading={list.loadingMore} to={pageLink(list.page + 1)} />}
           </>
         )}
 

@@ -167,6 +167,8 @@ const getUserAlertStats = async (userId) => {
 };
 
 module.exports = {
+  findMatchingAlerts,
+  meetsPreferences,
   checkAlertsForInventory,
   checkPriceDropAlerts,
   getUserAlertStats,

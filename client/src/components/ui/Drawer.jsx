@@ -9,10 +9,11 @@ import { LuX } from "react-icons/lu";
 // behind doesn't scroll, and Tab stays inside while it's open. Focus goes
 // back to the button that opened it.
 //   side: "right" (next to the header's menu button) or "left"
+//   wide: a roomier panel (an item's details rather than a menu)
 const ease = [0.22, 1, 0.36, 1];
 const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export default function Drawer({ open, onClose, title, side = "right", children, footer }) {
+export default function Drawer({ open, onClose, title, side = "right", wide = false, children, footer }) {
   const panelRef = useRef(null);
   const titleId = useId();
   // The latest onClose, without restarting the effect when it changes
@@ -74,7 +75,7 @@ export default function Drawer({ open, onClose, title, side = "right", children,
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className={`absolute top-0 bottom-0 ${side === "left" ? "left-0 border-r" : "right-0 border-l"} flex w-[min(20rem,85vw)] flex-col border-border bg-surface text-text shadow-2xl`}
+            className={`absolute top-0 bottom-0 ${side === "left" ? "left-0 border-r" : "right-0 border-l"} flex ${wide ? "w-[min(28rem,92vw)]" : "w-[min(20rem,85vw)]"} flex-col border-border bg-surface text-text shadow-2xl`}
             initial={{ x: offscreen }}
             animate={{ x: 0 }}
             exit={{ x: offscreen }}

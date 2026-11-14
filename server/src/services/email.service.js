@@ -247,6 +247,45 @@ const sendDigestEmail = async ({ store, account, membershipId, emailId = null, a
   if (error) throw new Error(error.message || "Digest email failed");
 };
 
+// "Dropping soon": a Coming soon item the shopper has an alert for drops
+// in about an hour (dropReminder.service.js). when: "in about an hour".
+// Throws on failure so the caller can log it.
+const sendDropReminderEmail = async ({ store, account, membershipId, item, when, href }) => {
+  if (!resend) {
+    console.warn("Skipping email - Resend not configured");
+    return;
+  }
+  const signed = signedLinker(store, account.id, null);
+  const link = signed(href);
+  const fromEmail = store.notification_from_email || process.env.RESEND_FROM_EMAIL;
+  const fromName = store.name;
+  const brand = brandFor(store);
+  const unsubscribeHref = unsubscribeUrl(membershipId);
+  const details = item.sizes?.length ? `Sizes: ${item.sizes.join(", ")}` : "";
+  const introText = `${item.name} drops ${when} at ${fromName}. You'll get your restock alert the moment it's in stock.`;
+  const { error } = await resend.emails.send({
+    from: `${fromName} <${fromEmail}>`,
+    to: account.email,
+    subject: `Dropping soon: ${item.name}`,
+    html: renderEmail({
+      preheader: introText,
+      heading: "Dropping soon.",
+      intro: `${greeting(account)}, ${escapeHtml(item.name)} drops ${escapeHtml(when)} at ${escapeHtml(fromName)}. You'll get your restock alert the moment it's in stock.`,
+      bodyHtml: productCard({ name: item.name, details, imageUrl: item.image_url, href: link, cta: "See it →", label: "Coming soon" }),
+      footer: `${unsubscribeNote(fromName)}`,
+      unsubscribeHref,
+      logoUrl: brand.logoUrl,
+    }),
+    text: [`Hi${account.full_name ? ` ${account.full_name}` : ""},`, "", introText, details, "", link, "", `Unsubscribe: ${unsubscribeHref}`]
+      .join("\n"),
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeHref}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+  if (error) throw new Error(error.message || "Drop reminder email failed");
+};
+
 const sendPasswordResetEmail = async ({
   store,
   account,
@@ -365,5 +404,6 @@ module.exports = {
   sendAlertEmail,
   sendPriceDropEmail,
   sendDigestEmail,
+  sendDropReminderEmail,
   sendPasswordResetEmail,
 };

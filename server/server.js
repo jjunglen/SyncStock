@@ -83,6 +83,12 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
       console.error("Digest flush error:", err.message),
     );
   });
+  // Every minute: "Dropping soon" reminders, about an hour before a
+  // Coming soon item's drop time (dropReminder.service.js)
+  cron.schedule("0 * * * * *", () => {
+    const { sendDropReminders } = require("./src/services/dropReminder.service.js");
+    sendDropReminders().catch((err) => console.error("Drop reminder error:", err.message));
+  });
   // Nightly 4am Central: reload each live store's Shopify catalog, as a
   // safety net for product webhooks Shopify failed to deliver
   cron.schedule(
@@ -140,6 +146,14 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
         if (visits) console.log(`Removed ${visits} site visits older than 90 days`);
       } catch (err) {
         console.error("Search log cleanup error:", err.message);
+      }
+      // Drop times a week past (the Coming soon page only shows upcoming)
+      try {
+        const { removePastDrops } = require("./src/controllers/comingSoon.controller.js");
+        const removed = await removePastDrops();
+        if (removed) console.log(`Removed ${removed} past drop times`);
+      } catch (err) {
+        console.error("Drop time cleanup error:", err.message);
       }
     },
     { timezone: "America/Chicago" },

@@ -1,6 +1,6 @@
 const { shopperVisible } = require("../services/channel.service.js");
 const { Op, fn, col, literal } = require("sequelize");
-const { Inventory, ProductView } = require("../models/index.js");
+const { Inventory, ProductView, ProductDrop } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
 const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
@@ -8,6 +8,7 @@ const { otherSizeChart } = require("../services/otherSizeChart.service.js");
 const { cardPrefsWhere, RAW_CONDITIONS } = require("../utils/cardDetails.js");
 const { searchInventoryItems, suggestInventory, cleanQuery } = require("../utils/inventorySearch.js");
 const { recordSearch } = require("../services/searchLog.service.js");
+const { withStockxDetails } = require("../services/comingSoonStockx.service.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
@@ -476,50 +477,76 @@ const getPublicProduct = async (req, res) => {
 // aren't on the website yet or have no photo. One entry per product, with
 // its sizes, newest first. Off (404) unless the merchant turned it on.
 const COMING_SOON_LIMIT = 96;
+// The store's Coming soon products, grouped (one per Shopify product),
+// with their drop time (ProductDrop, upcoming only). Ones with a drop
+// time come first, soonest first. Also used by the merchant's list.
+const comingSoonList = async (store, category = null) => {
+  const shown = enabledCategories(store);
+  const where = {
+    store_id: store.id,
+    ...shopperVisible(store),
+    // Only products read since Coming soon existed: deleted ones never are
+    online_store: { [Op.ne]: null },
+    category: category ? (shown.includes(category) ? category : { [Op.in]: [] }) : { [Op.in]: shown },
+  };
+  const rows = await Inventory.findAll({
+    where,
+    attributes: ["shopify_product_id", "product_name", "brand", "category", "image_url", "price", "size", "available", "online_store", "condition", "box_status", "sku", "description", "created_at"],
+    order: [["created_at", "DESC"]],
+    limit: 3000,
+    raw: true,
+  });
+  const products = new Map();
+  for (const r of rows) {
+    const p = products.get(r.shopify_product_id) || {
+      product_id: r.shopify_product_id,
+      name: r.product_name,
+      brand: r.brand,
+      category: r.category,
+      image_url: r.image_url,
+      price: r.price,
+      condition: r.condition,
+      box_status: r.box_status,
+      sku: r.sku,
+      // Plain text, short — the store's own words about it
+      description: r.description ? String(r.description).replace(/<[^>]*>/g, " ").replace(/s+/g, " ").trim().slice(0, 600) : null,
+      on_website: r.online_store,
+      sizes: [],
+      in_stock: false,
+    };
+    if (r.available > 0) p.in_stock = true;
+    if (r.size && !p.sizes.includes(r.size)) p.sizes.push(r.size);
+    if (r.price != null && (p.price == null || Number(r.price) < Number(p.price))) p.price = r.price;
+    products.set(r.shopify_product_id, p);
+  }
+  const list = [...products.values()]
+    .filter((p) => !p.in_stock && (!p.on_website || !p.image_url))
+    .map(({ in_stock: _inStock, on_website: _onWebsite, ...p }) => ({ ...p, sizes: p.sizes.sort((a, b) => sizeOrder(a, b)) }));
+  const drops = list.length
+    ? await ProductDrop.findAll({
+        where: { store_id: store.id, shopify_product_id: list.map((p) => p.product_id), drops_at: { [Op.gt]: new Date() } },
+        attributes: ["shopify_product_id", "drops_at"],
+        raw: true,
+      })
+    : [];
+  const dropAt = new Map(drops.map((d) => [d.shopify_product_id, new Date(d.drops_at).getTime()]));
+  const ordered = list
+    .map((p) => ({ ...p, drops_at: dropAt.has(p.product_id) ? new Date(dropAt.get(p.product_id)).toISOString() : null }))
+    // Stable: dated ones soonest first, the rest stay newest first
+    .sort((a, b) => (dropAt.get(a.product_id) ?? Infinity) - (dropAt.get(b.product_id) ?? Infinity))
+    .slice(0, COMING_SOON_LIMIT);
+  // Colorway and retail price from StockX, and its photo for items the
+  // store hasn't photographed yet
+  return withStockxDetails(ordered);
+};
+
 const getComingSoon = async (req, res) => {
   try {
     const store = req.store;
     if (!store.coming_soon) return res.status(404).json({ success: false, message: "Coming soon is off" });
     const { category } = req.query;
     if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
-    const shown = enabledCategories(store);
-    const where = {
-      store_id: store.id,
-      ...shopperVisible(store),
-      // Only products read since Coming soon existed: deleted ones never are
-      online_store: { [Op.ne]: null },
-      category: category ? (shown.includes(category) ? category : { [Op.in]: [] }) : { [Op.in]: shown },
-    };
-    const rows = await Inventory.findAll({
-      where,
-      attributes: ["shopify_product_id", "product_name", "brand", "category", "image_url", "price", "size", "available", "online_store", "condition", "created_at"],
-      order: [["created_at", "DESC"]],
-      limit: 3000,
-      raw: true,
-    });
-    const products = new Map();
-    for (const r of rows) {
-      const p = products.get(r.shopify_product_id) || {
-        product_id: r.shopify_product_id,
-        name: r.product_name,
-        brand: r.brand,
-        category: r.category,
-        image_url: r.image_url,
-        price: r.price,
-        condition: r.condition,
-        on_website: r.online_store,
-        sizes: [],
-        in_stock: false,
-      };
-      if (r.available > 0) p.in_stock = true;
-      if (r.size && !p.sizes.includes(r.size)) p.sizes.push(r.size);
-      if (r.price != null && (p.price == null || Number(r.price) < Number(p.price))) p.price = r.price;
-      products.set(r.shopify_product_id, p);
-    }
-    const data = [...products.values()]
-      .filter((p) => !p.in_stock && (!p.on_website || !p.image_url))
-      .slice(0, COMING_SOON_LIMIT)
-      .map(({ in_stock: _inStock, on_website: _onWebsite, ...p }) => ({ ...p, sizes: p.sizes.sort((a, b) => sizeOrder(a, b)) }));
+    const data = await comingSoonList(store, category || null);
     return res.status(200).json({ success: true, data });
   } catch (error) {
     console.error("Coming soon error:", error.message);
@@ -621,6 +648,7 @@ const suggestSearch = async (req, res) => {
 module.exports = {
   listable,
   getComingSoon,
+  comingSoonList,
   suggestSearch,
   getPublicProduct,
   getTrackableProducts,
