@@ -18,6 +18,7 @@ const {
   getTrackableProducts,
   getPublicProduct,
   suggestSearch,
+  getComingSoon,
 } = require("../controllers/inventory.controller.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
@@ -26,6 +27,8 @@ router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
 router.get("/search", publicLimiter, resolveStoreFromSubdomain, searchInventory);
 // Suggestions under the search box while typing
 router.get("/suggest", suggestLimiter, resolveStoreFromSubdomain, suggestSearch);
+// The store's Coming soon page (when the merchant turned it on)
+router.get("/coming-soon", publicLimiter, resolveStoreFromSubdomain, getComingSoon);
 // A product's public page (/p/<id>-<name>)
 router.get("/product/:productId", publicLimiter, resolveStoreFromSubdomain, getPublicProduct);
 // "Track a new item": the store's own products, sold-out ones included

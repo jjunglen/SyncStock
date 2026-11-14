@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
+import { cardFilterOptions } from "../../lib/cardFilter.js";
+import ComingSoonGrid from "../../components/store/ComingSoonGrid.jsx";
+import { useStoreInfo } from "../../lib/storeInfo.js";
 import SearchSuggest from "../../components/store/SearchSuggest.jsx";
 import {
   LuSearch,
@@ -27,6 +30,8 @@ import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 const TABS = [
   { key: "instock", label: "In stock" },
   { key: "browse", label: "Browse inventory" },
+  // Only when the store turned its Coming soon page on
+  { key: "coming", label: "Coming soon", comingSoonOnly: true },
   { key: "alerts", label: "Your alerts" },
 ];
 
@@ -57,7 +62,8 @@ const sortOptions = (searching) =>
 // request (filters: { brand, condition })
 const addFilters = (params, { brand, condition }, priceKey, sort) => {
   if (brand) params.set("brand", brand);
-  if (condition) params.set("condition", condition);
+  // Trading cards have their own kinds (sealed, raw, graded): ?card=
+  if (condition) params.set(params.get("category") === "trading_cards" ? "card" : "condition", condition);
   if (sort) params.set("sort", sort);
   const range = PRICE_RANGES.find((r) => r.key === priceKey);
   if (range?.min != null) params.set("min_price", String(range.min));
@@ -75,6 +81,8 @@ const startRequest = (ref) => {
 const cancelled = (err) => err?.name === "CanceledError" || err?.code === "ERR_CANCELED";
 
 export default function CustomerDashboard() {
+  // The store's settings (its Coming soon page)
+  const storeInfo = useStoreInfo();
   const location = useLocation();
   const navigate = useNavigate();
   const [tab, setTab] = useState("instock");
@@ -425,8 +433,10 @@ export default function CustomerDashboard() {
 
   // Condition: only where the category has both brand new and pre-owned
   const categoryInfo = categories.find((c) => c.key === category);
-  const conditionChoices =
-    categoryInfo?.conditions?.brand_new > 0 && categoryInfo.conditions.pre_owned > 0
+  // (trading cards: the kinds the store has — lib/cardFilter.js)
+  const conditionChoices = category === "trading_cards"
+    ? cardFilterOptions(categoryInfo?.card_kinds)
+    : categoryInfo?.conditions?.brand_new > 0 && categoryInfo.conditions.pre_owned > 0
       ? [
           { value: "", label: "Any condition" },
           { value: "brand_new", label: "Brand new" },
@@ -537,7 +547,7 @@ export default function CustomerDashboard() {
 
       <div className="pt-16">
         <div className="flex border-b border-border px-4 md:px-10 overflow-x-auto">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !t.comingSoonOnly || storeInfo?.coming_soon).map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
@@ -759,6 +769,10 @@ export default function CustomerDashboard() {
                 </>
               )}
             </>
+          )}
+
+          {tab === "coming" && storeInfo?.coming_soon && (
+            <ComingSoonGrid category={category} signedIn otherName={storeInfo.other_category_name} />
           )}
 
           {tab === "alerts" && (() => {

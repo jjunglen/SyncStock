@@ -58,6 +58,7 @@ const handleProductCreate = async (req, res) => {
         // Sales-channel stores: left as is (a listing webhook may already
         // have marked it published)
         ...(!channel && { published: !!data.published_at }),
+        online_store: !!data.published_at,
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
@@ -69,10 +70,11 @@ const handleProductCreate = async (req, res) => {
 
     // Automatic publishing (if the merchant turned it on): publish it to
     // SyncStock; Shopify's listing webhook then shows it and alerts
-    if (channel) await autoPublish.applyToProduct(store, data, isPublished);
+    // An item being taken off SyncStock doesn't alert
+    const outcome = channel ? await autoPublish.applyToProduct(store, data, isPublished) : null;
     const hasImage = !!data.images?.[0]?.src;
 
-    if (!isPublished || !hasImage) {
+    if (!isPublished || !hasImage || outcome === "unpublished") {
       console.log(
         `Skipping alert check — ${data.title} not ready yet (published: ${isPublished}, image: ${hasImage}) (store ${store.id})`,
       );
@@ -106,7 +108,7 @@ const handleProductDelete = async (req, res) => {
     const data = JSON.parse(req.body);
 
     await Inventory.update(
-      { available: 0, last_synced_at: new Date() },
+      { available: 0, published: false, online_store: false, last_synced_at: new Date() },
       { where: { store_id: store.id, shopify_product_id: String(data.id) } },
     );
   } catch (error) {
@@ -163,7 +165,9 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
 
     // Automatic publishing (if on): bring SyncStock in line with this
     // change — e.g. Copyt just put it live on the Online Store
-    if (channel && !listed) await autoPublish.applyToProduct(store, data, isPublished);
+    // An item it's taking OFF SyncStock (e.g. a coming-soon item that got
+    // stock but isn't on the website yet) sends no alerts
+    const outcome = channel && !listed ? await autoPublish.applyToProduct(store, data, isPublished) : null;
 
     const restockVariants = [];
     const priceDropVariants = [];
@@ -221,14 +225,16 @@ const processProductUpdate = async (store, data, { listed = false } = {}) => {
         image_urls: (data.images || []).map((img) => img.src),
         // Sales-channel stores: only a listing webhook marks it published
         ...(channel ? (listed ? { published: true } : {}) : { published: isPublished }),
+        // A listing payload's published_at is the channel's, not the website's
+        ...(!listed && { online_store: !!data.published_at }),
         description: descriptionFromHtml(data.body_html),
         last_synced_at: new Date(),
       });
     }
 
-    if (!isPublished || !hasImage) {
+    if (!isPublished || !hasImage || outcome === "unpublished") {
       console.log(
-        `Skipping alert check — ${data.title} not ready yet (published: ${isPublished}, image: ${hasImage}) (store ${store.id})`,
+        `Skipping alert check — ${data.title} not ready yet (published: ${isPublished}, image: ${hasImage}${outcome === "unpublished" ? ", being unpublished" : ""}) (store ${store.id})`,
       );
       return;
     }

@@ -52,6 +52,11 @@ const Inventory = sequelize.define(
     // live, not on every edit. Null = not known yet (rows from before
     // this column), treated as published.
     published: { type: DataTypes.BOOLEAN, allowNull: true },
+    // On the store's own website (Shopify's published_at), whatever
+    // "published" means for the store. Coming soon uses it to tell items
+    // not on the website yet from sold-out ones. Null = not read yet
+    // (products deleted before it existed stay null).
+    online_store: { type: DataTypes.BOOLEAN, allowNull: true },
     // The product's Shopify description, as plain text
     // (utils/productDescription.js)
     description: { type: DataTypes.TEXT, allowNull: true },

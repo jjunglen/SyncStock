@@ -205,6 +205,15 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // The shopper site's Coming soon page (merchant's choice): active
+    // products with no stock that aren't on the website yet, or have no
+    // photo. Needs automatic publishing on (autoPublish.service.js), which
+    // then publishes them to SyncStock. migrateComingSoon.js
+    coming_soon: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     // Monday "most wanted sizes" email to the store's admins
     weekly_report: {
       type: DataTypes.BOOLEAN,

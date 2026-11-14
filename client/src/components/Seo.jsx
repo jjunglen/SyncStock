@@ -68,7 +68,9 @@ export default function Seo({ notFound = false }) {
                 ? `${label} at ${info.name} — In stock now`
                 : path === "/browse"
                   ? `Shop ${info.name} — In stock now`
-                  : info.name,
+                  : path === "/coming-soon"
+                    ? `Coming soon to ${info.name}`
+                    : info.name,
             description: home
               ? `Get notified the moment your size is back in stock at ${info.name}. Save your sizes and track the items you want.`
               : label

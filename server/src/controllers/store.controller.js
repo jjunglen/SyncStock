@@ -747,6 +747,8 @@ const getStore = async (req, res) => {
       credit_bonus: req.store.credit_bonus ?? 0,
       // false: the merchant keeps the site out of search engines
       search_indexing: req.store.search_indexing !== false,
+      // The Coming soon page is on (shopper site tab and dashboard tab)
+      coming_soon: !!req.store.coming_soon,
     },
   });
 };

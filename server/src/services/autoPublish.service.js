@@ -58,10 +58,37 @@ const setMode = async (store, mode) => {
 
 const hasPublishingScopes = (scopes) => PUBLISHING_SCOPES.every((s) => scopes.includes(s));
 
+// Coming soon (Store.coming_soon): an active product with no stock that
+// Shopify counts — not on the website yet, or no photo. Its stock comes
+// from the webhook's variants or GraphQL's totalInventory; unknown stock
+// is never coming soon.
+const stockOf = (product) => {
+  if (product.total_inventory !== undefined) {
+    return { tracked: !!product.tracks_inventory, total: Number(product.total_inventory) || 0 };
+  }
+  const variants = product.variants || [];
+  if (!variants.length || variants.some((v) => v.inventory_quantity === undefined)) return null;
+  return {
+    // Untracked variants (inventory_management null) are always "in stock";
+    // a payload without the field at all is taken as tracked
+    tracked: variants.every((v) => v.inventory_management === undefined) || variants.some((v) => v.inventory_management === "shopify"),
+    total: variants.reduce((sum, v) => sum + Math.max(0, Number(v.inventory_quantity) || 0), 0),
+  };
+};
+const isComingSoon = (product) => {
+  const stock = stockOf(product);
+  if (!stock || !stock.tracked || stock.total > 0) return false;
+  const hasPhoto = product.has_photo ?? !!product.images?.[0]?.src;
+  return !product.published_at || !hasPhoto;
+};
+
 // Should SyncStock carry this product? product: { status, published_at }
-// in the webhook shape ("active", or ACTIVE from GraphQL)
-const wanted = (mode, product) => {
+// in the webhook shape ("active", or ACTIVE from GraphQL). comingSoon:
+// the store's Coming soon page is on, so coming-soon items are carried
+// too (and dropped again once they have stock but aren't on the website).
+const wanted = (mode, product, comingSoon = false) => {
   const active = String(product.status || "").toLowerCase() === "active";
+  if (comingSoon && mode !== "off" && active && isComingSoon(product)) return true;
   if (mode === "all_active") return active;
   if (mode === "online_store") return active && !!product.published_at;
   return null; // off: the merchant decides
@@ -103,7 +130,7 @@ const applyToProduct = async (store, product, isPublished) => {
   if (!channel.isChannelStore(store)) return null;
   try {
     const mode = await getMode(store);
-    const want = wanted(mode, product);
+    const want = wanted(mode, product, !!store.coming_soon);
     if (want === null || want === isPublished) return null;
     await setPublished(store, product.id, want);
     return want ? "published" : "unpublished";
@@ -125,14 +152,24 @@ const reconcileStore = async (store) => {
     const data = await shopifyGraphql(
       store,
       `query ($cursor: String) {
-        products(first: 250, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { legacyResourceId status publishedAt isGiftCard } }
+        products(first: 250, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { legacyResourceId status publishedAt isGiftCard totalInventory tracksInventory featuredMedia { id } } }
       }`,
       { cursor },
     );
     for (const p of data.products.nodes) {
       if (p.isGiftCard) continue;
       const id = String(p.legacyResourceId);
-      const want = wanted(mode, { status: p.status, published_at: p.publishedAt });
+      const want = wanted(
+        mode,
+        {
+          status: p.status,
+          published_at: p.publishedAt,
+          total_inventory: p.totalInventory,
+          tracks_inventory: p.tracksInventory,
+          has_photo: !!p.featuredMedia,
+        },
+        !!store.coming_soon,
+      );
       const isPublished = published.has(id);
       if (want === isPublished) continue;
       try {

@@ -13,6 +13,7 @@ import {
   LuHandCoins,
   LuMenu,
   LuStore,
+  LuClock,
 } from "react-icons/lu";
 import StoreBrandMark from "../store/StoreBrandMark.jsx";
 import Drawer, { DrawerSection, DrawerLink, DrawerButton } from "../ui/Drawer.jsx";
@@ -79,6 +80,9 @@ export default function DashboardNavbar() {
   const menuItems = [
     { label: "In stock in your sizes", icon: LuLayoutDashboard, to: "/store/dashboard?tab=instock", active: tab === "instock" },
     { label: "Browse", icon: LuSearch, to: "/store/dashboard?tab=browse", active: tab === "browse" },
+    ...(store?.coming_soon
+      ? [{ label: "Coming soon", icon: LuClock, to: "/store/dashboard?tab=coming", active: tab === "coming" }]
+      : []),
     { label: "Your alerts", icon: LuBell, to: "/store/dashboard?tab=alerts", active: tab === "alerts" },
     { label: "Track an item", icon: LuPlus, to: "/store/track", active: pathname === "/store/track" },
     ...(store?.sell_enabled

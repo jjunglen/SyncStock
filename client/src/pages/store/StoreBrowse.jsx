@@ -6,6 +6,7 @@ import StoreHeader from "../../components/store/StoreHeader.jsx";
 import StoreFooter from "../../components/store/StoreFooter.jsx";
 import { getStoreCategories, categoryPath } from "../../lib/storeLinks.js";
 import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
+import { cardFilterOptions } from "../../lib/cardFilter.js";
 import ProductTile from "../../components/store/ProductTile.jsx";
 import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 import BetaBadge from "../../components/ui/BetaBadge.jsx";
@@ -133,7 +134,8 @@ export default function StoreBrowse() {
     if (q) search.set("q", q);
     if (sizeKey) search.set("size", sizeKey);
     if (brand) search.set("brand", brand);
-    if (condition) search.set("condition", condition);
+    // Trading cards have their own kinds (sealed, raw, graded): ?card=
+    if (condition) search.set(category === "trading_cards" ? "card" : "condition", condition);
     if (sort) search.set("sort", sort);
     const range = PRICE_RANGES.find((r) => r.key === price);
     if (range?.min != null) search.set("min_price", String(range.min));
@@ -162,10 +164,13 @@ export default function StoreBrowse() {
   const sizes = SIZES_BY_CATEGORY[category] || [];
   const selectedSizes = sizeKey ? sizeKey.split(",") : [];
   const filtersActive = !!(q || sizeKey || brand || condition || price);
-  // Condition: only where the category has both brand new and pre-owned
-  const conditions = categories?.find((c) => c.key === category)?.conditions;
-  const conditionChoices =
-    conditions?.brand_new > 0 && conditions.pre_owned > 0
+  // Condition: only where the category has both brand new and pre-owned;
+  // trading cards choose between the kinds the store has (lib/cardFilter.js)
+  const categoryInfo = categories?.find((c) => c.key === category);
+  const conditions = categoryInfo?.conditions;
+  const conditionChoices = category === "trading_cards"
+    ? cardFilterOptions(categoryInfo?.card_kinds)
+    : conditions?.brand_new > 0 && conditions.pre_owned > 0
       ? [
           { value: "", label: "Any condition" },
           { value: "brand_new", label: "Brand new" },
@@ -226,7 +231,17 @@ export default function StoreBrowse() {
                 <span className={`text-xs ${category === c.key ? "text-primary-text/70" : "text-text-muted"}`}>{c.count}</span>
               </Link>
             ))}
+            {store?.coming_soon && (
+              <Link to="/coming-soon" className="whitespace-nowrap text-sm px-3 py-2 rounded-md text-text hover:bg-text/10 transition-colors">
+                Coming soon
+              </Link>
+            )}
           </nav>
+        )}
+        {categories?.length === 1 && store?.coming_soon && (
+          <p className="mb-5 text-sm">
+            <Link to="/coming-soon" className="text-text underline">See what&apos;s coming soon</Link>
+          </p>
         )}
 
         <div className="flex items-center gap-3 mb-6 flex-wrap">

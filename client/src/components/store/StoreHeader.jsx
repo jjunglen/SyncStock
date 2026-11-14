@@ -20,6 +20,7 @@ import {
   LuUser,
   LuCircleHelp,
   LuStore,
+  LuClock,
 } from "react-icons/lu";
 
 const SITE = "https://www.syncstock.io";
@@ -147,6 +148,11 @@ export default function StoreHeader({ storeName: nameFromPage }) {
               {categoryLabel(c.key, c.name)}
             </DrawerLink>
           ))}
+        {store?.coming_soon && (
+          <DrawerLink to="/coming-soon" icon={LuClock} active={pathname === "/coming-soon"} onClick={closeMenu}>
+            Coming soon
+          </DrawerLink>
+        )}
       </DrawerSection>
       {signedIn === true && (
         <DrawerSection title="Your alerts">

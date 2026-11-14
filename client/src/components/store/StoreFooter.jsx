@@ -47,6 +47,13 @@ export default function StoreFooter({ storeName: nameFromPage }) {
                 </Link>
               </li>
             ))}
+            {store?.coming_soon && (
+              <li>
+                <Link to="/coming-soon" className={linkClass}>
+                  Coming soon
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 

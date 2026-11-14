@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter, LuSearch } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter, LuSearch, LuClock } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -731,6 +731,36 @@ export default function StoreSettings() {
                 </p>
               )}
             </Section>
+
+            {/* stores.coming_soon: the shopper site's /coming-soon page and
+                the dashboard tab. Automatic publishing puts the items on
+                the SyncStock channel (server autoPublish.service.js). */}
+            {settings.coming_soon_available && (
+              <Section
+                icon={LuClock}
+                title="Coming soon page"
+                description="Show shoppers what's on its way: items with no stock that aren't on your website yet, or don't have a photo. Shoppers set an alert, and it goes out once the item is in stock and live on your website. The items are published to SyncStock only, never to your website."
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm">Show a Coming soon page</span>
+                  <Switch
+                    label="Show a Coming soon page"
+                    checked={!!settings.coming_soon}
+                    disabled={busy === "coming"}
+                    onChange={(value) =>
+                      run(
+                        "coming",
+                        () => api.put("/store/settings", { coming_soon: value }),
+                        value ? "Coming soon is on. Items appear within a few minutes" : "Coming soon is off",
+                      )
+                    }
+                  />
+                </div>
+                <p className="text-xs text-text-muted mt-3">
+                  Needs Automatic publishing on: in Shopify, open Sales channels → SyncStock.
+                </p>
+              </Section>
+            )}
           </>
         )}
       </div>

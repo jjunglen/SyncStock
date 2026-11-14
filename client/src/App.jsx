@@ -42,6 +42,7 @@ const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const StoresPage = lazy(() => import("./pages/StoresPage.jsx"));
 const StoreBrowse = lazy(() => import("./pages/store/StoreBrowse.jsx"));
 const StoreProduct = lazy(() => import("./pages/store/StoreProduct.jsx"));
+const StoreComingSoon = lazy(() => import("./pages/store/StoreComingSoon.jsx"));
 const UseCasePage = lazy(() => import("./pages/UseCasePage.jsx"));
 // Dev only: App Store screenshot compositions (never in the live build)
 const AppStoreShots = import.meta.env.DEV ? lazy(() => import("./pages/dev/AppStoreShots.jsx")) : null;
@@ -151,6 +152,8 @@ function App() {
       {/* A store's public catalog and product pages — no account needed */}
       <Route path="/browse" element={onStoreSite ? <StoreBrowse /> : <NotFound />} />
       <Route path="/p/:slug" element={onStoreSite ? <StoreProduct /> : <NotFound />} />
+      {/* The store's Coming soon page (when the merchant turned it on) */}
+      <Route path="/coming-soon" element={onStoreSite ? <StoreComingSoon /> : <NotFound />} />
       <Route path="/dashboard" element={<ProtectedRoute requireMerchant><MerchantDashboard /></ProtectedRoute>} />
       <Route path="/sourcing" element={<ProtectedRoute requireMerchant><SourcingPage /></ProtectedRoute>} />
       <Route path="/purchases" element={<ProtectedRoute requireMerchant><PurchasesPage /></ProtectedRoute>} />

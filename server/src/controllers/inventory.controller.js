@@ -5,7 +5,7 @@ const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
 const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
 const { otherSizeChart } = require("../services/otherSizeChart.service.js");
-const { cardPrefsWhere } = require("../utils/cardDetails.js");
+const { cardPrefsWhere, RAW_CONDITIONS } = require("../utils/cardDetails.js");
 const { searchInventoryItems, suggestInventory, cleanQuery } = require("../utils/inventorySearch.js");
 const { recordSearch } = require("../services/searchLog.service.js");
 
@@ -35,9 +35,27 @@ const listable = (store, category) => {
 // both. (Trading cards have their own conditions, set in card prefs.)
 const FILTER_CONDITIONS = ["brand_new", "pre_owned"];
 const isPrice = (value) => /^\d+(\.\d{1,2})?$/.test(String(value));
-const applyFilters = (where, { brand, condition, min_price, max_price }) => {
+// Trading cards: ?card= picks a kind (utils/cardDetails.js)
+//   sealed                  — sealed product (damaged boxes too)
+//   raw, raw_NM/raw_LP/raw_MP — singles, at that condition or better
+//   graded, graded_PSA/BGS/CGC/OTHER — slabs, any or by company
+const RAW_UP_TO = { raw_NM: ["NM"], raw_LP: ["NM", "LP"], raw_MP: ["NM", "LP", "MP"] };
+const MAIN_COMPANIES = ["PSA", "BGS", "CGC"];
+const cardFilter = (card) => {
+  if (card === "sealed") return { condition: { [Op.in]: ["sealed", "sealed_damaged"] } };
+  if (card === "raw") return { is_graded: { [Op.not]: true }, condition: { [Op.in]: RAW_CONDITIONS } };
+  if (RAW_UP_TO[card]) return { is_graded: { [Op.not]: true }, condition: { [Op.in]: RAW_UP_TO[card] } };
+  if (card === "graded") return { is_graded: true };
+  const company = String(card || "").startsWith("graded_") ? card.slice(7) : null;
+  if (MAIN_COMPANIES.includes(company)) return { is_graded: true, grading_company: company };
+  if (company === "OTHER") return { is_graded: true, grading_company: { [Op.notIn]: MAIN_COMPANIES } };
+  return null;
+};
+
+const applyFilters = (where, { brand, condition, card, category, min_price, max_price }) => {
   if (brand) where.brand = String(brand);
   if (FILTER_CONDITIONS.includes(condition)) where.condition = { [Op.in]: [condition, "either"] };
+  if (category === "trading_cards") Object.assign(where, cardFilter(card) || {});
   if (min_price && isPrice(min_price)) where.price = { ...where.price, [Op.gte]: min_price };
   if (max_price && isPrice(max_price)) where.price = { ...where.price, [Op.lte]: max_price };
   return where;
@@ -285,6 +303,26 @@ const getCategories = async (req, res) => {
       group: ["category", "condition"],
       raw: true,
     });
+    // Trading cards: how many are sealed, raw and graded (by company), so
+    // the card filter only offers kinds the store has
+    const cardRows = counts.trading_cards > 0
+      ? await Inventory.findAll({
+          where: listable(req.store, "trading_cards"),
+          attributes: ["condition", "is_graded", "grading_company", [fn("COUNT", col("id")), "count"]],
+          group: ["condition", "is_graded", "grading_company"],
+          raw: true,
+        })
+      : [];
+    const cardKinds = { sealed: 0, raw: 0, graded: 0, companies: {} };
+    for (const r of cardRows) {
+      const n = Number(r.count);
+      if (r.is_graded) {
+        cardKinds.graded += n;
+        const company = MAIN_COMPANIES.includes(r.grading_company) ? r.grading_company : "OTHER";
+        cardKinds.companies[company] = (cardKinds.companies[company] || 0) + n;
+      } else if (["sealed", "sealed_damaged"].includes(r.condition)) cardKinds.sealed += n;
+      else if (RAW_CONDITIONS.includes(r.condition)) cardKinds.raw += n;
+    }
     const conditionsIn = (category) => {
       const of = (c) => Number(conditionRows.find((r) => r.category === category && r.condition === c)?.count || 0);
       return { brand_new: of("brand_new") + of("either"), pre_owned: of("pre_owned") + of("either") };
@@ -305,7 +343,7 @@ const getCategories = async (req, res) => {
       key: c,
       count: counts[c],
       ...(inYourSizes && { in_your_sizes: inYourSizes[c] }),
-      ...(c !== "trading_cards" && { conditions: conditionsIn(c) }),
+      ...(c !== "trading_cards" ? { conditions: conditionsIn(c) } : { card_kinds: cardKinds }),
       // The merchant's name for "other" ("Snowboards"); null = default
       name: c === "other" ? otherCategoryName(req.store) : null,
       // "other": the store's size chart, for shoppers' saved sizes
@@ -433,6 +471,62 @@ const getPublicProduct = async (req, res) => {
   }
 };
 
+// GET /api/inventory/coming-soon?category=sneakers — the store's Coming
+// soon page: products published to SyncStock with no stock anywhere that
+// aren't on the website yet or have no photo. One entry per product, with
+// its sizes, newest first. Off (404) unless the merchant turned it on.
+const COMING_SOON_LIMIT = 96;
+const getComingSoon = async (req, res) => {
+  try {
+    const store = req.store;
+    if (!store.coming_soon) return res.status(404).json({ success: false, message: "Coming soon is off" });
+    const { category } = req.query;
+    if (category && !CATEGORIES.includes(category)) return invalidCategory(res);
+    const shown = enabledCategories(store);
+    const where = {
+      store_id: store.id,
+      ...shopperVisible(store),
+      // Only products read since Coming soon existed: deleted ones never are
+      online_store: { [Op.ne]: null },
+      category: category ? (shown.includes(category) ? category : { [Op.in]: [] }) : { [Op.in]: shown },
+    };
+    const rows = await Inventory.findAll({
+      where,
+      attributes: ["shopify_product_id", "product_name", "brand", "category", "image_url", "price", "size", "available", "online_store", "condition", "created_at"],
+      order: [["created_at", "DESC"]],
+      limit: 3000,
+      raw: true,
+    });
+    const products = new Map();
+    for (const r of rows) {
+      const p = products.get(r.shopify_product_id) || {
+        product_id: r.shopify_product_id,
+        name: r.product_name,
+        brand: r.brand,
+        category: r.category,
+        image_url: r.image_url,
+        price: r.price,
+        condition: r.condition,
+        on_website: r.online_store,
+        sizes: [],
+        in_stock: false,
+      };
+      if (r.available > 0) p.in_stock = true;
+      if (r.size && !p.sizes.includes(r.size)) p.sizes.push(r.size);
+      if (r.price != null && (p.price == null || Number(r.price) < Number(p.price))) p.price = r.price;
+      products.set(r.shopify_product_id, p);
+    }
+    const data = [...products.values()]
+      .filter((p) => !p.in_stock && (!p.on_website || !p.image_url))
+      .slice(0, COMING_SOON_LIMIT)
+      .map(({ in_stock: _inStock, on_website: _onWebsite, ...p }) => ({ ...p, sizes: p.sizes.sort((a, b) => sizeOrder(a, b)) }));
+    return res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Coming soon error:", error.message);
+    return res.status(500).json({ success: false, message: "Couldn't load coming soon" });
+  }
+};
+
 const TRACKABLE_PRODUCTS = 10;
 const TRACKABLE_ROWS = 300;
 
@@ -451,7 +545,9 @@ const getTrackableProducts = async (req, res) => {
       where: {
         store_id: req.store.id,
         ...shopperVisible(req.store),
-        image_url: { [Op.ne]: null },
+        // With Coming soon on, published items without a photo yet can be
+        // tracked too (the Coming soon page's "Alert me")
+        ...(req.store.coming_soon ? {} : { image_url: { [Op.ne]: null } }),
         category: { [Op.in]: enabledCategories(req.store) },
       },
       q,
@@ -524,6 +620,7 @@ const suggestSearch = async (req, res) => {
 
 module.exports = {
   listable,
+  getComingSoon,
   suggestSearch,
   getPublicProduct,
   getTrackableProducts,

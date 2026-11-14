@@ -9,6 +9,19 @@ const {
 } = require("../utils/storeSettings.js");
 const { APPS } = require("../utils/shopifyApps.js");
 const { STORY_FONTS } = require("../utils/storyDetails.js");
+const channel = require("../services/channel.service.js");
+const autoPublish = require("../services/autoPublish.service.js");
+const { syncCatalog } = require("../services/catalogSync.service.js");
+
+// Coming soon on or off: read the catalog (each product's website status)
+// and publish or unpublish the coming-soon items, in the background
+const refreshComingSoon = (store) => {
+  (async () => {
+    if (store.coming_soon) await syncCatalog(store);
+    const r = await autoPublish.reconcileStore(store);
+    console.log(`Coming soon ${store.coming_soon ? "on" : "off"} for ${store.shopify_domain}: ${r.published} published, ${r.unpublished} unpublished`);
+  })().catch((err) => console.error(`Coming soon refresh failed for ${store.shopify_domain}:`, err.message));
+};
 const {
   latestItem,
   storyImage,
@@ -46,6 +59,9 @@ const settingsFor = (store) => ({
   logo_url: logoUrl(store),
   weekly_report: store.weekly_report,
   search_indexing: store.search_indexing,
+  // The shopper site's Coming soon page (sales-channel stores)
+  coming_soon: store.coming_soon,
+  coming_soon_available: channel.isChannelStore(store),
   // Phone app store list — read-only until the app launches (the
   // settings switch shows "Coming soon")
   app_listed: store.app_listed,
@@ -170,7 +186,28 @@ const updateSettings = async (req, res) => {
       changes[field] = req.body[field].toLowerCase();
     }
 
+    // Coming soon: SyncStock shows only what's published to it, so the
+    // page needs automatic publishing on to publish the items for it
+    let comingSoonChanged = false;
+    if (req.body.coming_soon !== undefined && !!req.body.coming_soon !== !!req.store.coming_soon) {
+      if (req.body.coming_soon) {
+        if (!channel.isChannelStore(req.store)) {
+          return res.status(400).json({ success: false, message: "Coming soon needs the SyncStock sales channel" });
+        }
+        const [mode, { scopes }] = await Promise.all([autoPublish.getMode(req.store), channel.appInstallation(req.store)]);
+        if (mode === "off" || !autoPublish.hasPublishingScopes(scopes)) {
+          return res.status(400).json({
+            success: false,
+            message: "Turn on Automatic publishing first: in Shopify, open Sales channels → SyncStock",
+          });
+        }
+      }
+      changes.coming_soon = !!req.body.coming_soon;
+      comingSoonChanged = true;
+    }
+
     await req.store.update(changes);
+    if (comingSoonChanged) refreshComingSoon(req.store);
     return res.status(200).json({ success: true, data: settingsFor(req.store) });
   } catch (error) {
     console.error("Update store settings error:", error.message);

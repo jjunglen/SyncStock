@@ -164,6 +164,7 @@ const syncCatalog = async (store, { removeMissing = false } = {}) => {
           image_url: product.images?.[0]?.src || null,
           image_urls: (product.images || []).map((img) => img.src),
           ...publishedFields(product),
+          online_store: !!product.published_at,
           description: descriptionFromHtml(product.body_html),
           last_synced_at: new Date(),
         });
