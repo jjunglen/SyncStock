@@ -535,7 +535,7 @@ const comingSoonList = async (store, category = null) => {
     // Stable: dated ones soonest first, the rest stay newest first
     .sort((a, b) => (dropAt.get(a.product_id) ?? Infinity) - (dropAt.get(b.product_id) ?? Infinity))
     .slice(0, COMING_SOON_LIMIT);
-  // Colorway and retail price from StockX, and its photo for items the
+  // Colorway from StockX, and its photo for items the
   // store hasn't photographed yet
   return withStockxDetails(ordered);
 };

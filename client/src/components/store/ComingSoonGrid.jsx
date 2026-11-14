@@ -74,7 +74,6 @@ function Details({ item, otherName }) {
   const stockx = item.stockx || {};
   const rows = [
     ["Price", formatPrice(item.price)],
-    ["Retail", stockx.retail_price && formatPrice(stockx.retail_price)],
     ["Condition", condition],
     ["Box", box],
     ["Colorway", stockx.colorway],

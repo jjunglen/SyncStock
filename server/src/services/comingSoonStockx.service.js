@@ -1,7 +1,7 @@
 const { searchStockX } = require("./stockx.service.js");
 
 // Coming soon items (sneakers and clothing) looked up on StockX for their
-// details — colorway and retail price — and a photo when the
+// colorway, and a photo when the
 // store hasn't added one yet. Matched by style code when the item has one,
 // otherwise only when every word of the item's name is in StockX's title,
 // so a wrong shoe is never shown. Answers (found or not) are remembered
@@ -38,11 +38,9 @@ const pick = (item, results) => {
 
 const details = (product) => {
   const a = product.productAttributes || {};
-  const retail = Number(a.retailPrice);
   return {
     image_url: product.image_url || null,
     colorway: a.colorway || null,
-    retail_price: Number.isFinite(retail) && retail > 0 ? retail : null,
     style_code: product.styleId || null,
   };
 };

@@ -8,10 +8,12 @@ const { sequelize, StockxImageCache, Inventory } = require("../models/index.js")
 // Each address is checked (a HEAD request) before it's used, so shoppers
 // never see a broken image, and the answer is saved in stockx_image_cache
 // so each product is only looked up once. Not found is saved too, and
-// tried again after a week.
+// tried again after a week; a found photo is checked again after a month
+// (StockX sometimes takes photos down).
 const IMAGE_HOST = "https://images.stockx.com";
 const DISPLAY_PARAMS = "?fit=fill&bg=FFFFFF&w=400&h=300&fm=webp&auto=compress&q=90";
 const RETRY_MISSES_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+const RECHECK_FOUND_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 const CHECK_TIMEOUT_MS = 2500;
 
 const titleCase = (w) => w.charAt(0).toUpperCase() + w.slice(1);
@@ -80,7 +82,7 @@ const withStockxImages = async (products) => {
   const cached = await StockxImageCache.findAll({ where: { url_key: keys } });
   const known = new Map(
     cached
-      .filter((c) => c.image_url || Date.now() - new Date(c.updated_at) < RETRY_MISSES_AFTER_MS)
+      .filter((c) => Date.now() - new Date(c.updated_at) < (c.image_url ? RECHECK_FOUND_AFTER_MS : RETRY_MISSES_AFTER_MS))
       .map((c) => [c.url_key, c.image_url]),
   );
 
