@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LuBellRing, LuImageOff } from "react-icons/lu";
+import { LuBellRing, LuImageOff, LuUsers } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import Drawer from "../ui/Drawer.jsx";
@@ -21,6 +21,9 @@ import { dropLabel, dropCountdown } from "../../lib/dropTime.js";
 //   signedIn: true / false / null (still checking)
 
 // "Size 10M/11.5W", "Sizes 9M, 10M, 11M", "Sizes 7M, 8M, 9M +4"
+// "3 people waiting" (shoppers with an alert for it); nothing at 0
+const waitingText = (n) => (n > 0 ? `${n} ${n === 1 ? "person" : "people"} waiting` : null);
+
 const sizesText = (sizes) => {
   if (sizes.length === 0) return null;
   if (sizes.length === 1) return `Size ${sizes[0]}`;
@@ -92,6 +95,11 @@ function Details({ item, otherName }) {
       <div>
         {item.brand && <p className="text-xs uppercase tracking-wide text-text-muted">{item.brand}</p>}
         <p className="mt-0.5 font-medium leading-snug">{item.name}</p>
+        {waitingText(item.waiting) && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm font-medium">
+            <LuUsers size={15} aria-hidden="true" /> {waitingText(item.waiting)} on this one
+          </p>
+        )}
       </div>
       {item.drops_at && dropCountdown(item.drops_at) && (
         <div className="rounded-xl border border-border bg-surface-muted px-3 py-2.5">
@@ -187,6 +195,11 @@ export default function ComingSoonGrid({ category = null, signedIn, otherName = 
                 <span className="absolute top-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
                   Coming soon
                 </span>
+                {waitingText(item.waiting) && (
+                  <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-medium text-white">
+                    <LuUsers size={11} aria-hidden="true" /> {waitingText(item.waiting)}
+                  </span>
+                )}
               </div>
               <div className="flex w-full flex-col p-3 pb-0">
                 {item.brand && <p className="text-[11px] uppercase tracking-wide text-text-muted truncate">{item.brand}</p>}

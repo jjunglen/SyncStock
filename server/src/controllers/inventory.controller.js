@@ -1,6 +1,6 @@
 const { shopperVisible } = require("../services/channel.service.js");
 const { Op, fn, col, literal } = require("sequelize");
-const { Inventory, ProductView, ProductDrop } = require("../models/index.js");
+const { Inventory, ProductView, ProductDrop, sequelize } = require("../models/index.js");
 const { getPagination, buildMeta, DEFAULT_LIMIT } = require("../utils/pagination.js");
 const { enabledCategories, otherCategoryName } = require("../utils/storeSettings.js");
 const { sameSize, sizeMatchKey, sizeKeySql } = require("../utils/otherSizes.js");
@@ -535,6 +535,20 @@ const comingSoonList = async (store, category = null) => {
     // Stable: dated ones soonest first, the rest stay newest first
     .sort((a, b) => (dropAt.get(a.product_id) ?? Infinity) - (dropAt.get(b.product_id) ?? Infinity))
     .slice(0, COMING_SOON_LIMIT);
+  // How many people are waiting on each: shoppers with an active alert
+  // for it by name, any size (each person once). Only the count leaves.
+  const names = [...new Set(ordered.map((p) => String(p.name || "").toLowerCase()))];
+  const waiting = new Map();
+  if (names.length) {
+    const [counts] = await sequelize.query(
+      `SELECT lower(product_name) AS name, count(DISTINCT user_id)::int AS people
+         FROM alerts WHERE store_id = :store AND active = true AND lower(product_name) IN (:names)
+         GROUP BY 1`,
+      { replacements: { store: store.id, names } },
+    );
+    for (const c of counts) waiting.set(c.name, c.people);
+  }
+  for (const p of ordered) p.waiting = waiting.get(String(p.name || "").toLowerCase()) || 0;
   // Colorway from StockX, and its photo for items the
   // store hasn't photographed yet
   return withStockxDetails(ordered);

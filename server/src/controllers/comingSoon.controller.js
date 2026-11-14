@@ -24,6 +24,7 @@ const getComingSoonDrops = async (req, res) => {
         photo_source: i.photo_source || null,
         sizes: i.sizes,
         drops_at: i.drops_at,
+        waiting: i.waiting,
       })),
     });
   } catch (error) {

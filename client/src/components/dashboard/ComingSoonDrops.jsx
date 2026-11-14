@@ -42,6 +42,7 @@ function DropRow({ item, value, onChange, onSave, onClear, onCopyDown, below, bu
           <p className="text-sm font-medium leading-snug break-words">{item.name}</p>
           <p className="mt-0.5 text-xs text-text-muted">
             {item.drops_at ? `Drops ${dropLabel(item.drops_at)}` : "No drop time"}
+            {item.waiting > 0 && ` · ${item.waiting} waiting`}
             {item.sizes.length > 0 && ` · ${item.sizes.join(", ")}`}
           </p>
         </div>
