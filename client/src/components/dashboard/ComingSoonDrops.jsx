@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LuImageOff } from "react-icons/lu";
+import { LuImageOff, LuArrowDownToLine } from "react-icons/lu";
 import api from "../../lib/api.js";
 import Spinner from "../ui/Spinner.jsx";
 import { dropLabel } from "../../lib/dropTime.js";
@@ -9,6 +9,8 @@ import { dropLabel } from "../../lib/dropTime.js";
 // Coming soon page; anyone with an alert for it gets a reminder about an
 // hour before. Times are entered and shown in the merchant's own time
 // zone (the browser's) and saved as an exact moment.
+// The arrow under a time copies it to every item below that has none
+// yet (one save for all), for drops where several shoes go live together.
 
 // ISO time → the value a datetime-local input takes, in local time
 const toInput = (iso) => {
@@ -18,29 +20,14 @@ const toInput = (iso) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-function DropRow({ item, onSaved }) {
-  const [value, setValue] = useState(toInput(item.drops_at));
-  const [state, setState] = useState({ busy: false, error: "", saved: false });
+const errorText = (err) => err.response?.data?.message || "Couldn't save. Try again.";
+
+function DropRow({ item, value, onChange, onSave, onClear, onCopyDown, below, busy, note }) {
   const changed = value !== toInput(item.drops_at);
-
-  const save = async (next) => {
-    setState({ busy: true, error: "", saved: false });
-    try {
-      const res = await api.put(`/store/coming-soon/${item.product_id}`, {
-        drops_at: next ? new Date(next).toISOString() : null,
-      });
-      onSaved(item.product_id, res.data.data.drops_at);
-      setValue(toInput(res.data.data.drops_at));
-      setState({ busy: false, error: "", saved: true });
-    } catch (err) {
-      setState({ busy: false, error: err.response?.data?.message || "Couldn't save. Try again.", saved: false });
-    }
-  };
-
   return (
-    <li className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white">
+    <li className="py-4">
+      <div className="flex items-start gap-3">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
           {item.image_url ? (
             <img src={item.image_url} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
           ) : (
@@ -49,49 +36,59 @@ function DropRow({ item, onSaved }) {
             </div>
           )}
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{item.name}</p>
-          <p className="truncate text-xs text-text-muted">
+        <div className="min-w-0 flex-1">
+          {item.brand && <p className="text-[11px] uppercase tracking-wide text-text-muted">{item.brand}</p>}
+          {/* The whole name, wrapped: it's how the merchant knows which shoe it is */}
+          <p className="text-sm font-medium leading-snug break-words">{item.name}</p>
+          <p className="mt-0.5 text-xs text-text-muted">
             {item.drops_at ? `Drops ${dropLabel(item.drops_at)}` : "No drop time"}
-            {item.sizes.length > 0 && ` · ${item.sizes.length} size${item.sizes.length === 1 ? "" : "s"}`}
+            {item.sizes.length > 0 && ` · ${item.sizes.join(", ")}`}
           </p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2 sm:pl-[4.25rem]">
         <input
           type="datetime-local"
           aria-label={`Drop time for ${item.name}`}
           value={value}
           min={toInput(new Date().toISOString())}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setState((s) => ({ ...s, saved: false, error: "" }));
-          }}
-          className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+          onChange={(e) => onChange(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm sm:flex-none"
         />
         <button
           type="button"
-          disabled={!value || !changed || state.busy}
-          onClick={() => save(value)}
+          disabled={!value || !changed || busy}
+          onClick={onSave}
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-text disabled:opacity-40"
         >
-          {state.busy ? <Spinner size={14} /> : "Save"}
+          {busy ? <Spinner size={14} /> : "Save"}
         </button>
         {item.drops_at && (
           <button
             type="button"
-            disabled={state.busy}
-            onClick={() => save(null)}
+            disabled={busy}
+            onClick={onClear}
             className="px-2 py-2 text-sm text-text-muted underline hover:text-text disabled:opacity-40"
           >
             Clear
           </button>
         )}
-        <span aria-live="polite" className="text-xs">
-          {state.error && <span className="text-red-500">{state.error}</span>}
-          {state.saved && <span className="text-text-muted">Saved</span>}
-        </span>
       </div>
+      {value && below > 0 && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onCopyDown}
+          className="mt-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-text-muted hover:bg-text/5 hover:text-text disabled:opacity-40 sm:ml-[4.25rem]"
+        >
+          <LuArrowDownToLine size={14} aria-hidden="true" />
+          Use this time for the {below} item{below === 1 ? "" : "s"} below with no time
+        </button>
+      )}
+      <p aria-live="polite" className="mt-1 text-xs sm:pl-[4.25rem]">
+        {note?.error && <span className="text-red-500">{note.error}</span>}
+        {note?.saved && <span className="text-text-muted">{note.saved}</span>}
+      </p>
     </li>
   );
 }
@@ -99,19 +96,67 @@ function DropRow({ item, onSaved }) {
 export default function ComingSoonDrops() {
   const [items, setItems] = useState(null);
   const [failed, setFailed] = useState(false);
+  // What's typed in each row (product id → datetime-local value)
+  const [values, setValues] = useState({});
+  const [busy, setBusy] = useState(null); // the row saving
+  const [notes, setNotes] = useState({}); // product id → { error } / { saved }
 
   useEffect(() => {
     api
       .get("/store/coming-soon")
-      .then((res) => setItems(res.data.data || []))
+      .then((res) => {
+        const list = res.data.data || [];
+        setItems(list);
+        setValues(Object.fromEntries(list.map((i) => [i.product_id, toInput(i.drops_at)])));
+      })
       .catch(() => {
         setFailed(true);
         setItems([]);
       });
   }, []);
 
-  const onSaved = (productId, dropsAt) =>
-    setItems((list) => list.map((i) => (i.product_id === productId ? { ...i, drops_at: dropsAt } : i)));
+  // Saved: the rows show the new time
+  const applySaved = (ids, dropsAt) => {
+    const set = new Set(ids);
+    setItems((list) => list.map((i) => (set.has(i.product_id) ? { ...i, drops_at: dropsAt } : i)));
+    setValues((v) => ({ ...v, ...Object.fromEntries(ids.map((id) => [id, toInput(dropsAt)])) }));
+  };
+
+  const saveOne = async (item, next) => {
+    setBusy(item.product_id);
+    setNotes((n) => ({ ...n, [item.product_id]: null }));
+    try {
+      const res = await api.put(`/store/coming-soon/${item.product_id}`, {
+        drops_at: next ? new Date(next).toISOString() : null,
+      });
+      applySaved([item.product_id], res.data.data.drops_at);
+      setNotes((n) => ({ ...n, [item.product_id]: { saved: next ? "Saved" : "Cleared" } }));
+    } catch (err) {
+      setNotes((n) => ({ ...n, [item.product_id]: { error: errorText(err) } }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // This row's time, saved for it and every item below with no time
+  const copyDown = async (item, index) => {
+    const below = items.slice(index + 1).filter((i) => !i.drops_at);
+    const ids = [item.product_id, ...below.map((i) => i.product_id)];
+    setBusy(item.product_id);
+    setNotes((n) => ({ ...n, [item.product_id]: null }));
+    try {
+      const res = await api.put("/store/coming-soon", {
+        product_ids: ids,
+        drops_at: new Date(values[item.product_id]).toISOString(),
+      });
+      applySaved(res.data.data.product_ids, res.data.data.drops_at);
+      setNotes((n) => ({ ...n, [item.product_id]: { saved: `Saved for this and ${below.length} below` } }));
+    } catch (err) {
+      setNotes((n) => ({ ...n, [item.product_id]: { error: errorText(err) } }));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div className="mt-6 border-t border-border pt-5">
@@ -132,8 +177,22 @@ export default function ComingSoonDrops() {
         </p>
       ) : (
         <ul className="mt-2 divide-y divide-border">
-          {items.map((item) => (
-            <DropRow key={item.product_id} item={item} onSaved={onSaved} />
+          {items.map((item, index) => (
+            <DropRow
+              key={item.product_id}
+              item={item}
+              value={values[item.product_id] || ""}
+              onChange={(v) => {
+                setValues((all) => ({ ...all, [item.product_id]: v }));
+                setNotes((n) => ({ ...n, [item.product_id]: null }));
+              }}
+              onSave={() => saveOne(item, values[item.product_id])}
+              onClear={() => saveOne(item, null)}
+              onCopyDown={() => copyDown(item, index)}
+              below={items.slice(index + 1).filter((i) => !i.drops_at).length}
+              busy={busy === item.product_id}
+              note={notes[item.product_id]}
+            />
           ))}
         </ul>
       )}
