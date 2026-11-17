@@ -119,7 +119,10 @@ function StoreProduct({ productId }) {
     addToCart({ ...item, id: chosen.id, size: chosen.size, price: chosen.price ?? item.price });
   };
 
-  const schema = {
+  // Google only accepts a Product with an offer (or ratings, which stores
+  // don't have here), so it's left out when no size has a price
+  const schemaPrice = item.price || data.sizes.find((s) => s.price)?.price;
+  const schema = schemaPrice && {
     "@context": "https://schema.org",
     "@type": "Product",
     name: item.product_name,
@@ -127,24 +130,22 @@ function StoreProduct({ productId }) {
     ...(item.description && { description: shorten(item.description, 1000) }),
     ...(item.sku && { sku: item.sku }),
     ...(item.brand && { brand: { "@type": "Brand", name: item.brand } }),
-    ...(item.price && {
-      offers: {
-        "@type": "Offer",
-        url: canonical,
-        priceCurrency: "USD",
-        price: Number(item.price).toFixed(2),
-        availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-        ...(CONDITION_SCHEMA[item.condition] && { itemCondition: CONDITION_SCHEMA[item.condition] }),
-        // The same store as its home page's OnlineStore (pages/StoreLanding.jsx)
-        ...(storeName && {
-          seller: {
-            "@type": "OnlineStore",
-            name: storeName,
-            ...(getSubdomain() && { "@id": `https://${getSubdomain()}.syncstock.io/#store` }),
-          },
-        }),
-      },
-    }),
+    offers: {
+      "@type": "Offer",
+      url: canonical,
+      priceCurrency: "USD",
+      price: Number(schemaPrice).toFixed(2),
+      availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      ...(CONDITION_SCHEMA[item.condition] && { itemCondition: CONDITION_SCHEMA[item.condition] }),
+      // The same store as its home page's OnlineStore (pages/StoreLanding.jsx)
+      ...(storeName && {
+        seller: {
+          "@type": "OnlineStore",
+          name: storeName,
+          ...(getSubdomain() && { "@id": `https://${getSubdomain()}.syncstock.io/#store` }),
+        },
+      }),
+    },
   };
   const site = `https://${getSubdomain() || "www"}.syncstock.io`;
   const breadcrumbs = {
@@ -279,7 +280,9 @@ function StoreProduct({ productId }) {
           </Link>
         </div>
 
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }} />
+        {schema && (
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema).replace(/</g, "\\u003c") }} />
+        )}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c") }} />
       </main>
       <div className="mt-20">

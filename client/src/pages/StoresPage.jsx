@@ -16,6 +16,14 @@ const SHOPPER_STEPS = [
   { title: "Get the alert", text: "The moment one is back in your size, you get an email, a push notification or an in-app alert, with a link straight to it." },
 ];
 
+// What shoppers can set alerts for, by category
+const TRACKABLE = [
+  { title: "Sneakers", text: "Alerts by shoe size, brand new or pre-owned, so a 10.5 restock reaches the people who wear a 10.5." },
+  { title: "Clothing", text: "Hoodies, tees and outerwear by letter size, plus an alert when the price drops." },
+  { title: "Trading cards", text: "Raw cards by condition, graded slabs by company and lowest grade, or factory-sealed product only." },
+  { title: "Coming soon", text: "Items a store has on the way, with the drop time and a reminder about an hour before they go live." },
+];
+
 export default function StoresPage() {
   const [stores, setStores] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -94,6 +102,18 @@ export default function StoresPage() {
             <p className="mt-6 text-center text-sm text-text-muted">
               Free for shoppers. Each store has its own page, so your sizes and alerts stay with the stores you choose.
             </p>
+          </section>
+
+          <section className="mt-16">
+            <h2 className="text-center text-2xl font-semibold">What you can track</h2>
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+              {TRACKABLE.map(({ title, text }) => (
+                <li key={title} className="rounded-xl border border-border bg-surface p-5">
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-2 text-sm text-text-muted">{text}</p>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <div className="mt-16 rounded-2xl border border-border bg-surface p-8 text-center">

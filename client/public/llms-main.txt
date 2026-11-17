@@ -1,0 +1,23 @@
+# SyncStock
+
+> Restock alerts for sneaker, streetwear and trading card stores on Shopify. Shoppers get notified the moment their size is back, and the store sees exactly what to restock next.
+
+SyncStock is a Shopify app. It syncs a store's catalog automatically and gives the store its own shopper site (storename.syncstock.io), where shoppers browse what's in stock, save their sizes and set alerts. When a matching item is back, SyncStock notifies them by email, browser push or the phone app. One plan for any Shopify store: $50/month, unlimited restock alerts, 7-day free trial.
+
+## Pages
+
+- [Home](https://www.syncstock.io/): what SyncStock does and how it works
+- [Pricing](https://www.syncstock.io/pricing): one plan, automatic catalog sync, unlimited restock alerts, 7-day free trial
+- [Joined stores](https://www.syncstock.io/stores): the sneaker, streetwear and trading card stores on SyncStock
+
+## Who it's for
+
+- [Sneaker stores](https://www.syncstock.io/for/sneaker-stores): size-matched alerts, so a 10.5 restock reaches the people who wear a 10.5; brand new or pre-owned; see which sizes to source next
+- [Streetwear stores](https://www.syncstock.io/for/streetwear-stores): letter sizes, price-drop alerts, browse by brand and price
+- [Trading card shops](https://www.syncstock.io/for/trading-card-shops): alerts by raw condition, grading company and lowest grade, or factory-sealed only
+
+## Optional
+
+- [Privacy Policy](https://www.syncstock.io/privacy)
+- [Terms of Service](https://www.syncstock.io/terms)
+- [Cookie Policy](https://www.syncstock.io/cookies)
