@@ -64,6 +64,26 @@ await build({
 });
 const { render, MARKETING } = await import(pathToFileURL(path.join(ssrOut, "prerender.js")).href);
 
+// The joined stores, so the pre-built /stores page links to each store's
+// site (their product pages are what search engines should find). Picks
+// up new stores on every deploy. If the API can't be reached, the page is
+// built without the list and the browser still loads it, so a deploy
+// never fails over it.
+const fetchStores = async () => {
+  try {
+    const res = await fetch(`${process.env.VITE_API_URL || "https://api.syncstock.io/api"}/directory`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    const body = await res.json();
+    if (!res.ok || !Array.isArray(body.data)) throw new Error(`HTTP ${res.status}`);
+    return body.data;
+  } catch (err) {
+    console.warn(`prerender: joined stores not loaded (${err.message}); /stores built without the list`);
+    return null;
+  }
+};
+const stores = await fetchStores();
+
 const template = fs.readFileSync(path.join(dist, "index.html"), "utf8");
 fs.mkdirSync(path.join(dist, "www"), { recursive: true });
 
@@ -88,7 +108,7 @@ for (const [page, file] of Object.entries(PAGES)) {
     /<\/head>/,
     `<link rel="canonical" href="${canonical}" /><meta property="og:url" content="${canonical}" />${schema}</head>`,
   );
-  html = replaceOnce(html, /<div id="root"><\/div>/, `<div id="root">${render(page)}</div>`);
+  html = replaceOnce(html, /<div id="root"><\/div>/, `<div id="root">${render(page, { stores })}</div>`);
   fs.writeFileSync(path.join(dist, "www", file), html);
 }
 
@@ -98,4 +118,4 @@ for (const [page, file] of Object.entries(PAGES)) {
 fs.renameSync(path.join(dist, "index.html"), path.join(dist, "app.html"));
 
 fs.rmSync(ssrOut, { recursive: true, force: true });
-console.log(`prerender: ${Object.keys(PAGES).length} www pages`);
+console.log(`prerender: ${Object.keys(PAGES).length} www pages, ${stores ? stores.length : "no"} joined stores`);

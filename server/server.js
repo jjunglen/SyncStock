@@ -144,6 +144,9 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
           where: { day: { [Op.lt]: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) } },
         });
         if (visits) console.log(`Removed ${visits} site visits older than 90 days`);
+        const { sequelize } = require("./src/config/database.js");
+        const [, clicks] = await sequelize.query(`DELETE FROM product_clicks WHERE day < CURRENT_DATE - 90`);
+        if (clicks?.rowCount) console.log(`Removed ${clicks.rowCount} product clicks older than 90 days`);
       } catch (err) {
         console.error("Search log cleanup error:", err.message);
       }

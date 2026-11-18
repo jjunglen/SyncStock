@@ -10,6 +10,7 @@ import { categoryLabel } from "../../lib/categories.js";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
 import { boxLabel } from "../../lib/sellLabels.js";
 import { dropLabel, dropCountdown } from "../../lib/dropTime.js";
+import { countProductClick } from "../../lib/productClick.js";
 
 // The store's Coming soon items (GET /inventory/coming-soon): products
 // with no stock that aren't on the website yet or have no photo. A tile
@@ -145,6 +146,7 @@ export default function ComingSoonGrid({ category = null, signedIn, otherName = 
   const show = (item) => {
     setOpen(item);
     setPanelOpen(true);
+    countProductClick(item.product_id, "coming_soon");
   };
 
   useEffect(() => {

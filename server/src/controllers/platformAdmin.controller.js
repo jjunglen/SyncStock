@@ -245,7 +245,7 @@ const getSearches = async (req, res) => {
     // Site visits are by day (one row per person per store per day)
     const visitFilter = `v.day >= CAST(:since AS date) AND (CAST(:store AS uuid) IS NULL OR v.store_id = CAST(:store AS uuid))`;
 
-    const [[totals], top, missing, recent, devices, [visitTotals]] = await Promise.all([
+    const [[totals], top, missing, recent, devices, [visitTotals], clicked, clickTotals] = await Promise.all([
       select(
         `
         SELECT COUNT(*)::int AS searches,
@@ -314,11 +314,51 @@ const getSearches = async (req, res) => {
         `SELECT COUNT(DISTINCT v.visitor)::int AS people, COUNT(*)::int AS visits FROM site_visits v WHERE ${visitFilter}`,
         replacements,
       ),
+      // Most clicked: products people opened (page, pop-out or Coming
+      // soon details), by how many people. null until product_clicks
+      // exists (scripts/migrateProductClicks.js).
+      select(
+        `
+        SELECT c.store_id, c.shopify_product_id,
+               COUNT(DISTINCT c.visitor)::int AS people,
+               SUM(c.clicks)::int AS clicks,
+               MAX(c.updated_at) AS last_at,
+               s.name AS store_name, s.subdomain,
+               p.product_name, p.image_url, p.in_stock
+        FROM product_clicks c
+        JOIN stores s ON s.id = c.store_id
+        CROSS JOIN LATERAL (
+          SELECT (ARRAY_AGG(i.product_name))[1] AS product_name,
+                 (ARRAY_AGG(i.image_url) FILTER (WHERE i.image_url IS NOT NULL))[1] AS image_url,
+                 BOOL_OR(i.available > 0) AS in_stock
+          FROM inventory i
+          WHERE i.store_id = c.store_id AND i.shopify_product_id = c.shopify_product_id
+        ) p
+        WHERE ${visitFilter.replace(/\bv\./g, "c.")}
+        GROUP BY c.store_id, c.shopify_product_id, s.name, s.subdomain, p.product_name, p.image_url, p.in_stock
+        ORDER BY people DESC, clicks DESC, last_at DESC
+        LIMIT 20
+        `,
+        replacements,
+      ).catch(() => null),
+      select(
+        `SELECT COUNT(DISTINCT c.visitor)::int AS people, COALESCE(SUM(c.clicks), 0)::int AS clicks
+         FROM product_clicks c WHERE ${visitFilter.replace(/\bv\./g, "c.")}`,
+        replacements,
+      ).catch(() => null),
     ]);
 
     return res.status(200).json({
       success: true,
-      data: { days, totals, top, missing, recent, devices: { ...visitTotals, by_device: devices } },
+      data: {
+        days,
+        totals,
+        top,
+        missing,
+        recent,
+        devices: { ...visitTotals, by_device: devices },
+        clicked: clicked && clickTotals ? { ...clickTotals[0], products: clicked } : null,
+      },
     });
   } catch (error) {
     console.error("Platform searches error:", error.message);

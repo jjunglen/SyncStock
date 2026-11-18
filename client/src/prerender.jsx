@@ -17,13 +17,14 @@ import { MARKETING } from "./lib/marketingPages.js";
 
 export { MARKETING };
 
-export const render = (path) =>
+// data.stores: the joined stores, fetched once at build time
+export const render = (path, data = {}) =>
   renderToString(
     <StaticRouter location={path}>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/stores" element={<StoresPage />} />
+        <Route path="/stores" element={<StoresPage initialStores={data.stores || null} />} />
         <Route path="/for/:kind" element={<UseCasePage />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />

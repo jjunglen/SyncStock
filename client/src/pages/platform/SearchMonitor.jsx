@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { LuSearch, LuSearchX, LuRefreshCw, LuSmartphone, LuMonitor, LuTablet } from "react-icons/lu";
+import { LuSearch, LuSearchX, LuRefreshCw, LuSmartphone, LuMonitor, LuTablet, LuImageOff } from "react-icons/lu";
 import api from "../../lib/api.js";
+import { productPath } from "../../lib/productPath.js";
 
 // Shopper activity on the platform admin page: mobile vs desktop
-// visitors on the stores' sites, and "What shoppers search": what people type
+// visitors on the stores' sites, the products people opened most ("Most
+// clicked"), and "What shoppers search": what people type
 // into the stores' search bars (GET /api/platform/searches). Typing is
 // merged into one search per person on the server, so "jordan 4" counts
 // once, not as "j", "jo", "jor"… Refreshes every 30 seconds while open.
@@ -79,6 +81,73 @@ function DeviceSplit({ devices }) {
             ))}
           </div>
         </>
+      )}
+    </section>
+  );
+}
+
+// Most clicked: the products people opened most (its page, the
+// dashboard pop-out or a Coming soon item's details), by people, then
+// opens. Each opens the product on the store's site.
+function MostClicked({ clicked, allStores }) {
+  return (
+    <section className="rounded-xl border border-border bg-surface p-4 sm:p-5 mb-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-semibold">Most clicked</h3>
+        {clicked && (
+          <p className="text-xs text-text-muted">
+            {count(clicked.people)} {clicked.people === 1 ? "person" : "people"} · {count(clicked.clicks)} product opens
+          </p>
+        )}
+      </div>
+      <p className="text-xs text-text-muted mt-0.5">
+        Products people opened: the product page, the pop-out on their dashboard, or a Coming soon item&apos;s details
+      </p>
+      {!clicked ? (
+        <p className="text-sm text-text-muted mt-3">Not counting yet. Run the product clicks migration to start.</p>
+      ) : clicked.products.length === 0 ? (
+        <p className="text-sm text-text-muted mt-3">No product opens in this time yet.</p>
+      ) : (
+        <ol className="mt-4 grid gap-x-6 gap-y-3 lg:grid-cols-2">
+          {clicked.products.map((row, i) => (
+            <li key={`${row.store_id}-${row.shopify_product_id}`}>
+              <a
+                href={`https://${row.subdomain}.syncstock.io${productPath(row)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-center gap-3 text-sm"
+              >
+                <span className="w-5 text-text-muted shrink-0">{i + 1}</span>
+                <span className="size-10 shrink-0 overflow-hidden rounded-lg bg-white">
+                  {row.image_url ? (
+                    <img src={row.image_url} alt="" loading="lazy" className="h-full w-full object-contain p-0.5" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-500">
+                      <LuImageOff size={14} aria-hidden="true" />
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate group-hover:underline" title={row.product_name}>
+                    {row.product_name || "Removed product"}
+                  </span>
+                  <span className="block text-[11px] text-text-muted truncate">
+                    {allStores && `${row.store_name} · `}
+                    {row.in_stock ? "In stock" : "Sold out"}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className="block font-semibold" title="People">
+                    {count(row.people)}
+                  </span>
+                  <span className="block text-[11px] text-text-muted" title="Opens">
+                    {count(row.clicks)} open{row.clicks === 1 ? "" : "s"}
+                  </span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
@@ -180,6 +249,7 @@ export default function SearchMonitor({ stores = [] }) {
       ) : (
         <>
           {data.devices && <DeviceSplit devices={data.devices} />}
+          {"clicked" in data && <MostClicked clicked={data.clicked} allStores={store === "all"} />}
           <h3 className="font-semibold mb-3 mt-6">What shoppers search</h3>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
             {[

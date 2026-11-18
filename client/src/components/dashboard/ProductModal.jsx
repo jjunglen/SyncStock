@@ -14,6 +14,7 @@ import api from "../../lib/api.js";
 import { useCart, addToCart, MAX_CART_ITEMS } from "../../lib/cart.js";
 import OtherSizes from "./OtherSizes.jsx";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
+import { countProductClick } from "../../lib/productClick.js";
 
 
 export default function ProductModal({ item, onClose, onAlertCreated, alerts, onOpenItem }) {
@@ -53,7 +54,8 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
   // shoppers don't see view counts
   useEffect(() => {
     api.post(`/inventory/${item.id}/view`).catch(() => {});
-  }, [item.id]);
+    countProductClick(item.shopify_product_id, "popup");
+  }, [item.id, item.shopify_product_id]);
 
   useEffect(() => {
     const handleEsc = (e) => e.key === "Escape" && onClose();

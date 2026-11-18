@@ -16,6 +16,7 @@ import { itemConditionLabel } from "../../lib/alertOptions.js";
 import { categoryLabel } from "../../lib/categories.js";
 import { applyPageMeta as setPageMeta } from "../../lib/pageMeta.js";
 import NotFound from "../NotFound.jsx";
+import { countProductClick } from "../../lib/productClick.js";
 
 // A product's public page (/p/<id>-<name>): photos, sizes, price and
 // details, open to everyone and to search engines. Anyone can add to the
@@ -73,6 +74,9 @@ function StoreProduct({ productId }) {
       active = false;
     };
   }, [productId]);
+
+  // For the platform admin's "Most clicked" (crawlers are left out on the server)
+  useEffect(() => countProductClick(productId, "page"), [productId]);
 
   const item = data?.item;
   const storeName = store?.name;

@@ -24,8 +24,10 @@ const TRACKABLE = [
   { title: "Coming soon", text: "Items a store has on the way, with the drop time and a reminder about an hour before they go live." },
 ];
 
-export default function StoresPage() {
-  const [stores, setStores] = useState(null);
+// initialStores: the list as of the last build (scripts/prerender.mjs), so
+// crawlers find a link to every store's site; the browser loads it fresh
+export default function StoresPage({ initialStores = null }) {
+  const [stores, setStores] = useState(initialStores);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {

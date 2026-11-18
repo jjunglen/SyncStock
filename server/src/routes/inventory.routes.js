@@ -20,6 +20,7 @@ const {
   suggestSearch,
   getComingSoon,
 } = require("../controllers/inventory.controller.js");
+const { recordProductClick } = require("../services/productClick.service.js");
 
 router.get("/", publicLimiter, resolveStoreFromSubdomain, getInventory);
 // Browsing is public (the store's /browse and /p/ pages, open to search
@@ -67,6 +68,8 @@ router.get(
   getBrands,
 );
 router.get("/:id/sizes", publicLimiter, resolveStoreFromSubdomain, getProductSizes);
+// A shopper opened a product, for the platform admin's "Most clicked"
+router.post("/clicks", publicLimiter, resolveStoreFromSubdomain, attachAccountIfPresent, recordProductClick);
 // "3 people viewed this" (product pop-out)
 router.post(
   "/:id/view",
