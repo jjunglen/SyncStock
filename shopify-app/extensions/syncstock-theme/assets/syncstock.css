@@ -235,3 +235,234 @@
   .syncstock-float--left { left: 16px; }
   .syncstock-float--desktop-only { display: none; }
 }
+
+/* "Restock alerts hero" (blocks/restock-hero.liquid). Uses the section
+   above for the logo, text, buttons and phone; adds the latest shoe in
+   the phone and the carousel underneath. */
+.syncstock-hero {
+  --ss-line: rgba(128, 128, 128, 0.28);
+}
+.syncstock-hero .syncstock-hero__top {
+  max-width: 1200px;
+}
+.syncstock-hero .syncstock-hero__button--secondary {
+  background: transparent;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.syncstock-hero__phone a {
+  color: inherit;
+  text-decoration: none;
+}
+.syncstock-hero__phone a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.syncstock-hero__drop {
+  align-items: flex-start;
+}
+.syncstock-hero__drop:hover,
+.syncstock-hero__invite:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.syncstock-hero__drop-image {
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+.syncstock-hero__drop-image img,
+.syncstock-hero__drop-image svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.syncstock-alerts__notif-body .syncstock-hero__drop-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 2px 0;
+}
+.syncstock-alerts__notif-body .syncstock-hero__sizes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  white-space: normal;
+  overflow: visible;
+}
+.syncstock-alerts__notif-body .syncstock-hero__sizes-label {
+  margin-right: 2px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.syncstock-alerts__notif-body .syncstock-hero__size {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(31, 229, 161, 0.16);
+  color: #1fe5a1;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.syncstock-hero__feed {
+  max-width: 1200px;
+  margin: 48px auto 0;
+}
+.syncstock-hero__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.syncstock-hero__tab {
+  padding: 8px 18px;
+  border: 1px solid var(--ss-line);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.syncstock-hero__tab[aria-selected="true"] {
+  background: rgb(var(--color-button, 18, 18, 18));
+  border-color: rgb(var(--color-button, 18, 18, 18));
+  color: rgb(var(--color-button-text, 255, 255, 255));
+}
+.syncstock-hero__tab:focus-visible,
+.syncstock-hero__arrow:focus-visible,
+.syncstock-hero__card:focus-visible,
+.syncstock-hero__track:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.syncstock-hero__track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 48px) / 4);
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.syncstock-hero__track::-webkit-scrollbar {
+  display: none;
+}
+.syncstock-hero__card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.syncstock-hero__image {
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.08);
+}
+.syncstock-hero__image img,
+.syncstock-hero__image svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.syncstock-hero__card:hover .syncstock-hero__image img {
+  transform: scale(1.03);
+}
+.syncstock-hero__name {
+  font-size: 14px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.syncstock-hero__price {
+  font-size: 14px;
+  opacity: 0.7;
+}
+.syncstock-hero__empty {
+  margin: 0;
+  opacity: 0.6;
+}
+.syncstock-hero__arrows {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.syncstock-hero__arrow {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ss-line);
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.syncstock-hero__arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.syncstock-hero__save {
+  padding: 36px 28px;
+  border: 1px dashed var(--ss-line);
+  border-radius: 16px;
+  text-align: center;
+}
+.syncstock-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.syncstock-hero__chips span {
+  padding: 5px 12px;
+  border: 1px solid var(--ss-line);
+  border-radius: 999px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.syncstock-hero__save-heading {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.syncstock-hero .syncstock-hero__save-text {
+  max-width: 420px;
+  margin: 0 auto 22px;
+}
+@media (max-width: 749px) {
+  .syncstock-hero__feed {
+    margin-top: 36px;
+  }
+  .syncstock-hero__track {
+    grid-auto-columns: 44%;
+    gap: 12px;
+  }
+  .syncstock-hero__arrows {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .syncstock-hero__image img {
+    transition: none;
+  }
+}

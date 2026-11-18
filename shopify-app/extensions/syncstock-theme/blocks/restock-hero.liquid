@@ -1,0 +1,312 @@
+{%- comment -%}
+  "Restock alerts hero": a hero merchants add in the theme editor, in the
+  same style as the "Restock alerts" section (restock-banner.liquid).
+  Top: the SyncStock logo, heading, text and buttons on the left; on the
+  right the dark phone, whose top alert is the store's latest shoe (photo,
+  price and the sizes in stock) and whose second alert invites shoppers to
+  save their sizes. Below: a carousel with two tabs:
+    New arrivals: the newest in-stock products (or a collection the
+                  merchant picks), rendered here by Shopify, so it loads
+                  with the page and search engines see it
+    In your size: invites shoppers to save their shoe and clothing sizes
+                  on SyncStock, which alerts them when what fits is in stock
+  The alerts buttons go to api.syncstock.io/api/store/go, which finds this
+  store's SyncStock site from the Shopify domain and tags the visit
+  (src=hero) so signups from it show on the merchant dashboard.
+  Tabs and arrows: assets/syncstock-hero.js (small, deferred). Without it
+  the carousel still scrolls by swipe.
+{%- endcomment -%}
+{%- liquid
+  assign syncstock_url = 'https://api.syncstock.io/api/store/go?src=hero&shop=' | append: shop.permanent_domain
+  if block.settings.logo_style == 'light'
+    assign logo_file = 'syncstock-mark-light.png'
+  else
+    assign logo_file = 'syncstock-mark-dark.png'
+  endif
+  assign hero_id = 'syncstock-hero-' | append: block.id
+
+  assign newest = collections.all.products | sort: 'created_at' | reverse
+  if block.settings.collection != blank
+    assign products_source = block.settings.collection.products
+  else
+    assign products_source = newest
+  endif
+
+  comment
+    The phone's shoe: the one the merchant picked, else the newest in-stock
+    shoe (product type or tags say shoe, sneaker or footwear), else the
+    newest in-stock product
+  endcomment
+  assign latest = block.settings.featured_product
+  if latest == blank
+    assign first_available = nil
+    for p in newest
+      unless p.available
+        continue
+      endunless
+      if first_available == nil
+        assign first_available = p
+      endif
+      assign kind = p.tags | join: ' ' | append: ' ' | append: p.type | downcase
+      if kind contains 'shoe' or kind contains 'sneaker' or kind contains 'footwear'
+        assign latest = p
+        break
+      endif
+    endfor
+    if latest == blank
+      assign latest = first_available
+    endif
+  endif
+
+  comment
+    Its sizes in stock, in the store's own order: the values of the option
+    named like "Size" on variants that can be bought
+  endcomment
+  assign size_keys = ''
+  assign size_count = 0
+  if latest != blank
+    assign size_index = nil
+    for option in latest.options_with_values
+      assign option_name = option.name | downcase
+      if option_name contains 'size'
+        assign size_index = forloop.index0
+        break
+      endif
+    endfor
+    if size_index != nil
+      for variant in latest.variants
+        if variant.available
+          assign size_value = variant.options[size_index]
+          assign key = '|' | append: size_value | append: '|'
+          unless size_keys contains key
+            assign size_keys = size_keys | append: key
+            assign size_count = size_count | plus: 1
+          endunless
+        endif
+      endfor
+    endif
+  endif
+  assign sizes = size_keys | split: '|'
+-%}
+<div class="syncstock-alerts syncstock-hero" data-syncstock-hero {{ block.shopify_attributes }}>
+  <div class="syncstock-alerts__inner syncstock-hero__top">
+    <div class="syncstock-alerts__copy">
+      <div class="syncstock-alerts__brand">
+        <img src="{{ logo_file | asset_url }}" alt="" width="34" height="32" loading="lazy">
+        <span>SyncStock</span>
+      </div>
+      {%- if block.settings.heading != blank -%}
+        <h2 class="syncstock-alerts__heading h1">{{ block.settings.heading | escape }}</h2>
+      {%- endif -%}
+      {%- if block.settings.text != blank -%}
+        <p class="syncstock-alerts__text">{{ block.settings.text | escape }}</p>
+      {%- endif -%}
+    </div>
+
+    <div class="syncstock-alerts__phone syncstock-hero__phone">
+      <div class="syncstock-alerts__time" aria-hidden="true">9:41</div>
+      {%- if latest != blank -%}
+        <a class="syncstock-alerts__notif syncstock-hero__drop" href="{{ latest.url }}">
+          <span class="syncstock-hero__drop-image">
+            {%- if latest.featured_image -%}
+              {{-
+                latest.featured_image
+                | image_url: width: 200
+                | image_tag: loading: 'lazy', widths: '100, 200', sizes: '84px', alt: latest.featured_image.alt
+              -}}
+            {%- else -%}
+              {{- 'product-1' | placeholder_svg_tag -}}
+            {%- endif -%}
+          </span>
+          <span class="syncstock-alerts__notif-body">
+            <small>{{ shop.name | escape }} · {{ block.settings.drop_label | default: 'Just landed' | escape }}</small>
+            <strong class="syncstock-hero__drop-name">{{ latest.title | escape }}</strong>
+            <span>{{ latest.price | money }}</span>
+            {%- if size_count > 0 -%}
+              <span class="syncstock-hero__sizes-row">
+                <span class="syncstock-hero__sizes-label">In stock</span>
+                {%- assign size_shown = 0 -%}
+                {%- for size in sizes -%}
+                  {%- if size == blank -%}{%- continue -%}{%- endif -%}
+                  {%- if size_shown >= 6 -%}{%- break -%}{%- endif -%}
+                  <span class="syncstock-hero__size">{{ size | escape }}</span>
+                  {%- assign size_shown = size_shown | plus: 1 -%}
+                {%- endfor -%}
+                {%- if size_count > 6 -%}
+                  <span class="syncstock-hero__size">+{{ size_count | minus: 6 }}</span>
+                {%- endif -%}
+              </span>
+            {%- endif -%}
+          </span>
+        </a>
+      {%- endif -%}
+      <a
+        class="syncstock-alerts__notif syncstock-alerts__notif--older syncstock-hero__invite"
+        href="{{ syncstock_url }}"
+        {% if block.settings.new_tab %}target="_blank" rel="noopener"{% endif %}
+      >
+        <span class="syncstock-alerts__icon">
+          <img src="{{ 'syncstock-mark-dark.png' | asset_url }}" alt="" width="24" height="23" loading="lazy">
+        </span>
+        <span class="syncstock-alerts__notif-body">
+          <small>SyncStock</small>
+          <strong>Back in your size</strong>
+          <span>Save your sizes and we'll tell you first</span>
+        </span>
+      </a>
+    </div>
+
+    <div class="syncstock-alerts__cta">
+      <a
+        class="syncstock-alerts__button"
+        href="{{ syncstock_url }}"
+        {% if block.settings.new_tab %}target="_blank" rel="noopener"{% endif %}
+      >
+        {{- block.settings.button_label | default: 'Get restock alerts' | escape -}}
+      </a>
+      {%- if block.settings.shop_label != blank -%}
+        <a class="syncstock-alerts__button syncstock-hero__button--secondary" href="{{ block.settings.shop_link | default: routes.all_products_collection_url }}">
+          {{- block.settings.shop_label | escape -}}
+        </a>
+      {%- endif -%}
+      {%- if block.settings.note != blank -%}
+        <span class="syncstock-alerts__note"><span class="syncstock-alerts__dot"></span>{{ block.settings.note | escape }}</span>
+      {%- endif -%}
+    </div>
+  </div>
+
+  <div class="syncstock-hero__feed">
+    <div class="syncstock-hero__tabs" role="tablist" aria-label="{{ block.settings.new_label | default: 'New arrivals' | escape }}">
+      <button type="button" class="syncstock-hero__tab" role="tab" id="{{ hero_id }}-tab-new" aria-controls="{{ hero_id }}-new" aria-selected="true">
+        {{- block.settings.new_label | default: 'New arrivals' | escape -}}
+      </button>
+      <button type="button" class="syncstock-hero__tab" role="tab" id="{{ hero_id }}-tab-size" aria-controls="{{ hero_id }}-size" aria-selected="false" tabindex="-1">
+        {{- block.settings.size_label | default: 'In your size' | escape -}}
+      </button>
+    </div>
+
+    <div class="syncstock-hero__panel" role="tabpanel" id="{{ hero_id }}-new" aria-labelledby="{{ hero_id }}-tab-new">
+      <div class="syncstock-hero__track" data-syncstock-track tabindex="0">
+        {%- assign shown = 0 -%}
+        {%- for product in products_source -%}
+          {%- if shown >= block.settings.product_count -%}{%- break -%}{%- endif -%}
+          {%- unless product.available -%}{%- continue -%}{%- endunless -%}
+          {%- assign shown = shown | plus: 1 -%}
+          <a class="syncstock-hero__card" href="{{ product.url }}">
+            <span class="syncstock-hero__image">
+              {%- if product.featured_image -%}
+                {{-
+                  product.featured_image
+                  | image_url: width: 600
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '200, 300, 400, 600',
+                    sizes: '(min-width: 990px) 260px, 45vw',
+                    alt: product.featured_image.alt
+                -}}
+              {%- else -%}
+                {{- 'product-1' | placeholder_svg_tag -}}
+              {%- endif -%}
+            </span>
+            <span class="syncstock-hero__name">{{ product.title | escape }}</span>
+            <span class="syncstock-hero__price">{{ product.price | money }}</span>
+          </a>
+        {%- endfor -%}
+        {%- if shown == 0 -%}
+          <p class="syncstock-hero__empty">New arrivals will show here.</p>
+        {%- endif -%}
+      </div>
+      {%- if shown > 4 -%}
+        <div class="syncstock-hero__arrows">
+          <button type="button" class="syncstock-hero__arrow" data-syncstock-prev aria-label="Previous products">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="syncstock-hero__arrow" data-syncstock-next aria-label="Next products">
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      {%- endif -%}
+    </div>
+
+    <div class="syncstock-hero__panel" role="tabpanel" id="{{ hero_id }}-size" aria-labelledby="{{ hero_id }}-tab-size" hidden>
+      <div class="syncstock-hero__save">
+        <div class="syncstock-hero__chips" aria-hidden="true">
+          <span>Shoes 10.5</span>
+          <span>Tops M</span>
+          <span>Bottoms 32</span>
+        </div>
+        <p class="syncstock-hero__save-heading">{{ block.settings.size_heading | escape }}</p>
+        <p class="syncstock-alerts__text syncstock-hero__save-text">{{ block.settings.size_text | escape }}</p>
+        <a
+          class="syncstock-alerts__button"
+          href="{{ syncstock_url }}"
+          {% if block.settings.new_tab %}target="_blank" rel="noopener"{% endif %}
+        >
+          {{- block.settings.size_button | default: 'Save my sizes' | escape -}}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Restock alerts hero",
+  "target": "section",
+  "stylesheet": "syncstock.css",
+  "javascript": "syncstock-hero.js",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Your size, the moment it lands" },
+    {
+      "type": "textarea",
+      "id": "text",
+      "label": "Text",
+      "default": "Shop what just came in, or save your sizes and get an alert the second what fits you is back in stock."
+    },
+    { "type": "text", "id": "button_label", "label": "Alerts button label", "default": "Get restock alerts" },
+    { "type": "text", "id": "shop_label", "label": "Shop button label", "default": "Shop new arrivals", "info": "Leave empty to hide it." },
+    { "type": "url", "id": "shop_link", "label": "Shop button link", "info": "Defaults to all products." },
+    { "type": "text", "id": "note", "label": "Small print", "default": "Only takes 30 seconds" },
+    {
+      "type": "select",
+      "id": "logo_style",
+      "label": "SyncStock logo",
+      "info": "Use White on dark backgrounds.",
+      "options": [
+        { "value": "dark", "label": "Black" },
+        { "value": "light", "label": "White" }
+      ],
+      "default": "dark"
+    },
+    { "type": "header", "content": "Latest shoe" },
+    {
+      "type": "product",
+      "id": "featured_product",
+      "label": "Product in the phone",
+      "info": "Leave empty to show your newest in-stock shoe, with the sizes you have."
+    },
+    { "type": "text", "id": "drop_label", "label": "Label", "default": "Just landed" },
+    { "type": "header", "content": "New arrivals" },
+    { "type": "text", "id": "new_label", "label": "Tab label", "default": "New arrivals" },
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection",
+      "info": "Leave empty to show your newest products. In-stock items only."
+    },
+    { "type": "range", "id": "product_count", "label": "Products shown", "min": 4, "max": 16, "step": 1, "default": 8 },
+    { "type": "header", "content": "In your size" },
+    { "type": "text", "id": "size_label", "label": "Tab label", "default": "In your size" },
+    { "type": "text", "id": "size_heading", "label": "Heading", "default": "See what fits you" },
+    {
+      "type": "textarea",
+      "id": "size_text",
+      "label": "Text",
+      "default": "Save your shoe and clothing sizes once. We'll alert you the moment something in your size is in stock."
+    },
+    { "type": "text", "id": "size_button", "label": "Button label", "default": "Save my sizes" },
+    { "type": "header", "content": "Link" },
+    { "type": "checkbox", "id": "new_tab", "label": "Open alerts links in a new tab", "default": false }
+  ]
+}
+{% endschema %}
