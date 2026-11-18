@@ -14,6 +14,7 @@ import Spinner from "../ui/Spinner.jsx";
 import UnverifiedNotice from "./UnverifiedNotice.jsx";
 import RememberMe from "./RememberMe.jsx";
 import { savedRememberMe, saveRememberMe } from "../../lib/rememberMe.js";
+import { safeRedirect } from "../../lib/safeRedirect.js";
 
 const calculatePasswordStrength = (password) => {
   const requirements = {
@@ -86,6 +87,24 @@ export default function AuthForm({ initialMode = "login" }) {
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+
+  // Already signed in as a merchant (e.g. Back from an older login): go
+  // on to the dashboard instead of showing the form
+  useEffect(() => {
+    if (authMode !== "login") return;
+    let active = true;
+    api
+      .get("/auth/me")
+      .then((res) => {
+        if (active && res.data.data?.is_merchant) {
+          navigate(safeRedirect(searchParams.get("redirect"), "/dashboard"), { replace: true });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [authMode, navigate, searchParams]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("syncstock_email");
@@ -174,17 +193,18 @@ export default function AuthForm({ initialMode = "login" }) {
       saveRememberMe(remember);
       localStorage.setItem("syncstock_email", formData.email);
       // SyncStock's own admin login
+      // replace: the login page leaves history, so Back from the dashboard
+      // doesn't land on a login form that looks like being signed out
       if (res.data.data?.platform_admin) {
-        navigate("/platform");
+        navigate("/platform", { replace: true });
         return;
       }
       // Setup not finished yet → pick up where they left off
       if (res.data.data?.onboarding_step && res.data.data.onboarding_step !== "complete") {
-        navigate("/onboarding/setup");
+        navigate("/onboarding/setup", { replace: true });
         return;
       }
-      const redirectTo = searchParams.get("redirect");
-      navigate(redirectTo || "/dashboard");
+      navigate(safeRedirect(searchParams.get("redirect"), "/dashboard"), { replace: true });
     } catch (err) {
       const message =
         err.response?.data?.message ||

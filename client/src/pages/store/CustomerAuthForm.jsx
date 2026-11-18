@@ -105,14 +105,19 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
   // Scanned the store's in-store QR sign (GET /api/store/qr/:subdomain)
   const inStore = searchParams.get("from") === "instore";
 
-  // Someone who scans the sign while already signed in goes straight
-  // to browsing
+  // Already signed in (scanned the in-store sign, or pressed Back to an
+  // older login page): go straight on instead of showing the form
   useEffect(() => {
-    if (!inStore) return;
+    let active = true;
     api
       .get("/auth/me")
-      .then(() => navigate(redirectTo || "/store/dashboard?tab=browse", { replace: true }))
+      .then(() => {
+        if (active) navigate(redirectTo || (inStore ? "/store/dashboard?tab=browse" : "/store/dashboard"), { replace: true });
+      })
       .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [inStore, navigate, redirectTo]);
 
   const [formData, setFormData] = useState({
@@ -262,7 +267,8 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
         );
         return;
       }
-      navigate(redirectTo || "/store/dashboard");
+      // replace: Back from the dashboard skips the login form
+      navigate(redirectTo || "/store/dashboard", { replace: true });
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -288,7 +294,9 @@ export default function CustomerAuthForm({ initialMode = "login" }) {
       if (!remember) params.set("remember", "0");
     }
     setLastLoginMethod("google");
-    window.location.href = `${api.defaults.baseURL}/auth/google?${params.toString()}`;
+    // replace: the login page leaves history, so Back after signing in
+    // doesn't return to it
+    window.location.replace(`${api.defaults.baseURL}/auth/google?${params.toString()}`);
   };
 
   const inputClass = (field) =>

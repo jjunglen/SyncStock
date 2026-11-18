@@ -52,7 +52,8 @@ export default function ProtectedRoute({
           return;
         }
         const redirectTarget = location.pathname + location.search;
-        navigate(`${loginPath}?redirect=${encodeURIComponent(redirectTarget)}`);
+        // replace: Back from the login page doesn't bounce off this page
+        navigate(`${loginPath}?redirect=${encodeURIComponent(redirectTarget)}`, { replace: true });
         setStatus("unauthorized");
       });
     return () => {

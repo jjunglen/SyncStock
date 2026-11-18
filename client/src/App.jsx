@@ -10,6 +10,7 @@ import StoreAuthLayout from "./components/store/StoreAuthLayout.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
 import Seo from "./components/Seo.jsx";
 import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
+import { useAppUpdate } from "./lib/appUpdate.js";
 
 // Pages load when opened, so the landing pages download fast
 const ChannelHome = lazy(() => import("./pages/shopify/ChannelHome.jsx"));
@@ -76,6 +77,9 @@ function App() {
 
   // A new page starts at the top (links like /#features scroll to their
   // section instead); the back button keeps the browser's own position
+  // After a deploy, the next page opened loads the new version
+  useAppUpdate();
+
   const navType = useNavigationType();
   useEffect(() => {
     if (navType === "POP") return;
