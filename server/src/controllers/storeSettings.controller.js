@@ -7,7 +7,7 @@ const {
   OTHER_NAME_MAX,
   logoUrl,
 } = require("../utils/storeSettings.js");
-const { APPS } = require("../utils/shopifyApps.js");
+const { themeLinks, checkThemeSetup } = require("../services/themeSetup.service.js");
 const { STORY_FONTS } = require("../utils/storyDetails.js");
 const channel = require("../services/channel.service.js");
 const autoPublish = require("../services/autoPublish.service.js");
@@ -31,20 +31,25 @@ const {
 
 const MAX_LOGO_BYTES = 300 * 1024;
 
-// One-click links into the store's Shopify theme editor with SyncStock's
-// theme app extension (shopify-app/extensions/syncstock-theme) ready to
-// add: the "Restock alerts" section (blocks/restock-banner.liquid) and the
-// floating button app embed (blocks/restock-button.liquid). Each needs the
-// client ID of the app the store installed.
-const themeLinks = (store) => {
-  // The client ID only — it's public (it's in the app's TOML file)
-  const clientId = APPS[store.shopify_app || "custom"]?.clientId();
-  if (!clientId) return null;
-  const editor = `https://${store.shopify_domain}/admin/themes/current/editor`;
-  return {
-    section: `${editor}?template=index&addAppBlockId=${clientId}/restock-banner&target=newAppsSection`,
-    button: `${editor}?context=apps&template=index&activateAppId=${clientId}/restock-button`,
-  };
+// GET /api/store/theme-setup (store admin): whether SyncStock's floating
+// button and section are on the store's live theme, with the one-click
+// links (themeSetup.service.js). Reads Shopify again when the last look
+// is older than a few seconds — the merchant comes back from the theme
+// editor and should see it on — else answers from the last look. If
+// Shopify can't be reached, the last look is sent as is.
+const THEME_RECHECK_MS = 10 * 1000;
+const getThemeSetup = async (req, res) => {
+  const store = req.store;
+  let status = store.theme_status || null;
+  const age = status?.checked_at ? Date.now() - new Date(status.checked_at).getTime() : Infinity;
+  if (store.shopify_access_token && !store.uninstalled_at && age > THEME_RECHECK_MS) {
+    try {
+      status = await checkThemeSetup(store);
+    } catch (error) {
+      console.error(`Theme check failed for ${store.shopify_domain}:`, error.message);
+    }
+  }
+  return res.status(200).json({ success: true, data: { status, links: themeLinks(store) } });
 };
 
 // What the settings page shows
@@ -344,4 +349,4 @@ const sendTestStories = async (req, res) => {
   }
 };
 
-module.exports = { getSettings, updateSettings, uploadLogo, deleteLogo, serveLogo, previewStory, sendTestStories };
+module.exports = { getSettings, getThemeSetup, updateSettings, uploadLogo, deleteLogo, serveLogo, previewStory, sendTestStories };

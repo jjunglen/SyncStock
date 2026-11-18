@@ -107,6 +107,19 @@ const Store = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    // What SyncStock last saw in the store's live Shopify theme
+    // (services/themeSetup.service.js): { access, theme_id, theme_name,
+    // button_on, sections, banner_on_home, checked_at }. Null until the
+    // first check.
+    theme_status: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+    },
+    // The theme the merchant was last emailed about (one email per theme)
+    theme_prompt_sent_for: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
     // Set by the app/uninstalled webhook (store goes offline); cleared
     // when they reinstall. shop/redact deletes the store 48 hours after.
     uninstalled_at: {

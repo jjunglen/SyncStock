@@ -13,6 +13,21 @@ import { brandShades } from "../../lib/brandColors.js";
 import InStoreSign from "../../components/store/InStoreSign.jsx";
 import BuyingSettings from "../../components/dashboard/BuyingSettings.jsx";
 import ComingSoonDrops from "../../components/dashboard/ComingSoonDrops.jsx";
+import { useThemeSetup, allowThemeAccess, openThemeEditor } from "../../lib/themeSetup.js";
+
+// "On" / "Off" next to each theme step, once SyncStock can read the theme
+function ThemeState({ on, children }) {
+  return (
+    <span
+      className={`ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium align-middle ${
+        on ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"
+      }`}
+    >
+      {on && <LuCircleCheck size={11} aria-hidden="true" />}
+      {children}
+    </span>
+  );
+}
 
 const MAX_LOGO_BYTES = 300 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -33,6 +48,9 @@ function Section({ icon: Icon, title, description, children }) {
 // /settings — what shoppers see, branding, and the weekly email.
 // Switches save straight away; the brand color saves with its button.
 export default function StoreSettings() {
+  // What's on the live Shopify theme now (lib/themeSetup.js)
+  const theme = useThemeSetup();
+  const themeStatus = theme?.status;
   const [store, setStore] = useState(null);
   const [settings, setSettings] = useState(null);
   const [color, setColor] = useState("#378add");
@@ -211,6 +229,22 @@ export default function StoreSettings() {
               title="Add SyncStock to your Shopify store"
               description="Send shoppers from your Shopify site to their restock alerts. Nothing to code — both are added in Shopify's theme editor."
             >
+              {themeStatus && !themeStatus.access && (
+                <div className="mb-5 rounded-lg border border-border p-4">
+                  <p className="text-xs text-text-muted">
+                    Let SyncStock read your theme (read-only) to show what's on your store here, and to tell you if
+                    the button goes missing, like after you switch themes.
+                  </p>
+                  <Button variant="secondary" size="sm" className="mt-3" onClick={allowThemeAccess}>
+                    Allow in Shopify
+                  </Button>
+                </div>
+              )}
+              {themeStatus?.access && themeStatus.theme_name && (
+                <p className="mb-5 text-xs text-text-muted">
+                  Your live theme: <span className="font-medium text-text">{themeStatus.theme_name}</span>
+                </p>
+              )}
               <ol className="space-y-5">
                 {[
                   {
@@ -219,25 +253,48 @@ export default function StoreSettings() {
                     text: "A banner inviting shoppers to save their sizes. The button below opens your theme editor with the section ready to add — place it where you like, then click Save.",
                     manual: "Or: Online Store → Themes → Customize → Add section → Apps → Restock alerts.",
                     action: "Add section",
+                    // Themes that write each page in code have no sections
+                    // for Shopify's editor to add to
+                    unsupported: themeStatus?.access && themeStatus.sections === false,
+                    state: themeStatus?.access && themeStatus.sections && (
+                      <ThemeState on={themeStatus.banner_on_home}>
+                        {themeStatus.banner_on_home ? "On your home page" : "Not on your home page"}
+                      </ThemeState>
+                    ),
                   },
                   {
                     key: "button",
-                    title: "2. Turn on the floating button (optional)",
-                    text: "A small \"Restock alerts\" button in the corner of every page. The button below opens App embeds with it switched on — click Save to publish it.",
+                    title: "2. Turn on the floating button",
+                    text: "A small \"Restock alerts\" button in the corner of every page. Works on every theme. The button below opens App embeds with it switched on — click Save to publish it.",
                     manual: "Or: Online Store → Themes → Customize → App embeds → Restock alerts button.",
                     action: "Turn on button",
+                    state: themeStatus?.access && themeStatus.theme_id && (
+                      <ThemeState on={themeStatus.button_on}>{themeStatus.button_on ? "On" : "Off"}</ThemeState>
+                    ),
                   },
                 ].map((step) => (
                   <li key={step.key}>
-                    <p className="text-sm font-medium">{step.title}</p>
-                    <p className="text-xs text-text-muted mt-1">{step.text}</p>
-                    <p className="text-xs text-text-muted mt-1">{step.manual}</p>
-                    {settings.theme_links?.[step.key] && (
+                    <p className="text-sm font-medium">
+                      {step.title}
+                      {step.state}
+                    </p>
+                    {step.unsupported ? (
+                      <p className="text-xs text-text-muted mt-1">
+                        Your theme writes its pages in code, so Shopify's editor can't add app sections to it. Use the
+                        floating button below, or ask your theme developer to add an Apps section to the home page.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-text-muted mt-1">{step.text}</p>
+                        <p className="text-xs text-text-muted mt-1">{step.manual}</p>
+                      </>
+                    )}
+                    {!step.unsupported && (theme?.links || settings.theme_links)?.[step.key] && (
                       <Button
                         variant={step.key === "section" ? "primary" : "secondary"}
                         size="sm"
                         className="mt-3"
-                        onClick={() => window.open(settings.theme_links[step.key], "_blank", "noopener,noreferrer")}
+                        onClick={() => openThemeEditor((theme?.links || settings.theme_links)[step.key])}
                       >
                         <span className="flex items-center gap-1.5">
                           {step.action} <LuExternalLink size={13} />

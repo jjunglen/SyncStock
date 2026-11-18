@@ -106,7 +106,13 @@ if (process.env.NODE_ENV === "production" || process.env.RUN_DIGEST === "true") 
         // sales, return visits and refunds
         const { registerShopifyWebhooks } = require("./src/controllers/store.controller.js");
         const { reconcileRecentOrders } = require("./src/services/attribution.service.js");
+        const { checkThemeSetup } = require("./src/services/themeSetup.service.js");
         for (const store of stores) {
+          // Is SyncStock's button still on the live theme (a theme change
+          // whose webhook went missing, or switched off by hand)
+          await checkThemeSetup(store).catch((err) =>
+            console.error(`Nightly theme check failed for ${store.subdomain}:`, err.message),
+          );
           try {
             await registerShopifyWebhooks(store);
             const r = await reconcileRecentOrders(store);

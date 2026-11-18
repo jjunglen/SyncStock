@@ -23,6 +23,7 @@ import {
   LuFootprints,
 } from "react-icons/lu";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
+import ThemeSetupBanner from "./ThemeSetupBanner.jsx";
 import api from "../../lib/api.js";
 import useLiveRefresh from "../../lib/useLiveRefresh.js";
 import { purchaseBadges, BADGE_CLASSES, netAmount, isRefunded } from "../../lib/purchaseLabels.js";
@@ -109,6 +110,7 @@ export default function MerchantDashboard() {
       <MerchantSidebar />
 
       <div className="flex-1 p-4 sm:p-6 overflow-auto">
+        <ThemeSetupBanner />
         <DashboardBody
           sourcing={sourcing}
           loadingSourcing={loadingSourcing}

@@ -24,6 +24,7 @@ const {
   shopifyAppEntry,
   shopifyAppsStatus,
   reauthorizeShopify,
+  allowThemeAccess,
   shopifyTokenExchange,
 } = require("../controllers/store.controller.js");
 const {
@@ -35,6 +36,7 @@ const {
 } = require("../controllers/channel.controller.js");
 const {
   getSettings,
+  getThemeSetup,
   updateSettings,
   uploadLogo,
   deleteLogo,
@@ -86,6 +88,10 @@ router.get("/", resolveStoreFromSubdomain, getStore);
 // controller can explain the limit itself.
 router.get("/mine", ...admin, getMyStore);
 router.get("/settings", ...admin, getSettings);
+// Is SyncStock's button on the live theme; and the one-time approval of
+// read-only theme access (opened in the whole window)
+router.get("/theme-setup", ...admin, getThemeSetup);
+router.get("/shopify/allow-themes", ...admin, allowThemeAccess);
 // Size settings (merchant): the "other" category's name and size chart
 router.get("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").getSizeSettings);
 router.put("/size-settings", ...admin, require("../controllers/sizeSettings.controller.js").updateSizeSettings);

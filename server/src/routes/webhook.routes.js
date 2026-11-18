@@ -22,6 +22,7 @@ const {
   handleAppUninstalled,
 } = require("../controllers/compliance.controller.js");
 const { handleSubscriptionUpdate } = require("../controllers/billing.controller.js");
+const { checkThemeSetup } = require("../services/themeSetup.service.js");
 
 // Shopify's privacy webhooks can arrive after the store is gone, so they
 // only need a valid signature, not a store. Registered before the
@@ -44,5 +45,13 @@ router.post("/orders/cancelled", handleOrderCancelled);
 router.post("/refunds/create", handleRefundCreate);
 router.post("/app/uninstalled", handleAppUninstalled);
 router.post("/app_subscriptions/update", handleSubscriptionUpdate);
+// Another theme went live: is SyncStock's button on it
+// (themeSetup.service.js). Replies first; Shopify gives up after 5 seconds.
+router.post("/themes/publish", (req, res) => {
+  res.status(200).json({ received: true });
+  checkThemeSetup(req.store).catch((err) =>
+    console.error(`Theme check after publish failed for ${req.store.shopify_domain}:`, err.message),
+  );
+});
 
 module.exports = router;

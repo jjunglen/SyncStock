@@ -22,7 +22,8 @@ const {
 const { signOnboardingToken } = require("../utils/jwt.js");
 const { verifySessionToken } = require("../utils/shopifySession.js");
 const { connect: connectChannel, CHANNEL_SCOPES, isChannelStore } = require("../services/channel.service.js");
-const { PUBLISHING_SCOPES } = require("../services/autoPublish.service.js");
+const { PUBLISHING_SCOPES, hasPublishingScopes } = require("../services/autoPublish.service.js");
+const { THEME_SCOPES, hasThemeScope, checkThemeSetup } = require("../services/themeSetup.service.js");
 const { getPagination, buildMeta } = require("../utils/pagination.js");
 const { recordVisit } = require("../services/visit.service.js");
 
@@ -67,7 +68,15 @@ const WEBHOOK_TOPICS = [
 // to SyncStock, changed while published, or unpublished — that decides
 // what their shoppers see (webhook.controller.js)
 const CHANNEL_WEBHOOK_TOPICS = ["product_listings/add", "product_listings/update", "product_listings/remove"];
-const topicsFor = (store) => (isChannelStore(store) ? [...WEBHOOK_TOPICS, ...CHANNEL_WEBHOOK_TOPICS] : WEBHOOK_TOPICS);
+// Stores that granted read_themes also say when they publish another
+// theme, so SyncStock can check its button made the move
+// (themeSetup.service.js). Shopify refuses the topic without it.
+const THEME_WEBHOOK_TOPICS = ["themes/publish"];
+const topicsFor = (store, scopes = []) => [
+  ...WEBHOOK_TOPICS,
+  ...(isChannelStore(store) ? CHANNEL_WEBHOOK_TOPICS : []),
+  ...(hasThemeScope(scopes) ? THEME_WEBHOOK_TOPICS : []),
+];
 // "products/create" → GraphQL's PRODUCTS_CREATE
 const topicEnum = (topic) => topic.replace("/", "_").toUpperCase();
 const webhookUri = (topic) => `${process.env.BACKEND_URL}/api/webhooks/shopify/${topic}`;
@@ -75,14 +84,19 @@ const webhookUri = (topic) => `${process.env.BACKEND_URL}/api/webhooks/shopify/$
 const registerShopifyWebhooks = async (store) => {
   const shop = store.shopify_domain;
   const existing = new Set();
+  let scopes = [];
   try {
-    const data = await shopifyGraphql(store, `{ webhookSubscriptions(first: 100) { nodes { topic uri } } }`);
+    const data = await shopifyGraphql(
+      store,
+      `{ webhookSubscriptions(first: 100) { nodes { topic uri } } currentAppInstallation { accessScopes { handle } } }`,
+    );
     for (const sub of data.webhookSubscriptions.nodes) existing.add(`${sub.topic} ${sub.uri}`);
+    scopes = data.currentAppInstallation.accessScopes.map((s) => s.handle);
   } catch (error) {
     console.error(`Couldn't list webhooks for ${shop}:`, error.message);
   }
 
-  for (const topic of topicsFor(store)) {
+  for (const topic of topicsFor(store, scopes)) {
     if (existing.has(`${topicEnum(topic)} ${webhookUri(topic)}`)) {
       console.log(`Webhook already registered, skipping: ${topic}`);
       continue;
@@ -213,10 +227,39 @@ const connectChannelAfterSetup = async (store) => {
 // session token says which shop; Shopify's approval screen does the rest.
 // ?with=publications also asks for automatic publishing's permissions (the
 // merchant turned it on)
-const reauthorizeShopify = (req, res) => {
+const reauthorizeShopify = async (req, res) => {
   const session = verifySessionToken(String(req.query.id_token || ""));
   if (!session) return res.redirect(process.env.FRONTEND_URL);
-  return startOAuth(res, session.shop, "public", req.query.with === "publications" ? PUBLISHING_SCOPES : []);
+  const extras =
+    req.query.with === "publications"
+      ? PUBLISHING_SCOPES
+      : await grantedExtras(await Store.findOne({ where: { shopify_domain: session.shop } }));
+  return startOAuth(res, session.shop, "public", extras);
+};
+
+// Opt-in permissions the store already granted (automatic publishing),
+// asked for again on a re-approval so approving one thing never drops them
+const grantedExtras = async (store) => {
+  if (!store?.shopify_access_token) return [];
+  try {
+    const data = await shopifyGraphql(store, `{ currentAppInstallation { accessScopes { handle } } }`);
+    const scopes = data.currentAppInstallation.accessScopes.map((s) => s.handle);
+    return hasPublishingScopes(scopes) ? PUBLISHING_SCOPES : [];
+  } catch (error) {
+    console.error(`Couldn't read granted permissions for ${store.shopify_domain}:`, error.message);
+    return [];
+  }
+};
+
+// GET /api/store/shopify/allow-themes (store admin, opened in the whole
+// window from the dashboard): Shopify's approval screen for read_themes,
+// so SyncStock can see whether its button is on the live theme. Stores
+// connected before SyncStock asked for it approve it once here. Inside
+// the Shopify admin the dashboard uses /shopify/reauthorize instead.
+const allowThemeAccess = async (req, res) => {
+  const store = req.store;
+  if (!store?.shopify_domain || !store.shopify_app) return res.redirect(`${process.env.FRONTEND_URL}/settings`);
+  return startOAuth(res, store.shopify_domain, store.shopify_app, await grantedExtras(store));
 };
 
 // The permissions each app asks for. The public app is a sales channel
@@ -227,7 +270,9 @@ const reauthorizeShopify = (req, res) => {
 // PUBLISHING_SCOPES) — never part of a normal install
 const appScopes = (appKey, extra = []) => {
   const base = (process.env.SHOPIFY_APP_SCOPES || "").split(",").map((s) => s.trim()).filter(Boolean);
-  return [...new Set(appKey === "public" ? [...base, ...CHANNEL_SCOPES, ...extra] : base)].join(",");
+  // THEME_SCOPES: read-only theme access, to check SyncStock's button is
+  // on the live theme (themeSetup.service.js)
+  return [...new Set(appKey === "public" ? [...base, ...CHANNEL_SCOPES, ...THEME_SCOPES, ...extra] : base)].join(",");
 };
 
 // Sends the merchant to Shopify to approve SyncStock (OAuth), for one of
@@ -374,6 +419,9 @@ const finishInstall = async (shop, appKey, tokenBody, { backgroundCatalog = fals
 
   await registerShopifyWebhooks(store);
   await activateWebPixel(store, access_token, shop);
+  // Background: is SyncStock's button on the live theme (it may have just
+  // been granted read_themes)
+  checkThemeSetup(store).catch((err) => console.error(`Theme check after connect failed for ${shop}:`, err.message));
   if (backgroundCatalog) backfillInventory(store);
   else await backfillInventory(store);
   return store;
@@ -983,6 +1031,7 @@ const removeCustomer = async (req, res) => {
 
 module.exports = {
   reauthorizeShopify,
+  allowThemeAccess,
   // Also run nightly (server.js), so existing stores get new topics
   registerShopifyWebhooks,
   shopifyAppsStatus,
