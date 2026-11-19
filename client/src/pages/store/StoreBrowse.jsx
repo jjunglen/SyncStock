@@ -8,6 +8,7 @@ import { getStoreCategories, categoryPath } from "../../lib/storeLinks.js";
 import { searchAlertPath, canAlertSearch } from "../../lib/searchAlert.js";
 import { cardFilterOptions } from "../../lib/cardFilter.js";
 import ProductTile from "../../components/store/ProductTile.jsx";
+import { ProductSkeletonGrid } from "../../components/store/ProductSkeleton.jsx";
 import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 import BetaBadge from "../../components/ui/BetaBadge.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -310,7 +311,7 @@ export default function StoreBrowse() {
         )}
 
         {loading ? (
-          <p className="text-sm text-text-muted">Loading...</p>
+          <ProductSkeletonGrid count={8} />
         ) : items.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-sm text-text-muted mb-4">
@@ -359,7 +360,7 @@ export default function StoreBrowse() {
             )}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {items.map((item) => (
-                <ProductTile key={item.id} item={item} />
+                <ProductTile key={item.id} item={item} signedIn={signedIn} />
               ))}
             </div>
 

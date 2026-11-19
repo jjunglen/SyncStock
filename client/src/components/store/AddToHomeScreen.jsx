@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { LuX, LuShare, LuSmartphone } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
+import { useStoreInfo } from "../../lib/storeInfo.js";
 
 // A small banner on the shopper's dashboard, on phones only, offering to
 // put the store on their Home Screen so it opens like an app (and on
@@ -45,6 +46,7 @@ const wasDismissed = () => {
 };
 
 export default function AddToHomeScreen() {
+  const store = useStoreInfo();
   const [prompt, setPrompt] = useState(installEvent);
   const [hidden, setHidden] = useState(() => !isPhone() || isInstalled() || wasDismissed());
 
@@ -75,13 +77,18 @@ export default function AddToHomeScreen() {
 
   return (
     <div className="mb-5 flex items-start gap-3 rounded-xl border border-border bg-surface p-4">
-      <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-        <LuSmartphone size={18} aria-hidden="true" />
-      </div>
+      {/* The icon it installs with: the store's logo (lib/appManifest.js) */}
+      {store?.logo_url ? (
+        <img src={store.logo_url} alt="" className="w-9 h-9 shrink-0 rounded-lg bg-white object-contain p-1" />
+      ) : (
+        <div className="w-9 h-9 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+          <LuSmartphone size={18} aria-hidden="true" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">Add to your Home Screen</p>
+        <p className="text-sm font-medium">Add {store?.name || "this store"} to your Home Screen</p>
         {prompt ? (
-          <p className="text-xs text-text-muted mt-0.5">Open the store like an app, one tap away.</p>
+          <p className="text-xs text-text-muted mt-0.5">It opens like an app, one tap away, with alerts the moment your size is back.</p>
         ) : (
           <p className="text-xs text-text-muted mt-0.5">
             In Safari, tap <span className="text-text">•••</span> then{" "}

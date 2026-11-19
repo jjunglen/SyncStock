@@ -29,6 +29,9 @@ import SizeFilter from "../../components/dashboard/SizeFilter.jsx";
 import BackToTop from "../../components/ui/BackToTop.jsx";
 import LoadMore from "../../components/ui/LoadMore.jsx";
 import useInfiniteList from "../../lib/useInfiniteList.js";
+import { ProductSkeletonGrid } from "../../components/store/ProductSkeleton.jsx";
+import { showToast } from "../../lib/toast.js";
+import { quickTrack, setTrackedAlerts, trackedMessage } from "../../lib/quickTrack.js";
 
 const TABS = [
   { key: "instock", label: "In stock" },
@@ -229,7 +232,12 @@ export default function CustomerDashboard() {
   const loadAlerts = useCallback(() => {
     api
       .get("/alerts")
-      .then((res) => setAlerts(res.data.data.alerts || []))
+      .then((res) => {
+        const list = res.data.data.alerts || [];
+        setAlerts(list);
+        // The track bells on the cards (lib/quickTrack.js)
+        setTrackedAlerts(list);
+      })
       .catch((err) => console.error("Failed to load alerts:", err))
       .finally(() => setLoadingAlerts(false));
   }, []);
@@ -284,6 +292,27 @@ export default function CustomerDashboard() {
       .get(`/inventory/${itemId}`)
       .then((res) => setSelectedItem(res.data.data))
       .catch((err) => console.error("Failed to load item from link:", err));
+  }, [location.search]);
+
+  // ?track=<item>: they tapped a card's Track bell while signed out, then
+  // signed up or logged in. Finish tracking it and say so.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const trackId = params.get("track");
+    if (!trackId) return;
+    params.delete("track");
+    const rest = params.toString();
+    navigate(`/store/dashboard${rest ? `?${rest}` : ""}`, { replace: true });
+    api
+      .get(`/inventory/${trackId}`)
+      .then((res) => quickTrack(res.data.data))
+      .then((result) => {
+        showToast({ message: trackedMessage(result), link: { to: "/store/dashboard?tab=alerts", label: "Your alerts" } });
+        loadAlerts();
+      })
+      .catch((err) => showToast({ tone: "error", message: err.message || "Couldn't track that item. Try again." }));
+    // Only when the address asks for it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   const closeModal = () => {
@@ -491,6 +520,11 @@ export default function CustomerDashboard() {
           alerts={alerts}
           onAlertCreated={loadAlerts}
           onOpenItem={openItem}
+          fromAlert={(() => {
+            const params = new URLSearchParams(location.search);
+            return params.get("item") === selectedItem.id && (params.has("alert") || params.get("from") === "alert");
+          })()}
+          alertId={new URLSearchParams(location.search).get("item") === selectedItem.id ? new URLSearchParams(location.search).get("alert") : null}
         />
       )}
 
@@ -582,7 +616,7 @@ export default function CustomerDashboard() {
               {!inStock.loading && closeMatchNote(inStock.meta)}
 
               {inStock.loading ? (
-                <p className="text-text-muted text-sm">Loading...</p>
+                <ProductSkeletonGrid count={8} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" />
               ) : inStock.items.length === 0 && debouncedQuery ? (
                 noSearchResults
               ) : inStock.items.length === 0 && filtersActive ? (
@@ -604,7 +638,7 @@ export default function CustomerDashboard() {
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
                       >
-                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} />
+                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} signedIn />
                       </CellToggle>
                     ))}
                   </ContainerToggle>
@@ -652,7 +686,7 @@ export default function CustomerDashboard() {
               {!browse.loading && closeMatchNote(browse.meta)}
 
               {browse.loading ? (
-                <p className="text-text-muted text-sm">Loading...</p>
+                <ProductSkeletonGrid count={8} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" />
               ) : browse.items.length === 0 && debouncedQuery ? (
                 noSearchResults
               ) : browse.items.length === 0 && filtersActive ? (
@@ -669,7 +703,7 @@ export default function CustomerDashboard() {
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
                       >
-                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} />
+                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} signedIn />
                       </CellToggle>
                     ))}
                   </ContainerToggle>

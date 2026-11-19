@@ -3,8 +3,10 @@ const { storeBaseUrl } = require("../utils/storeUrl.js");
 
 const buildDashboardUrl = (store, inventoryId, alertId) => {
   const params = new URLSearchParams({ item: inventoryId });
-  // Size-match notifications have no alert behind them
+  // Size-match notifications have no alert behind them; from=alert still
+  // tells the page it was opened from an alert ("New in your size")
   if (alertId) params.set("alert", alertId);
+  else params.set("from", "alert");
   return `${storeBaseUrl(store)}/store/dashboard?${params.toString()}`;
 };
 

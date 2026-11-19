@@ -6,10 +6,13 @@ import AuthForm from "./components/auth/AuthForm.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import MarketingHeader from "./components/marketing/MarketingHeader.jsx";
 import StoreLanding from "./pages/StoreLanding.jsx";
+import StoreHeader from "./components/store/StoreHeader.jsx";
+import Toaster from "./components/ui/Toaster.jsx";
+import { applyStoreApp } from "./lib/appManifest.js";
 import StoreAuthLayout from "./components/store/StoreAuthLayout.jsx";
 import { getSubdomain } from "./lib/getSubdomain.js";
 import Seo from "./components/Seo.jsx";
-import { getStoreInfo, applyBranding } from "./lib/storeInfo.js";
+import { getStoreInfo, applyBranding, readCachedStoreInfo } from "./lib/storeInfo.js";
 import { useAppUpdate } from "./lib/appUpdate.js";
 
 // Pages load when opened, so the landing pages download fast
@@ -110,15 +113,40 @@ function App() {
       applyBranding(null);
       return;
     }
-    getStoreInfo().then(applyBranding).catch(() => {});
+    // Last visit's colors first (no flash of Syncstock's), then the current ones
+    const apply = (info) => {
+      applyBranding(info);
+      // Add to Home Screen installs the store's app (its name and logo)
+      applyStoreApp(info);
+    };
+    const cached = readCachedStoreInfo();
+    if (cached) apply(cached);
+    getStoreInfo().then(apply).catch(() => {});
   }, [branded]);
+
+  // On a store's site, fetch the pages shoppers open next while the
+  // browser is idle, so tapping Browse, a product or the dashboard doesn't
+  // show a blank screen while that page downloads
+  useEffect(() => {
+    if (!onStoreSite) return;
+    const preload = () => {
+      import("./pages/store/StoreBrowse.jsx");
+      import("./pages/store/StoreProduct.jsx");
+      import("./pages/dashboard/CustomerDashboard.jsx");
+    };
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+    const cancel = window.cancelIdleCallback || clearTimeout;
+    const handle = idle(preload);
+    return () => cancel(handle);
+  }, [onStoreSite]);
 
   return (
     <>
     <SkipLink />
     <Seo />
-    {/* Pages load on demand; a blank page-colored screen while one does */}
-    <Suspense fallback={<div className="min-h-screen bg-bg" />}>
+    {/* Pages load on demand; while one does, a page-colored screen (with
+        the store's header on a store's site, so it never goes blank) */}
+    <Suspense fallback={<div className="min-h-screen bg-bg">{onStoreSite && <StoreHeader />}</div>}>
     <Routes>
       {/* Opening the app in the Shopify admin starts at the channel page */}
       <Route
@@ -185,6 +213,7 @@ function App() {
       <Route path="*" element={IN_SHOPIFY_ADMIN ? <Navigate to="/channel" replace /> : <NotFound />} />
     </Routes>
     </Suspense>
+    <Toaster />
     </>
   );
 }

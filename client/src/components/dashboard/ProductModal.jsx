@@ -17,7 +17,11 @@ import { itemConditionLabel } from "../../lib/alertOptions.js";
 import { countProductClick } from "../../lib/productClick.js";
 
 
-export default function ProductModal({ item, onClose, onAlertCreated, alerts, onOpenItem }) {
+// fromAlert: opened from an alert (email, push or the bell). The top says
+// why they're here, Buy now credits the alert, and if it sold out again
+// before they got here it says their alert is still on.
+// alertId: that alert, for the store's sales report
+export default function ProductModal({ item, onClose, onAlertCreated, alerts, onOpenItem, fromAlert = false, alertId = null }) {
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
   const [alertSet, setAlertSet] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
@@ -64,9 +68,14 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
   }, [onClose]);
 
   const isInStock = item.available > 0;
+  const fewLeft = isInStock && item.available <= 2;
+  // Already tracking this exact size (so a sold-out item needs no new alert)
+  const sameName = (a) => String(a.product_name || "").trim().toLowerCase() === String(item.product_name || "").trim().toLowerCase();
+  const alreadyTracking = (alerts || []).some((a) => sameName(a) && (a.size || null) === (item.size || null));
 
   const handleBuyNow = () => {
     const params = new URLSearchParams({ inventory_id: item.id });
+    if (alertId) params.set("alert_id", alertId);
     window.open(
       `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/redirect?${params.toString()}`,
       "_blank",
@@ -114,8 +123,20 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
         </div>
 
         <div className="overflow-y-auto flex-1">
+          {fromAlert && (
+            <div className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium ${isInStock ? "bg-live/10 text-live" : "bg-text/5 text-text-muted"}`}>
+              <LuBell size={15} aria-hidden="true" />
+              {isInStock
+                ? alertId
+                  ? `Back in stock${item.size ? ` in size ${item.size}` : ""}. Grab it before it's gone.`
+                  : `New in your size${item.size ? ` (${item.size})` : ""}`
+                : "This one sold out again before you got here"}
+            </div>
+          )}
+          {/* Square, like the stores' photos; capped so the buttons stay
+              in view on short phone screens */}
           <div
-            className="relative bg-white h-64 md:h-72 flex items-center justify-center"
+            className="relative bg-white aspect-square max-h-[45vh] w-full flex items-center justify-center"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -123,7 +144,7 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
               <img
                 src={images[imageIndex]}
                 alt={item.product_name}
-                className="w-full h-full object-contain p-4"
+                className="w-full h-full object-contain p-2"
               />
             ) : (
               <div className="w-full h-full bg-surface-muted" />
@@ -171,6 +192,11 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-surface-muted text-text">
                 {item.size}
               </span>
+              )}
+              {fewLeft && (
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">
+                  Only {item.available} left
+                </span>
               )}
               {!isInStock && (
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">
@@ -234,10 +260,10 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
                     : "Buy this now, or add it to your cart to check out with other items"}
                 </p>
               </>
-            ) : alertSet ? (
+            ) : alertSet || alreadyTracking ? (
               <div className="text-center py-2">
                 <p className="text-sm text-live font-medium">
-                  Alert set — we'll notify you when it's back
+                  {alertSet ? "Alert set — we'll notify you when it's back" : "Your alert is still on — we'll tell you the next time it's back"}
                 </p>
               </div>
             ) : (

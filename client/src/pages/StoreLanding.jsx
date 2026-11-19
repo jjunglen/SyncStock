@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   LuArrowRight,
   LuBellRing,
@@ -22,6 +22,9 @@ import api from "../lib/api.js";
 import ProductTile from "../components/store/ProductTile.jsx";
 import { categoryLabel } from "../lib/categories.js";
 import { getSubdomain } from "../lib/getSubdomain.js";
+import { getStoreInfo, readCachedStoreInfo } from "../lib/storeInfo.js";
+import { useSignedIn, signedInHint, isMerchantSession } from "../lib/useSignedIn.js";
+import { ProductSkeletonGrid } from "../components/store/ProductSkeleton.jsx";
 
 // Shopper-facing page on a store's subdomain. Same visual language as
 // the merchant landing (pages/Landing.jsx); every product shown is the
@@ -103,19 +106,45 @@ function NotificationCard({ item, storeName }) {
 // Each product links to its own public page (components/store/ProductTile.jsx)
 const InventoryTile = ProductTile;
 
+// Signed-in shoppers skip the sales pitch: their home is the dashboard
+// (what's in their sizes, their alerts, search). Visitors who signed in
+// last time see a plain loading screen while that's checked, not the
+// pitch flashing first.
 export default function StoreLanding() {
-  const [store, setStore] = useState(null);
+  const signedInAnyone = useSignedIn();
+  // A merchant looking at their own store's home page sees what shoppers see
+  const signedIn = signedInAnyone && isMerchantSession() ? false : signedInAnyone;
+  const navigate = useNavigate();
+  const [hinted] = useState(signedInHint);
+  useEffect(() => {
+    if (signedIn) navigate("/store/dashboard", { replace: true });
+  }, [signedIn, navigate]);
+  if (signedIn || (signedIn === null && hinted)) {
+    return (
+      <div className="min-h-screen bg-bg text-text">
+        <StoreHeader />
+        <div className="mx-auto max-w-6xl px-4 pt-28">
+          <ProductSkeletonGrid count={8} className="grid grid-cols-2 md:grid-cols-4 gap-4" />
+        </div>
+      </div>
+    );
+  }
+  return <StorePitch signedIn={signedIn} />;
+}
+
+function StorePitch({ signedIn }) {
+  // Last visit's store info first, so the name and logo don't flash
+  const [store, setStore] = useState(readCachedStoreInfo);
   const [inventory, setInventory] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loadingInventory, setLoadingInventory] = useState(true);
   // The store's name fills the headline; until it arrives the headline
   // waits (hidden, holding its space) rather than flashing "This store"
-  const [storeLoaded, setStoreLoaded] = useState(false);
+  const [storeLoaded, setStoreLoaded] = useState(() => !!store);
 
   useEffect(() => {
-    api
-      .get("/store")
-      .then((res) => setStore(res.data.data))
+    getStoreInfo()
+      .then(setStore)
       .catch(() => {})
       .finally(() => setStoreLoaded(true));
     api
@@ -326,7 +355,7 @@ export default function StoreLanding() {
               </h2>
             </div>
             {loadingInventory ? (
-              <p className="text-sm text-text-muted text-center">Loading...</p>
+              <ProductSkeletonGrid count={8} className="grid grid-cols-2 md:grid-cols-4 gap-4" />
             ) : recent.length === 0 ? (
               <p className="text-sm text-text-muted text-center">
                 Nothing in stock yet — sign up and we'll tell you when it lands.
@@ -334,7 +363,7 @@ export default function StoreLanding() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {recent.map((item) => (
-                  <InventoryTile key={item.id} item={item} />
+                  <InventoryTile key={item.id} item={item} signedIn={signedIn} />
                 ))}
               </div>
             )}

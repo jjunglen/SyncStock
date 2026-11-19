@@ -103,6 +103,10 @@ router.put("/coming-soon/:productId", ...admin, require("../controllers/comingSo
 router.put("/logo", ...admin, express.raw({ type: "image/*", limit: "400kb" }), uploadLogo);
 router.delete("/logo", ...admin, deleteLogo);
 router.get("/logo/:id", serveLogo);
+// The shopper site as a Home Screen app, in the store's name and logo
+const { storeManifest, storeAppIcon } = require("../controllers/appManifest.controller.js");
+router.get("/manifest", storeManifest);
+router.get("/app-icon/:id/:size.png", storeAppIcon);
 // New-arrival Instagram stories (stories.service.js)
 router.get("/stories/preview", ...admin, previewStory);
 router.post("/stories/test", ...admin, sendTestStories);

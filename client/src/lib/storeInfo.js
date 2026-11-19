@@ -4,14 +4,40 @@ import { brandShades } from "./brandColors.js";
 
 // The current store's public info (GET /store): name, logo, brand color,
 // categories shown. Fetched once per page load and shared, since the
-// header, navbar and branding all need it.
+// header, navbar and branding all need it. The last answer is kept in the
+// browser, so a return visit draws the store's name, logo and color right
+// away instead of flashing "Store" while the request runs.
 let request = null;
+
+const CACHE_KEY = "syncstock_store_info";
+const cacheKey = () => `${CACHE_KEY}:${typeof window !== "undefined" ? window.location.hostname : ""}`;
+
+export const readCachedStoreInfo = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(cacheKey()) || "null");
+    return saved && typeof saved === "object" && saved.name ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveStoreInfo = (info) => {
+  try {
+    if (info?.name) localStorage.setItem(cacheKey(), JSON.stringify(info));
+  } catch {
+    // Storage full or blocked: the page still works, just without the head start
+  }
+};
 
 export const getStoreInfo = () => {
   if (!request) {
     request = api
       .get("/store")
-      .then((res) => res.data.data)
+      .then((res) => {
+        const info = res.data.data;
+        saveStoreInfo(info);
+        return info;
+      })
       .catch((err) => {
         // This store moved to a new subdomain: same page, new address
         const movedTo = err.response?.data?.moved_to;
@@ -27,7 +53,7 @@ export const getStoreInfo = () => {
 };
 
 export function useStoreInfo() {
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState(readCachedStoreInfo);
   useEffect(() => {
     let active = true;
     getStoreInfo()

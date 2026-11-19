@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LuInfo, LuX, LuArrowRight } from "react-icons/lu";
 import { useLayout } from "../ui/AnimatedToggleLayout.jsx";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
+import TrackButton from "../store/TrackButton.jsx";
 
 
 // Clicks on the card open the product; these stay inside the card
@@ -82,7 +83,8 @@ function DetailsPanel({ item, open, onClose, onOpen }) {
 
 // onOpen: opens the product (the dashboard's product view); the details
 // panel's "See condition" uses it
-export default function ProductCard({ item, onOpen }) {
+// signedIn: adds the one-tap Track bell over the photo
+export default function ProductCard({ item, onOpen, signedIn }) {
   const layout = useLayout();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails = !!item.description;
@@ -91,12 +93,12 @@ export default function ProductCard({ item, onOpen }) {
   if (layout === "list") {
     return (
       <div className="relative">
-        <div className="relative w-full aspect-[4/3] md:aspect-[2/1] bg-white overflow-hidden">
+        <div className="relative w-full aspect-square md:aspect-[2/1] bg-white overflow-hidden">
           {item.image_url ? (
             <img
               src={item.image_url}
               alt={item.product_name}
-              className="w-full h-full object-contain p-6 md:p-10 transition-transform duration-300 group-hover:scale-[1.03]"
+              className="w-full h-full object-contain p-2 md:p-4 transition-transform duration-300 group-hover:scale-[1.03]"
             />
           ) : (
             <div className="w-full h-full bg-neutral-200" />
@@ -112,6 +114,9 @@ export default function ProductCard({ item, onOpen }) {
             <span className="absolute top-3 right-3 text-base px-2.5 py-1 rounded-full font-medium bg-black/70 text-white">
             {item.size}
           </span>
+          )}
+          {signedIn && item.shopify_product_id && (
+            <TrackButton item={item} signedIn className="absolute bottom-3 right-3" />
           )}
         </div>
         <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
@@ -132,12 +137,12 @@ export default function ProductCard({ item, onOpen }) {
 
   return (
     <div className="relative">
-      <div className="relative w-full h-44 md:h-52 bg-white rounded-t-xl overflow-hidden">
+      <div className="relative w-full aspect-square bg-white rounded-t-xl overflow-hidden">
         {item.image_url ? (
           <img
             src={item.image_url}
             alt={item.product_name}
-            className="w-full h-full object-contain p-2"
+            className="w-full h-full object-contain p-1"
           />
         ) : (
           <div className="w-full h-full bg-surface-muted" />
@@ -158,6 +163,9 @@ export default function ProductCard({ item, onOpen }) {
             </span>
           )}
         </div>
+        {signedIn && item.shopify_product_id && (
+          <TrackButton item={item} signedIn className="absolute bottom-2 right-2" />
+        )}
       </div>
       <div className="p-3">
         <p className="text-xs md:text-sm font-medium text-text leading-tight line-clamp-2 mb-2 min-h-[2.5em]">

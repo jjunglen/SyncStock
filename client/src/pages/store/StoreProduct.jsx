@@ -16,6 +16,9 @@ import { itemConditionLabel } from "../../lib/alertOptions.js";
 import { categoryLabel } from "../../lib/categories.js";
 import { applyPageMeta as setPageMeta } from "../../lib/pageMeta.js";
 import NotFound from "../NotFound.jsx";
+import Spinner from "../../components/ui/Spinner.jsx";
+import { showToast } from "../../lib/toast.js";
+import { quickTrack, trackedMessage, trackSignupPath, useTracked } from "../../lib/quickTrack.js";
 import { countProductClick } from "../../lib/productClick.js";
 
 // A product's public page (/p/<id>-<name>): photos, sizes, price and
@@ -59,6 +62,8 @@ function StoreProduct({ productId }) {
   const [status, setStatus] = useState("loading");
   const [chosenId, setChosenId] = useState(null);
   const [photo, setPhoto] = useState(0);
+  const isTracked = useTracked(signedIn);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -102,10 +107,27 @@ function StoreProduct({ productId }) {
   if (status === "missing") return <MissingProduct />;
 
   if (status === "loading" || !item) {
+    // The page's shape in grey (photo, name, price, sizes) while it loads
     return (
       <div className="min-h-screen bg-bg text-text">
         <StoreHeader />
-        <p className="pt-32 text-center text-sm text-text-muted">Loading...</p>
+        <div role="status" aria-label="Loading product" className="pt-24 px-4 md:px-10 max-w-6xl mx-auto">
+          <div className="h-3 w-48 mb-6 animate-pulse rounded bg-text/10" />
+          <div className="grid gap-8 md:grid-cols-2" aria-hidden="true">
+            <div className="aspect-square animate-pulse rounded-2xl bg-text/5" />
+            <div className="space-y-4">
+              <div className="h-3 w-24 animate-pulse rounded bg-text/10" />
+              <div className="h-8 w-4/5 animate-pulse rounded bg-text/10" />
+              <div className="h-7 w-24 animate-pulse rounded bg-text/10" />
+              <div className="flex gap-2 pt-4">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-10 w-14 animate-pulse rounded-lg bg-text/10" />
+                ))}
+              </div>
+              <div className="h-11 sm:max-w-sm animate-pulse rounded-lg bg-text/10" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -114,8 +136,22 @@ function StoreProduct({ productId }) {
   const inStock = data.sizes.some((s) => s.in_stock);
   const photos = item.image_urls?.length ? item.image_urls : [item.image_url].filter(Boolean);
   const condition = itemConditionLabel(item);
-  const alertTarget = `/store/dashboard?item=${chosen?.id || item.id}`;
-  const alertLink = signedIn ? alertTarget : `/store/signup?redirect=${encodeURIComponent(alertTarget)}`;
+  // "Get an alert": one tap when signed in (the size they picked, else
+  // their saved sizes); signed out, sign up and the dashboard tracks it
+  const tracked = isTracked(item);
+  const trackItem = { ...item, id: chosen?.id || item.id, size: chosen?.size ?? item.size };
+  const handleTrack = async () => {
+    if (tracking) return;
+    setTracking(true);
+    try {
+      const result = await quickTrack(trackItem, { size: chosenId ? chosen?.size : undefined });
+      showToast({ message: trackedMessage(result), link: { to: "/store/dashboard?tab=alerts", label: "Your alerts" } });
+    } catch (err) {
+      showToast({ tone: "error", message: err.message });
+    } finally {
+      setTracking(false);
+    }
+  };
   const inCart = cart.some((c) => c.id === chosen?.id);
   const cartFull = cart.length >= MAX_CART_ITEMS;
   const handleAdd = () => {
@@ -181,7 +217,7 @@ function StoreProduct({ productId }) {
           {/* Photos */}
           <div>
             <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-white">
-              <img src={photos[photo] || item.image_url} alt={item.product_name} className="h-full w-full object-contain p-6" />
+              <img src={photos[photo] || item.image_url} alt={item.product_name} className="h-full w-full object-contain p-2" />
             </div>
             {photos.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -194,7 +230,7 @@ function StoreProduct({ productId }) {
                     aria-pressed={photo === i}
                     className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-white ${photo === i ? "border-text" : "border-border"}`}
                   >
-                    <img src={src} alt="" loading="lazy" className="h-full w-full object-contain p-1" />
+                    <img src={src} alt="" loading="lazy" className="h-full w-full object-contain p-0.5" />
                   </button>
                 ))}
               </div>
@@ -247,9 +283,23 @@ function StoreProduct({ productId }) {
                   {chosen?.size ? `Size ${chosen.size} is sold out.` : "Sold out."} Get an alert and you'll hear the moment it's back.
                 </p>
               )}
-              <Button to={alertLink} rel="nofollow" variant={chosen?.in_stock ? "secondary" : "primary"} fullWidth>
+              {signedIn ? (
+                <Button
+                  variant={chosen?.in_stock ? "secondary" : "primary"}
+                  fullWidth
+                  onClick={handleTrack}
+                  disabled={tracking}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {tracking ? <Spinner size={16} /> : tracked ? <LuCheck size={16} /> : <LuBellRing size={16} />}
+                    {tracked ? "Tracking · add this size" : chosenId && chosen?.size ? `Get an alert for size ${chosen.size}` : "Get an alert for your size"}
+                  </span>
+                </Button>
+              ) : (
+                <Button to={trackSignupPath(trackItem)} rel="nofollow" variant={chosen?.in_stock ? "secondary" : "primary"} fullWidth>
                   <span className="flex items-center justify-center gap-2"><LuBellRing size={16} /> Get an alert for your size</span>
                 </Button>
+              )}
               {signedIn === false && (
                 <p className="text-xs text-text-muted">
                   You'll make a free account at checkout. It also saves your sizes, so you hear about restocks and price drops by email or push.
@@ -272,7 +322,7 @@ function StoreProduct({ productId }) {
             <h2 className="font-display text-xl font-semibold mb-4">Other sizes in stock</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {data.others.map((other) => (
-                <ProductTile key={other.id} item={other} />
+                <ProductTile key={other.id} item={other} signedIn={signedIn} />
               ))}
             </div>
           </section>
