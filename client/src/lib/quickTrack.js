@@ -30,6 +30,14 @@ const markTracked = (item) => {
   publish();
 };
 
+// Pages showing the alerts list (the dashboard's Your alerts) reload it
+// when a bell adds one. Returns the unsubscribe function.
+const trackListeners = new Set();
+export const onTracked = (fn) => {
+  trackListeners.add(fn);
+  return () => trackListeners.delete(fn);
+};
+
 const loadTracked = () => {
   if (!loading) {
     loading = api
@@ -91,6 +99,7 @@ export async function quickTrack(item, { size } = {}) {
     try {
       const res = await api.post("/alerts", payload);
       markTracked(item);
+      trackListeners.forEach((fn) => fn());
       return { sizes: (res.data.created || []).filter(Boolean) };
     } catch (err) {
       const message = err.response?.data?.message || "";

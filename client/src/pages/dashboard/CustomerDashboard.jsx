@@ -31,7 +31,7 @@ import LoadMore from "../../components/ui/LoadMore.jsx";
 import useInfiniteList from "../../lib/useInfiniteList.js";
 import { ProductSkeletonGrid } from "../../components/store/ProductSkeleton.jsx";
 import { showToast } from "../../lib/toast.js";
-import { quickTrack, setTrackedAlerts, trackedMessage } from "../../lib/quickTrack.js";
+import { onTracked, quickTrack, setTrackedAlerts, trackedMessage } from "../../lib/quickTrack.js";
 
 const TABS = [
   { key: "instock", label: "In stock" },
@@ -235,8 +235,6 @@ export default function CustomerDashboard() {
       .then((res) => {
         const list = res.data.data.alerts || [];
         setAlerts(list);
-        // The track bells on the cards (lib/quickTrack.js)
-        setTrackedAlerts(list);
       })
       .catch((err) => console.error("Failed to load alerts:", err))
       .finally(() => setLoadingAlerts(false));
@@ -245,6 +243,20 @@ export default function CustomerDashboard() {
   useEffect(() => {
     loadAlerts();
   }, [loadAlerts]);
+
+  // The track bells on the cards follow this list, so deleting an
+  // alert here turns its bell back off (lib/quickTrack.js)
+  useEffect(() => {
+    if (!loadingAlerts) setTrackedAlerts(alerts);
+  }, [alerts, loadingAlerts]);
+
+  // A track bell on a card added an alert: show it in Your alerts now
+  useEffect(() => onTracked(loadAlerts), [loadAlerts]);
+
+  // Opening Your alerts always shows the latest list
+  useEffect(() => {
+    if (tab === "alerts") loadAlerts();
+  }, [tab, loadAlerts]);
 
   // Keep stock current while the page is open: refresh every 30 seconds
   // while it's on screen, and right away when the shopper comes back to
