@@ -31,7 +31,8 @@ import LoadMore from "../../components/ui/LoadMore.jsx";
 import useInfiniteList from "../../lib/useInfiniteList.js";
 import { ProductSkeletonGrid } from "../../components/store/ProductSkeleton.jsx";
 import { showToast } from "../../lib/toast.js";
-import { onTracked, quickTrack, setTrackedAlerts, trackedMessage } from "../../lib/quickTrack.js";
+import { hasSizeChoice, onTracked, quickTrack, setTrackedAlerts, trackedMessage } from "../../lib/quickTrack.js";
+import TrackSizesModal from "../../components/store/TrackSizesModal.jsx";
 
 const TABS = [
   { key: "instock", label: "In stock" },
@@ -307,7 +308,9 @@ export default function CustomerDashboard() {
   }, [location.search]);
 
   // ?track=<item>: they tapped a card's Track bell while signed out, then
-  // signed up or logged in. Finish tracking it and say so.
+  // signed up or logged in. Open the size picker for it (or track an item
+  // with no sizes and say so).
+  const [trackPick, setTrackPick] = useState(null);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const trackId = params.get("track");
@@ -317,10 +320,14 @@ export default function CustomerDashboard() {
     navigate(`/store/dashboard${rest ? `?${rest}` : ""}`, { replace: true });
     api
       .get(`/inventory/${trackId}`)
-      .then((res) => quickTrack(res.data.data))
-      .then((result) => {
+      .then(async (res) => {
+        const picked = res.data.data;
+        if (hasSizeChoice(picked)) {
+          setTrackPick(picked);
+          return;
+        }
+        const result = await quickTrack(picked);
         showToast({ message: trackedMessage(result), link: { to: "/store/dashboard?tab=alerts", label: "Your alerts" } });
-        loadAlerts();
       })
       .catch((err) => showToast({ tone: "error", message: err.message || "Couldn't track that item. Try again." }));
     // Only when the address asks for it
@@ -524,6 +531,8 @@ export default function CustomerDashboard() {
       <DashboardNavbar />
       <BackToTop />
 
+      {trackPick && <TrackSizesModal item={trackPick} onClose={() => setTrackPick(null)} />}
+
       {selectedItem && (
         <ProductModal
           key={selectedItem.id}
@@ -650,7 +659,7 @@ export default function CustomerDashboard() {
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
                       >
-                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} signedIn />
+                        <ProductCard item={item} onOpen={() => setSelectedItem(item)} />
                       </CellToggle>
                     ))}
                   </ContainerToggle>

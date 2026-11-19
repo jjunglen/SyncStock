@@ -18,7 +18,8 @@ import { applyPageMeta as setPageMeta } from "../../lib/pageMeta.js";
 import NotFound from "../NotFound.jsx";
 import Spinner from "../../components/ui/Spinner.jsx";
 import { showToast } from "../../lib/toast.js";
-import { quickTrack, trackedMessage, trackSignupPath, useTracked } from "../../lib/quickTrack.js";
+import { hasSizeChoice, quickTrack, trackedMessage, trackSignupPath, useTracked } from "../../lib/quickTrack.js";
+import TrackSizesModal from "../../components/store/TrackSizesModal.jsx";
 import { countProductClick } from "../../lib/productClick.js";
 
 // A product's public page (/p/<id>-<name>): photos, sizes, price and
@@ -64,6 +65,7 @@ function StoreProduct({ productId }) {
   const [photo, setPhoto] = useState(0);
   const isTracked = useTracked(signedIn);
   const [tracking, setTracking] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -136,15 +138,20 @@ function StoreProduct({ productId }) {
   const inStock = data.sizes.some((s) => s.in_stock);
   const photos = item.image_urls?.length ? item.image_urls : [item.image_url].filter(Boolean);
   const condition = itemConditionLabel(item);
-  // "Get an alert": one tap when signed in (the size they picked, else
-  // their saved sizes); signed out, sign up and the dashboard tracks it
+  // "Get an alert": signed in, the size picker (with the size picked on
+  // the page already chosen), or one tap for an item with no sizes;
+  // signed out, sign up and the dashboard opens the picker
   const tracked = isTracked(item);
   const trackItem = { ...item, id: chosen?.id || item.id, size: chosen?.size ?? item.size };
   const handleTrack = async () => {
     if (tracking) return;
+    if (hasSizeChoice(trackItem)) {
+      setPicking(true);
+      return;
+    }
     setTracking(true);
     try {
-      const result = await quickTrack(trackItem, { size: chosenId ? chosen?.size : undefined });
+      const result = await quickTrack(trackItem);
       showToast({ message: trackedMessage(result), link: { to: "/store/dashboard?tab=alerts", label: "Your alerts" } });
     } catch (err) {
       showToast({ tone: "error", message: err.message });
@@ -292,7 +299,7 @@ function StoreProduct({ productId }) {
                 >
                   <span className="flex items-center justify-center gap-2">
                     {tracking ? <Spinner size={16} /> : tracked ? <LuCheck size={16} /> : <LuBellRing size={16} />}
-                    {tracked ? "Tracking · add this size" : chosenId && chosen?.size ? `Get an alert for size ${chosen.size}` : "Get an alert for your size"}
+                    {tracked ? "Tracking · add sizes" : "Get an alert for your size"}
                   </span>
                 </Button>
               ) : (
@@ -339,6 +346,9 @@ function StoreProduct({ productId }) {
         )}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbs).replace(/</g, "\\u003c") }} />
       </main>
+      {picking && (
+        <TrackSizesModal item={trackItem} preselect={chosenId ? chosen?.size : null} onClose={() => setPicking(false)} />
+      )}
       <div className="mt-20">
         <StoreFooter storeName={storeName} />
       </div>

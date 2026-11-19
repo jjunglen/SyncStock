@@ -154,6 +154,9 @@ const fillMissingImages = async (store, alerts) => {
 const CONDITIONS = ["either", "brand_new", "pre_owned"];
 const MAX_SIZES_PER_REQUEST = 12;
 
+// Men's/women's shoe sizes as stores list them ("10M/11.5W", "15M")
+const SNEAKER_SIZE_RE = /^\d{1,2}(\.5)?M(\/\d{1,2}(\.5)?W)?$/;
+
 const createAlert = async (req, res) => {
   try {
     const membership = await resolveMembership(req, res);
@@ -240,7 +243,10 @@ const createAlert = async (req, res) => {
       if (!productSizes.size || category === "trading_cards") {
         sizes = [null];
       } else {
-        sizes = sizes.filter((s) => productSizes.has(s));
+        // Its listed sizes, or any real size: a shopper can ask for a size
+        // the store hasn't had yet (the Track bell's size picker), and the
+        // restock check matches it by name and size when it's listed
+        sizes = sizes.filter((s) => productSizes.has(s) || isValidSize(s) || SNEAKER_SIZE_RE.test(s));
         if (!sizes.length) {
           return res.status(400).json({ success: false, message: "Pick one of this item's sizes" });
         }

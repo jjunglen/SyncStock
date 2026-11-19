@@ -234,3 +234,26 @@ html {
 .skip-link:focus {
   top: 1rem;
 }
+
+/* A tracked product's bell, and its tracked sizes in the size picker
+   (components/store/TrackButton.jsx, TrackSizesModal.jsx): the store's
+   brand color (blue at the Lab), or green for a store without one */
+.track-on {
+  background: var(--color-live);
+  color: #0a0a0a;
+  border-color: transparent;
+}
+:root[data-brand] .track-on {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+.track-on-soft {
+  color: var(--color-live);
+  border-color: color-mix(in srgb, var(--color-live) 45%, transparent);
+  background: color-mix(in srgb, var(--color-live) 12%, transparent);
+}
+:root[data-brand] .track-on-soft {
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
