@@ -3,6 +3,7 @@ import { LuInfo, LuX, LuArrowRight } from "react-icons/lu";
 import { useLayout } from "../ui/AnimatedToggleLayout.jsx";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
 import TrackButton from "../store/TrackButton.jsx";
+import CardPhotos from "./CardPhotos.jsx";
 
 
 // Clicks on the card open the product; these stay inside the card
@@ -94,15 +95,7 @@ export default function ProductCard({ item, onOpen, signedIn }) {
     return (
       <div className="relative">
         <div className="relative w-full aspect-square md:aspect-[2/1] bg-white overflow-hidden">
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.product_name}
-              className="w-full h-full object-contain p-2 md:p-4 transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="w-full h-full bg-neutral-200" />
-          )}
+          <CardPhotos item={item} imgClassName="p-2 md:p-4" emptyClassName="bg-neutral-200" large />
           {itemConditionLabel(item) && (
             <span
               className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/70 text-white"}`}
@@ -138,15 +131,7 @@ export default function ProductCard({ item, onOpen, signedIn }) {
   return (
     <div className="relative">
       <div className="relative w-full aspect-square bg-white rounded-t-xl overflow-hidden">
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.product_name}
-            className="w-full h-full object-contain p-1"
-          />
-        ) : (
-          <div className="w-full h-full bg-surface-muted" />
-        )}
+        <CardPhotos item={item} imgClassName="p-1" />
         {/* One row that wraps, so the condition and size never overlap on
             a narrow (two-across) phone card */}
         <div className="absolute top-2 inset-x-2 flex flex-wrap items-start justify-between gap-1 pointer-events-none">
