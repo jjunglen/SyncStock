@@ -65,7 +65,7 @@ export default function Privacy() {
         <li>
           Which products you open on a store's page, kept for 7 days, so
           the store can see which items shoppers look at most, and other
-          shoppers can see how many people viewed an item today. Only
+          shoppers can see how many people viewed an item this week. Only
           counts are shown — never who viewed an item.
         </li>
         <li>

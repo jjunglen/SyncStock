@@ -132,8 +132,8 @@ const getInventoryItem = async (req, res) => {
 // POST /api/inventory/:id/view — a shopper opened this product. Recorded
 // once per shopper per product (refreshed on every look) for the
 // merchant's "Most viewed this week" (analytics.controller.js). Answers
-// how many other shoppers looked at it in the last 24 hours, for the
-// product pop-out's "N people viewed this today" (only a count, never who).
+// how many other shoppers looked at it in the last 7 days (as long as
+// views are kept), for the product pop-out's "N people viewed this this week" (only a count, never who).
 const recordProductView = async (req, res) => {
   try {
     const item = await Inventory.findOne({
@@ -157,7 +157,7 @@ const recordProductView = async (req, res) => {
         store_id: req.store.id,
         shopify_product_id: item.shopify_product_id,
         account_id: { [Op.ne]: req.account.id },
-        viewed_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        viewed_at: { [Op.gte]: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
       },
     });
     return res.status(200).json({ success: true, data: { viewers } });

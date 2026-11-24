@@ -56,7 +56,7 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
   };
 
   // Count this shopper's look (the merchant's "Most viewed" panel); the
-  // answer is how many other shoppers looked at it in the last 24 hours
+  // answer is how many other shoppers looked at it in the last 7 days
   const [viewers, setViewers] = useState(0);
   useEffect(() => {
     let active = true;
@@ -206,7 +206,7 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
               {showViewers && (
                 <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-text/5 text-text-muted">
                   <LuEye size={12} aria-hidden="true" />
-                  {viewers} people viewed this today
+                  {viewers} people viewed this this week
                 </span>
               )}
               {!isInStock && (
