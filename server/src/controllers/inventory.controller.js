@@ -131,8 +131,9 @@ const getInventoryItem = async (req, res) => {
 
 // POST /api/inventory/:id/view — a shopper opened this product. Recorded
 // once per shopper per product (refreshed on every look) for the
-// merchant's "Most viewed this week" (analytics.controller.js). Shoppers
-// never see view counts.
+// merchant's "Most viewed this week" (analytics.controller.js). Answers
+// how many other shoppers looked at it in the last 24 hours, for the
+// product pop-out's "N people viewed this today" (only a count, never who).
 const recordProductView = async (req, res) => {
   try {
     const item = await Inventory.findOne({
@@ -151,7 +152,15 @@ const recordProductView = async (req, res) => {
       },
       { conflictFields: ["store_id", "shopify_product_id", "account_id"] },
     );
-    return res.status(204).end();
+    const viewers = await ProductView.count({
+      where: {
+        store_id: req.store.id,
+        shopify_product_id: item.shopify_product_id,
+        account_id: { [Op.ne]: req.account.id },
+        viewed_at: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+    return res.status(200).json({ success: true, data: { viewers } });
   } catch (error) {
     console.error("Record product view error:", error.message);
     return res.status(500).json({ success: false, message: "Failed to record view" });

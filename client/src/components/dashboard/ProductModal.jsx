@@ -7,6 +7,7 @@ import {
   LuChevronRight,
   LuShoppingBag,
   LuCheck,
+  LuEye,
 } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
 import Spinner from "../ui/Spinner.jsx";
@@ -54,11 +55,19 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
     else if (deltaX < -40) showNextImage();
   };
 
-  // Count this shopper's look for the merchant's "Most viewed" panel —
-  // shoppers don't see view counts
+  // Count this shopper's look (the merchant's "Most viewed" panel); the
+  // answer is how many other shoppers looked at it in the last 24 hours
+  const [viewers, setViewers] = useState(0);
   useEffect(() => {
-    api.post(`/inventory/${item.id}/view`).catch(() => {});
+    let active = true;
+    api
+      .post(`/inventory/${item.id}/view`)
+      .then((res) => active && setViewers(res.data?.data?.viewers || 0))
+      .catch(() => {});
     countProductClick(item.shopify_product_id, "popup");
+    return () => {
+      active = false;
+    };
   }, [item.id, item.shopify_product_id]);
 
   useEffect(() => {
@@ -68,7 +77,8 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
   }, [onClose]);
 
   const isInStock = item.available > 0;
-  const fewLeft = isInStock && item.available <= 2;
+  // Worth showing from 2 other shoppers up
+  const showViewers = viewers >= 2;
   // Already tracking this exact size (so a sold-out item needs no new alert)
   const sameName = (a) => String(a.product_name || "").trim().toLowerCase() === String(item.product_name || "").trim().toLowerCase();
   const alreadyTracking = (alerts || []).some((a) => sameName(a) && (a.size || null) === (item.size || null));
@@ -193,9 +203,10 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
                 {item.size}
               </span>
               )}
-              {fewLeft && (
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-warn/10 text-warn">
-                  Only {item.available} left
+              {showViewers && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-text/5 text-text-muted">
+                  <LuEye size={12} aria-hidden="true" />
+                  {viewers} people viewed this today
                 </span>
               )}
               {!isInStock && (
