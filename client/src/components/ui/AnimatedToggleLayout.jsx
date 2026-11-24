@@ -5,7 +5,9 @@ import Button from "./Button.jsx";
 const LayoutContext = React.createContext("2col");
 
 const LAYOUT_CONFIGS = [
-  { mode: "list", className: "flex flex-col space-y-3", label: "List view" },
+  // Square photos, one per row: centered and capped on wider screens
+  // (tablets, computers) so each photo fills its card without getting huge
+  { mode: "list", className: "flex flex-col space-y-3 w-full md:max-w-xl md:mx-auto", label: "List view" },
   { mode: "2col", className: "grid grid-cols-2 gap-4", label: "2 column" },
   {
     mode: "4col",

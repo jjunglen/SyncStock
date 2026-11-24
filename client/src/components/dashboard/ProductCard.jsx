@@ -94,8 +94,8 @@ export default function ProductCard({ item, onOpen, signedIn }) {
   if (layout === "list") {
     return (
       <div className="relative">
-        <div className="relative w-full aspect-square md:aspect-[2/1] bg-white overflow-hidden">
-          <CardPhotos item={item} imgClassName="p-2 md:p-4" emptyClassName="bg-neutral-200" large />
+        <div className="relative w-full aspect-square bg-white overflow-hidden">
+          <CardPhotos item={item} imgClassName="p-2" emptyClassName="bg-neutral-200" large />
           {itemConditionLabel(item) && (
             <span
               className={`absolute top-3 left-3 text-base font-medium px-2.5 py-1 rounded-full ${["brand_new", "sealed", "graded"].includes(item.condition) ? "bg-accent text-accent-text" : "bg-black/70 text-white"}`}
