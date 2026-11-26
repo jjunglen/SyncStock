@@ -107,7 +107,10 @@ export const CellToggle = React.forwardRef(
         whileHover={{ scale: layout === "list" ? 1 : 1.02 }}
         transition={{ type: "spring", stiffness: 300, damping: 28 }}
         exit="hidden"
-        className={`bg-linear-to-b from-card to-card-end border border-border rounded-xl overflow-hidden cursor-pointer hover:border-text/20 transition-colors ${className}`}
+        // content-visibility: cards far off screen aren't drawn (long lists
+        // of photos ran iPhone Safari out of memory); the browser keeps
+        // each card's last size so scrolling doesn't jump
+        className={`bg-linear-to-b from-card to-card-end border border-border rounded-xl overflow-hidden cursor-pointer hover:border-text/20 transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_320px] ${className}`}
         onClick={onClick}
         ref={ref}
         {...props}

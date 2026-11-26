@@ -18,9 +18,17 @@ export default function BackToTop() {
     };
   }, []);
 
+  // From far down, jump to one screen from the top and glide only the
+  // rest: a smooth scroll through a long list draws every card (and photo)
+  // on the way, which ran iPhone Safari out of memory
   const toTop = () => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    if (reduce) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+    if (window.scrollY > window.innerHeight * 1.5) window.scrollTo({ top: window.innerHeight, behavior: "auto" });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "smooth" }));
   };
 
   return (
