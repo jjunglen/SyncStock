@@ -257,3 +257,37 @@ html {
   border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
   background: color-mix(in srgb, var(--color-primary) 14%, transparent);
 }
+
+/* "Good deal" (components/dashboard/DealChip.jsx): an orange chip with a
+   flickering fire. Orange reads on dark (the default) and light themes. */
+.deal-chip {
+  color: #fb923c;
+  background: rgba(249, 115, 22, 0.14);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+}
+.deal-text {
+  color: #fb923c;
+}
+:root[data-theme="light"] .deal-chip,
+.deal-chip.deal-chip-light {
+  color: #c2410c;
+  background: #fff1e6;
+  border-color: #fed7aa;
+}
+:root[data-theme="light"] .deal-text {
+  color: #c2410c;
+}
+@keyframes fire-flicker {
+  0%, 100% { transform: scale(1) rotate(-4deg); }
+  25% { transform: scale(1.15) rotate(3deg); }
+  50% { transform: scale(0.94) rotate(-1deg); }
+  75% { transform: scale(1.08) rotate(2deg); }
+}
+.fire-flicker {
+  display: inline-block;
+  transform-origin: 50% 90%;
+  animation: fire-flicker 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fire-flicker { animation: none; }
+}

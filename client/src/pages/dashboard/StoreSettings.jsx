@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter, LuSearch, LuClock } from "react-icons/lu";
+import { LuSettings, LuEye, LuPalette, LuMail, LuUpload, LuHandCoins, LuCircleCheck, LuLayoutTemplate, LuExternalLink, LuSmartphone, LuInstagram, LuQrCode, LuPrinter, LuSearch, LuClock, LuFlame } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import MerchantSidebar from "../../components/dashboard/MerchantSidebar.jsx";
 import Button from "../../components/ui/Button.jsx";
@@ -756,6 +756,26 @@ export default function StoreSettings() {
                   disabled={busy === "listed"}
                   onChange={(value) =>
                     run("listed", () => api.put("/store/settings", { app_listed: value }), value ? "Your store is listed" : "Your store is hidden")
+                  }
+                />
+              </div>
+            </Section>
+
+            {/* stores.deal_badges: the 🔥 "Good deal" chip on shopper
+                product cards (server services/dealBadge.service.js) */}
+            <Section
+              icon={LuFlame}
+              title="Good deal badges"
+              description="Add a 🔥 Good deal badge to products priced within 10% of the market, or under it. Brand new items are compared with StockX, pre-owned items with your own used sales (3 or more). Shoppers can tap the badge to see both prices."
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm">Show Good deal badges</span>
+                <Switch
+                  label="Show Good deal badges"
+                  checked={!!settings.deal_badges}
+                  disabled={busy === "deals"}
+                  onChange={(value) =>
+                    run("deals", () => api.put("/store/settings", { deal_badges: value }), value ? "Good deal badges are on" : "Good deal badges are off")
                   }
                 />
               </div>

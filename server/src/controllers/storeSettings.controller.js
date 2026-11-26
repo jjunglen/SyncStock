@@ -70,6 +70,7 @@ const settingsFor = (store) => ({
   // Phone app store list — read-only until the app launches (the
   // settings switch shows "Coming soon")
   app_listed: store.app_listed,
+  deal_badges: store.deal_badges,
   instagram_stories: store.instagram_stories,
   story_frequency: store.story_frequency,
   story_background: store.story_background,
@@ -143,6 +144,9 @@ const updateSettings = async (req, res) => {
 
     // Listed on syncstock.io/stores (and later the phone app)
     if (req.body.app_listed !== undefined) changes.app_listed = !!req.body.app_listed;
+
+    // "Good deal" badges on product cards (dealBadge.service.js)
+    if (req.body.deal_badges !== undefined) changes.deal_badges = !!req.body.deal_badges;
 
     // Turning stories on: the first email covers the last day's arrivals
     if (instagram_stories !== undefined) {

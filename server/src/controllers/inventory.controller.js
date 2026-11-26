@@ -9,6 +9,7 @@ const { cardPrefsWhere, RAW_CONDITIONS } = require("../utils/cardDetails.js");
 const { searchInventoryItems, suggestInventory, cleanQuery } = require("../utils/inventorySearch.js");
 const { recordSearch } = require("../services/searchLog.service.js");
 const { withStockxDetails } = require("../services/comingSoonStockx.service.js");
+const { withDeals } = require("../services/dealBadge.service.js");
 
 // Must match the Inventory.category ENUM — anything else makes Postgres throw
 const CATEGORIES = Inventory.getAttributes().category.values;
@@ -120,7 +121,7 @@ const getInventoryItem = async (req, res) => {
         .json({ success: false, message: "Inventory item not found" });
     }
 
-    return res.status(200).json({ success: true, data: item });
+    return res.status(200).json({ success: true, data: (await withDeals(req.store, [item]))[0] });
   } catch (error) {
     console.error("Get inventory item error:", error.message);
     return res
@@ -195,7 +196,7 @@ const searchInventory = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: rows,
+      data: await withDeals(req.store, rows),
       meta: { ...buildMeta(count, page, limit), match },
     });
     // For the search monitor: first page only (later pages are the same search)
@@ -281,7 +282,7 @@ const getInventoryInMySizes = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: rows,
+      data: await withDeals(req.store, rows),
       meta: { ...buildMeta(count, page, limit), match },
     });
   } catch (error) {

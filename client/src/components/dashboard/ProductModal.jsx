@@ -10,6 +10,7 @@ import {
   LuEye,
 } from "react-icons/lu";
 import Button from "../ui/Button.jsx";
+import { DealCompare } from "./DealChip.jsx";
 import Spinner from "../ui/Spinner.jsx";
 import api from "../../lib/api.js";
 import { useCart, addToCart, MAX_CART_ITEMS } from "../../lib/cart.js";
@@ -223,9 +224,10 @@ export default function ProductModal({ item, onClose, onAlertCreated, alerts, on
               <p className="text-xs text-text-muted mb-4">{item.sku}</p>
             )}
 
-            <p className="text-2xl font-bold text-text mb-5">
+            <p className={`text-2xl font-bold text-text ${item.deal ? "mb-3" : "mb-5"}`}>
               ${parseFloat(item.price).toFixed(0)}
             </p>
+            <DealCompare item={item} />
 
             {/* The product's description from Shopify (condition notes,
                 what's included) — plain text, before they buy */}

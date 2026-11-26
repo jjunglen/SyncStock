@@ -308,6 +308,14 @@ const Store = sequelize.define(
       allowNull: false,
       defaultValue: false,
     },
+    // "Good deal" 🔥 badges on shopper product cards: the price against
+    // StockX (new) or the store's used sales (dealBadge.service.js).
+    // Off until the merchant turns it on. migrateDealBadges.js
+    deal_badges: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
     // Listed in the SyncStock phone app's store list (merchant opt-in)
     app_listed: {
       type: DataTypes.BOOLEAN,

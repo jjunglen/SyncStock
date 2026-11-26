@@ -4,6 +4,7 @@ import { useLayout } from "../ui/AnimatedToggleLayout.jsx";
 import { itemConditionLabel } from "../../lib/alertOptions.js";
 import TrackButton from "../store/TrackButton.jsx";
 import CardPhotos from "./CardPhotos.jsx";
+import { DealChip } from "./DealChip.jsx";
 
 
 // Clicks on the card open the product; these stay inside the card
@@ -112,10 +113,13 @@ export default function ProductCard({ item, onOpen, signedIn }) {
             <TrackButton item={item} signedIn className="absolute bottom-3 right-3" />
           )}
         </div>
-        <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
-          <p className="text-lg text-neutral-500 truncate">
-            {item.product_name}
-          </p>
+        <div className="relative flex items-end justify-between gap-4 bg-white px-4 py-3">
+          <div className="min-w-0">
+            <DealChip item={item} large light />
+            <p className="text-lg text-neutral-500 truncate">
+              {item.product_name}
+            </p>
+          </div>
           <div className="flex items-center gap-3 shrink-0">
             {hasDetails && <DetailsButton open={detailsOpen} onToggle={toggleDetails} large />}
             <span className="text-lg font-medium text-neutral-900">
@@ -152,7 +156,8 @@ export default function ProductCard({ item, onOpen, signedIn }) {
           <TrackButton item={item} signedIn className="absolute bottom-2 right-2" />
         )}
       </div>
-      <div className="p-3">
+      <div className="relative p-3">
+        <DealChip item={item} compact={layout === "4col"} />
         <p className="text-xs md:text-sm font-medium text-text leading-tight line-clamp-2 mb-2 min-h-[2.5em]">
           {item.product_name}
         </p>

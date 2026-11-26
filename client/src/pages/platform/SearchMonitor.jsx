@@ -68,12 +68,13 @@ function DeviceSplit({ devices }) {
               people(d.key) ? <div key={d.key} className={d.bar} style={{ width: `${(people(d.key) / total) * 100}%` }} /> : null,
             )}
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          {/* Wraps on phones instead of cutting the labels off */}
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
             {DEVICES.map(({ key, label, icon: Icon, bar }) => (
-              <div key={key} className="flex items-center gap-2 min-w-0">
+              <div key={key} className="flex items-center gap-2">
                 <span className={`size-2.5 shrink-0 rounded-full ${bar}`} aria-hidden="true" />
                 <Icon size={15} className="text-text-muted shrink-0" aria-hidden="true" />
-                <span className="text-sm truncate">
+                <span className="text-sm whitespace-nowrap">
                   {label} <span className="font-semibold">{share(key)}%</span>
                   <span className="text-text-muted text-xs"> · {count(people(key))}</span>
                 </span>
@@ -115,10 +116,10 @@ function MostClicked({ clicked, allStores }) {
                 href={`https://${row.subdomain}.syncstock.io${productPath(row)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="group flex items-center gap-3 text-sm"
+                className="group flex items-start gap-2.5 sm:gap-3 text-sm"
               >
-                <span className="w-5 text-text-muted shrink-0">{i + 1}</span>
-                <span className="size-10 shrink-0 overflow-hidden rounded-lg bg-white">
+                <span className="w-4 sm:w-5 pt-3 text-xs sm:text-sm text-text-muted shrink-0">{i + 1}</span>
+                <span className="size-12 sm:size-10 shrink-0 overflow-hidden rounded-lg bg-white">
                   {row.image_url ? (
                     <img src={row.image_url} alt="" loading="lazy" className="h-full w-full object-contain p-0.5" />
                   ) : (
@@ -127,20 +128,21 @@ function MostClicked({ clicked, allStores }) {
                     </span>
                   )}
                 </span>
+                {/* Names wrap to two lines on phones instead of cutting off */}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate group-hover:underline" title={row.product_name}>
+                  <span className="block line-clamp-2 leading-snug group-hover:underline" title={row.product_name}>
                     {row.product_name || "Removed product"}
                   </span>
-                  <span className="block text-[11px] text-text-muted truncate">
+                  <span className="mt-0.5 block text-[11px] text-text-muted line-clamp-2">
                     {allStores && `${row.store_name} · `}
                     {row.in_stock ? "In stock" : "Sold out"}
                   </span>
                 </span>
                 <span className="shrink-0 text-right">
-                  <span className="block font-semibold" title="People">
-                    {count(row.people)}
+                  <span className="block font-semibold whitespace-nowrap">
+                    {count(row.people)} <span className="text-[11px] font-normal text-text-muted">{row.people === 1 ? "person" : "people"}</span>
                   </span>
-                  <span className="block text-[11px] text-text-muted" title="Opens">
+                  <span className="block text-[11px] text-text-muted whitespace-nowrap">
                     {count(row.clicks)} open{row.clicks === 1 ? "" : "s"}
                   </span>
                 </span>
