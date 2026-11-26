@@ -22,9 +22,26 @@ const savingsLine = (price, deal) => {
   return `Within 10% of ${against}.`;
 };
 
+// The fire flickers only while it's on screen (one shared observer), so a
+// long list of deals doesn't keep dozens of animations running
+let fireObserver = null;
+const watchFire = (el) => {
+  if (typeof IntersectionObserver === "undefined") {
+    el.classList.add("on");
+    return () => {};
+  }
+  fireObserver ||= new IntersectionObserver((entries) => {
+    for (const e of entries) e.target.classList.toggle("on", e.isIntersecting);
+  });
+  fireObserver.observe(el);
+  return () => fireObserver.unobserve(el);
+};
+
 function Fire({ className = "" }) {
+  const ref = useRef(null);
+  useEffect(() => (ref.current ? watchFire(ref.current) : undefined), []);
   return (
-    <span className={`fire-flicker ${className}`} aria-hidden="true">
+    <span ref={ref} className={`fire-flicker ${className}`} aria-hidden="true">
       🔥
     </span>
   );

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { cardImage } from "../../lib/cardImage.js";
 
 // A product card's photos, swipeable right on the card (Browse inventory,
 // In stock) so shoppers can flip through them without opening it.
@@ -7,26 +8,37 @@ import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 // trackpad swipes). A tap on a photo still opens the product; the arrows
 // keep their clicks inside the card. Dots show where you are.
 // Fills its parent (a sized, relative photo box).
+//
+// Memory: only the first photo loads with the card, and each next one
+// only once the shopper starts swiping toward it (a long list of cards
+// with every photo loaded ran iPhone Safari out of memory). Photos come
+// resized for cards (lib/cardImage.js).
 
 const MAX_PHOTOS = 8;
 
 export default function CardPhotos({ item, imgClassName = "", emptyClassName = "bg-surface-muted", large = false }) {
   const photos = useMemo(() => {
     const list = item.image_urls?.length ? item.image_urls : [item.image_url];
-    return [...new Set(list.filter(Boolean))].slice(0, MAX_PHOTOS);
+    return [...new Set(list.filter(Boolean))].slice(0, MAX_PHOTOS).map((url) => cardImage(url));
   }, [item.image_urls, item.image_url]);
   const scroller = useRef(null);
   const [index, setIndex] = useState(0);
+  // Photos up to this one have their image loaded
+  const [reach, setReach] = useState(0);
+  const loadUpTo = (i) => setReach((r) => Math.max(r, Math.min(i, photos.length - 1)));
 
   if (!photos.length) return <div className={`h-full w-full ${emptyClassName}`} />;
 
   if (photos.length === 1) {
-    return <img src={photos[0]} alt={item.product_name} className={`h-full w-full object-contain ${imgClassName}`} />;
+    return <img src={photos[0]} alt={item.product_name} decoding="async" className={`h-full w-full object-contain ${imgClassName}`} />;
   }
 
   const onScroll = () => {
     const el = scroller.current;
-    if (el) setIndex(Math.round(el.scrollLeft / el.clientWidth));
+    if (!el) return;
+    const at = Math.round(el.scrollLeft / el.clientWidth);
+    setIndex(at);
+    loadUpTo(at + 1);
   };
 
   const go = (e, step) => {
@@ -35,6 +47,7 @@ export default function CardPhotos({ item, imgClassName = "", emptyClassName = "
     const el = scroller.current;
     if (!el) return;
     const next = (index + step + photos.length) % photos.length;
+    loadUpTo(Math.max(next, index + 1));
     el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
   };
 
@@ -47,19 +60,26 @@ export default function CardPhotos({ item, imgClassName = "", emptyClassName = "
       <div
         ref={scroller}
         onScroll={onScroll}
+        // A finger (or mouse) on the photo: the next photo starts loading
+        onPointerDown={() => loadUpTo(index + 1)}
+        onMouseEnter={() => loadUpTo(1)}
         className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label={`${photos.length} photos of ${item.product_name}`}
       >
-        {photos.map((src, i) => (
-          <img
-            key={src}
-            src={src}
-            alt={i === 0 ? item.product_name : ""}
-            loading={i === 0 ? undefined : "lazy"}
-            draggable={false}
-            className={`h-full w-full shrink-0 snap-center snap-always object-contain ${imgClassName}`}
-          />
-        ))}
+        {photos.map((src, i) =>
+          i <= reach ? (
+            <img
+              key={src}
+              src={src}
+              alt={i === 0 ? item.product_name : ""}
+              decoding="async"
+              draggable={false}
+              className={`h-full w-full shrink-0 snap-center snap-always object-contain ${imgClassName}`}
+            />
+          ) : (
+            <div key={src} className="h-full w-full shrink-0 snap-center snap-always" aria-hidden="true" />
+          ),
+        )}
       </div>
 
       <button type="button" onClick={(e) => go(e, -1)} aria-label="Previous photo" className={`${arrow} left-2`}>

@@ -283,11 +283,14 @@ html {
   50% { transform: scale(0.94) rotate(-1deg); }
   75% { transform: scale(1.08) rotate(2deg); }
 }
+/* Runs only while on screen (.on, set by DealChip's observer) */
 .fire-flicker {
   display: inline-block;
   transform-origin: 50% 90%;
+}
+.fire-flicker.on {
   animation: fire-flicker 1.1s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .fire-flicker { animation: none; }
+  .fire-flicker.on { animation: none; }
 }
